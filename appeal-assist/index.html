@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Appeal Assist</title>
   <meta name="description" content="Guide and letter builder for inpatient medical necessity denials. Prototype using synthetic notices.">
   <link rel="stylesheet" href="styles.css">
@@ -13,60 +13,72 @@
   <header class="site-header">
     <div class="wrap header-row">
       <p class="brand">Appeal Assist</p>
-      <p class="badge" role="note">Prototype. Synthetic notices only. Do not enter real patient information.</p>
+      <p class="step-count" id="step-count" aria-hidden="true"></p>
     </div>
-    <nav aria-label="Progress" class="wrap">
-      <ol class="steps" id="step-list"></ol>
+    <div class="progress" aria-hidden="true"><div class="progress-fill" id="progress-fill"></div></div>
+    <nav aria-label="Progress" class="visually-hidden">
+      <ol id="step-list"></ol>
     </nav>
   </header>
 
-  <main id="main" class="wrap" tabindex="-1">
+  <main id="main" tabindex="-1">
     <p id="status" class="visually-hidden" aria-live="polite"></p>
 
     <!-- Step 0: Purpose and limits (US-01) -->
     <section class="step" data-step="0" aria-labelledby="h-intro">
-      <h1 id="h-intro">Get help answering a hospital stay denial</h1>
-      <p>This guide helps you organize an appeal when your insurance denied coverage for a hospital stay because it said the stay was not medically necessary.</p>
-      <div class="card">
-        <h2>What this guide does</h2>
-        <ul>
-          <li>Helps you write down the reason given on your denial notice.</li>
-          <li>Shows appeal information for your state and insurance type, only when our team has checked it against an official source.</li>
-          <li>Gives you a checklist of information that is commonly requested.</li>
-          <li>Builds a draft letter you review, edit and download.</li>
-        </ul>
-        <h2>What this guide does not do</h2>
-        <ul>
-          <li>It does not give legal advice or medical advice.</li>
-          <li>It does not decide whether you are covered.</li>
-          <li>It does not create medical facts or evidence.</li>
-          <li>It does not submit anything. You send your appeal yourself.</li>
-        </ul>
-        <p>For official help, visit <a id="intro-help" href="https://www.healthcare.gov/" target="_blank" rel="noopener">HealthCare.gov<span class="visually-hidden"> (opens in new tab)</span></a>.</p>
+      <div class="hero wrap">
+        <p class="eyebrow">Inpatient medical necessity denials</p>
+        <h1 id="h-intro">Answer a hospital stay denial, one step at a time.</h1>
+        <p class="lede">Organize what your notice says, see what to gather, and get a draft appeal letter you review and send yourself.</p>
       </div>
-      <div class="field check">
-        <input type="checkbox" id="ack">
-        <label for="ack">I understand this guide organizes my appeal, gives no legal or medical advice, and submits nothing.</label>
-      </div>
-      <div class="actions">
-        <button type="button" class="primary" data-next>Start</button>
-        <button type="button" id="resume" class="secondary" hidden>Resume saved progress</button>
+      <div class="wrap">
+        <div class="banner" role="note">Prototype. Use synthetic notices only. Do not enter or upload real patient information.</div>
+        <div class="grid-2">
+          <div class="tile">
+            <h2>What it does</h2>
+            <ul class="ticks">
+              <li>Reads the details from your notice, or lets you type them.</li>
+              <li>Shows appeal rules only when our team has checked them against an official source.</li>
+              <li>Lists information that is commonly requested.</li>
+              <li>Writes a draft letter with Claude, using only what you confirmed.</li>
+            </ul>
+          </div>
+          <div class="tile">
+            <h2>What it does not do</h2>
+            <ul class="crosses">
+              <li>Give legal or medical advice.</li>
+              <li>Decide whether you are covered.</li>
+              <li>Create medical facts or evidence.</li>
+              <li>Submit anything. You send your appeal yourself.</li>
+            </ul>
+          </div>
+        </div>
+        <p class="small-print">For official help, visit <a href="https://www.healthcare.gov/" target="_blank" rel="noopener">HealthCare.gov<span class="visually-hidden"> (opens in new tab)</span></a>.</p>
+        <div class="field check">
+          <input type="checkbox" id="ack">
+          <label for="ack">I understand this guide organizes my appeal, gives no legal or medical advice, and submits nothing.</label>
+        </div>
+        <div class="actions">
+          <button type="button" class="primary" data-next>Get started</button>
+          <button type="button" id="resume" class="secondary" hidden>Resume where I left off</button>
+        </div>
       </div>
     </section>
 
     <!-- Step 1: State and insurance type (US-03) -->
-    <section class="step" data-step="1" aria-labelledby="h-context" hidden>
-      <h1 id="h-context">Your state and insurance type</h1>
-      <p>Appeal rules differ by state and insurance type. Your choices decide what the guide shows you.</p>
+    <section class="step wrap" data-step="1" aria-labelledby="h-context" hidden>
+      <p class="eyebrow">Your plan</p>
+      <h1 id="h-context">Where are you, and who insures you?</h1>
+      <p class="lede">Appeal rules differ by state and insurance type. Your choices decide what the guide shows you.</p>
       <div class="field">
         <label for="state">State</label>
         <select id="state" aria-describedby="state-hint"></select>
-        <p class="hint" id="state-hint">Choose the state where your plan is based. Your notice or plan documents usually list it. This prototype covers New York only.</p>
+        <p class="hint" id="state-hint">The state where your plan is based. This prototype covers New York only.</p>
       </div>
       <fieldset class="field">
         <legend>Insurance type</legend>
         <p class="hint">Look at the front of your insurance card or the top of your denial notice.</p>
-        <div id="plan-types"></div>
+        <div id="plan-types" class="choice-grid"></div>
       </fieldset>
       <div class="actions">
         <button type="button" class="secondary" data-back>Back</button>
@@ -75,40 +87,63 @@
     </section>
 
     <!-- Step 2: Notice details (US-02) -->
-    <section class="step" data-step="2" aria-labelledby="h-notice" hidden>
-      <h1 id="h-notice">Details from your denial notice</h1>
-      <p>Copy details from your notice. Leave anything you cannot find blank. The letter will mark it so you can fill it later.</p>
-      <div class="card sample-box">
-        <label for="sample">Testing: load a synthetic notice</label>
-        <div class="inline">
-          <select id="sample"></select>
-          <button type="button" class="secondary" id="load-sample">Load</button>
+    <section class="step wrap" data-step="2" aria-labelledby="h-notice" hidden>
+      <p class="eyebrow">Your notice</p>
+      <h1 id="h-notice">What does your denial notice say?</h1>
+      <p class="lede">Upload the notice and Claude will pull out the details, or type them yourself. Either way, you check every field.</p>
+
+      <div class="tile upload" id="upload-tile">
+        <h2>Upload your notice</h2>
+        <p class="hint" id="upload-hint">Photo, screenshot, PDF or text file. Synthetic notices only.</p>
+        <div class="dropzone" id="dropzone">
+          <input type="file" id="notice-file" accept="image/png,image/jpeg,image/webp,image/gif,application/pdf,.pdf,text/plain,.txt" aria-describedby="upload-hint">
+          <label for="notice-file" class="dropzone-label">
+            <span class="dz-title">Choose a file</span>
+            <span class="dz-sub">or drag it here</span>
+          </label>
         </div>
+        <p id="file-name" class="file-name" hidden></p>
+        <div class="actions tight">
+          <button type="button" class="primary" id="read-notice" disabled>Read with Claude</button>
+          <button type="button" class="secondary" id="cancel-read" hidden>Stop</button>
+        </div>
+        <p id="read-status" class="read-status" role="status"></p>
       </div>
+
+      <details class="example">
+        <summary>No notice handy? Try a made up example</summary>
+        <p class="hint">These are fictional notices our team wrote for testing. They are not real letters.</p>
+        <div class="inline">
+          <label for="sample" class="visually-hidden">Example notice</label>
+          <select id="sample"></select>
+          <button type="button" class="secondary" id="load-sample">Use this example</button>
+        </div>
+      </details>
+
       <div class="field">
         <label for="planName">Plan name</label>
         <input id="planName" type="text" autocomplete="off" aria-describedby="planName-hint">
-        <p class="hint" id="planName-hint">Usually in the letterhead or first paragraph of the notice.</p>
+        <p class="hint" id="planName-hint">Usually in the letterhead or first paragraph.</p>
       </div>
       <div class="field">
         <label for="service">Inpatient service denied</label>
         <input id="service" type="text" autocomplete="off" aria-describedby="service-hint">
-        <p class="hint" id="service-hint">Look for words like "hospital stay", "admission" or "inpatient". Often near the top in a box or table.</p>
+        <p class="hint" id="service-hint">Words like "hospital stay", "admission" or "inpatient". Often in a box near the top.</p>
       </div>
       <div class="field">
         <label for="noticeDate">Date on the notice</label>
         <input id="noticeDate" type="date" aria-describedby="noticeDate-hint">
-        <p class="hint" id="noticeDate-hint">Usually at the top right or top left of the first page.</p>
+        <p class="hint" id="noticeDate-hint">Usually at the top of the first page.</p>
       </div>
       <div class="field">
         <label for="reason">Reason for denial, exactly as written</label>
         <textarea id="reason" rows="4" aria-describedby="reason-hint"></textarea>
-        <p class="hint" id="reason-hint">Copy it word for word. Often under a heading like "Why we denied" or "Reason for our decision".</p>
+        <p class="hint" id="reason-hint">Word for word. Often under "Why we denied" or "Reason for our decision".</p>
       </div>
       <div class="field">
         <label for="instructions">Appeal instructions printed on the notice</label>
         <textarea id="instructions" rows="4" aria-describedby="instructions-hint"></textarea>
-        <p class="hint" id="instructions-hint">Often under a heading like "Your right to appeal" or "How to appeal". Include addresses, fax numbers and any deadline the notice gives.</p>
+        <p class="hint" id="instructions-hint">Often under "Your right to appeal". Include addresses, fax numbers and any deadline the notice gives.</p>
       </div>
       <div class="actions">
         <button type="button" class="secondary" data-back>Back</button>
@@ -117,12 +152,13 @@
     </section>
 
     <!-- Step 3: Appeal guide and deadlines (US-04) -->
-    <section class="step" data-step="3" aria-labelledby="h-guide" hidden>
-      <h1 id="h-guide">Your appeal options and deadlines</h1>
-      <p id="guide-context"></p>
-      <div id="guide-reason" class="card"></div>
+    <section class="step wrap" data-step="3" aria-labelledby="h-guide" hidden>
+      <p class="eyebrow">Your options</p>
+      <h1 id="h-guide">Appeal options and deadlines</h1>
+      <p class="lede" id="guide-context"></p>
+      <div id="guide-reason" class="tile"></div>
       <div id="guide-rules"></div>
-      <div id="guide-instructions" class="card"></div>
+      <div id="guide-instructions" class="tile"></div>
       <div class="actions">
         <button type="button" class="secondary" data-back>Back</button>
         <button type="button" class="primary" data-next>Continue</button>
@@ -130,48 +166,70 @@
     </section>
 
     <!-- Step 4: Checklist (US-05) -->
-    <section class="step" data-step="4" aria-labelledby="h-checklist" hidden>
-      <h1 id="h-checklist">Supporting information</h1>
-      <p>These items are commonly requested for a hospital stay denied as not medically necessary. Not every appeal needs every item. Check what you already have.</p>
+    <section class="step wrap" data-step="4" aria-labelledby="h-checklist" hidden>
+      <p class="eyebrow">Supporting information</p>
+      <h1 id="h-checklist">What do you already have?</h1>
+      <p class="lede">These items are commonly requested for this kind of denial. Not every appeal needs every item.</p>
       <fieldset class="field">
-        <legend>What do you already have?</legend>
-        <div id="checklist"></div>
+        <legend class="visually-hidden">Items you already have</legend>
+        <div id="checklist" class="check-list"></div>
       </fieldset>
-      <div class="card note" id="records-prompt">
+      <div class="tile soft">
         <h2>Missing something?</h2>
-        <p>Ask your care team or the hospital's medical records office for records from your stay. You can also ask your plan for the documents it used to make its decision. Do not guess at medical details in your letter.</p>
+        <p>Ask your care team or the hospital's medical records office for records from your stay. You can also ask your plan for the documents it used to decide. Do not guess at medical details in your letter.</p>
       </div>
       <div class="actions">
         <button type="button" class="secondary" data-back>Back</button>
-        <button type="button" class="primary" data-next>Build my letter</button>
+        <button type="button" class="primary" data-next>Continue to letter</button>
       </div>
     </section>
 
     <!-- Step 5: Draft letter (US-06) -->
-    <section class="step" data-step="5" aria-labelledby="h-draft" hidden>
-      <h1 id="h-draft">Your draft letter</h1>
-      <div class="card note" role="note">
-        <p><strong>Reminder:</strong> This guide gives no legal or medical advice and submits nothing. The draft uses only details you entered. Anything missing shows as <span class="ph">[ADD: ...]</span>.</p>
+    <section class="step wrap" data-step="5" aria-labelledby="h-draft" hidden>
+      <p class="eyebrow">Draft</p>
+      <h1 id="h-draft">Your appeal letter</h1>
+      <div class="banner" role="note">This guide gives no legal or medical advice and submits nothing. The letter may only use details you entered. Gaps show as <span class="ph">[ADD: ...]</span>.</div>
+
+      <div class="field">
+        <label for="ownWords">In your own words, why do you think the stay was needed? (optional)</label>
+        <textarea id="ownWords" rows="4" aria-describedby="ownWords-hint"></textarea>
+        <p class="hint" id="ownWords-hint">Plain words are fine. Claude will tidy the wording but must not add medical facts. If you leave this blank, the letter keeps a gap for it.</p>
       </div>
       <div class="field">
-        <label for="letter">Letter text (you can edit it)</label>
-        <textarea id="letter" rows="24" spellcheck="true"></textarea>
+        <label for="tone">Tone</label>
+        <select id="tone">
+          <option value="plain">Plain and direct</option>
+          <option value="formal">Formal</option>
+          <option value="warm">Personal and warm</option>
+        </select>
+      </div>
+      <div class="actions tight">
+        <button type="button" class="primary" id="write-ai">Write with Claude</button>
+        <button type="button" class="secondary" id="cancel-ai" hidden>Stop</button>
+        <button type="button" class="secondary" id="rebuild">Use basic template</button>
+      </div>
+      <p id="ai-status" class="read-status" role="status"></p>
+
+      <div class="field">
+        <label for="letter">Letter text (edit anything)</label>
+        <textarea id="letter" class="letter" rows="22" spellcheck="true"></textarea>
       </div>
       <div class="actions">
         <button type="button" class="secondary" data-back>Back</button>
-        <button type="button" class="secondary" id="rebuild">Rebuild from my details</button>
         <button type="button" class="primary" data-next>Review letter</button>
       </div>
     </section>
 
     <!-- Step 6: Review gate (US-07) -->
-    <section class="step" data-step="6" aria-labelledby="h-review" hidden>
-      <h1 id="h-review">Review before download</h1>
-      <p>Fill in each gap in the letter, or dismiss it if you will handle it yourself later. Download unlocks when no gaps remain.</p>
+    <section class="step wrap" data-step="6" aria-labelledby="h-review" hidden>
+      <p class="eyebrow">Review</p>
+      <h1 id="h-review">Check it before you download</h1>
+      <p class="lede">Fill in each gap, or dismiss it if you will handle it later. Download unlocks when no gaps remain.</p>
       <div id="review-list"></div>
+      <div id="review-warnings"></div>
       <div class="field">
         <label for="letter-review">Letter text</label>
-        <textarea id="letter-review" rows="18"></textarea>
+        <textarea id="letter-review" class="letter" rows="18"></textarea>
       </div>
       <div class="field check">
         <input type="checkbox" id="reviewed">
@@ -184,24 +242,24 @@
     </section>
 
     <!-- Step 7: Download (US-08) -->
-    <section class="step" data-step="7" aria-labelledby="h-download" hidden>
+    <section class="step wrap" data-step="7" aria-labelledby="h-download" hidden>
+      <p class="eyebrow">Send</p>
       <h1 id="h-download">Download and send your letter</h1>
-      <div class="card note" role="note">
-        <p><strong>Reminder:</strong> Check all details and attach your supporting information. This guide gives no legal or medical advice and does not submit your appeal. You send it yourself.</p>
-      </div>
+      <div class="banner" role="note">Check all details and attach your supporting information. This guide gives no legal or medical advice and does not submit your appeal. You send it yourself.</div>
       <div class="actions">
-        <button type="button" class="primary" id="dl-rtf">Download editable letter (.rtf, opens in Word)</button>
-        <button type="button" class="secondary" id="dl-txt">Download plain text (.txt)</button>
-        <button type="button" class="secondary" id="copy-letter">Copy letter text</button>
+        <button type="button" class="primary" id="dl-rtf">Download for Word (.rtf)</button>
+        <button type="button" class="secondary" id="dl-txt">Download text (.txt)</button>
+        <button type="button" class="secondary" id="copy-letter">Copy letter</button>
       </div>
-      <div class="card">
+      <p id="dl-status" class="read-status" role="status"></p>
+      <div class="tile">
         <h2>How to send it</h2>
-        <p>Follow the appeal instructions printed on your notice. You entered:</p>
+        <p>Follow the appeal instructions on your notice. You entered:</p>
         <blockquote id="submit-instructions"></blockquote>
-        <ul>
+        <ul class="ticks">
           <li>Keep a copy of everything you send.</li>
-          <li>Write down the date you send it and how you sent it.</li>
-          <li>If you are unsure about a deadline, call the phone number on your notice or insurance card.</li>
+          <li>Write down the date you sent it and how.</li>
+          <li>Unsure about a deadline? Call the number on your notice or insurance card.</li>
         </ul>
       </div>
       <div class="actions">
@@ -213,12 +271,12 @@
 
   <footer class="site-footer">
     <div class="wrap footer-row">
-      <p>Progress saves automatically in this browser.</p>
+      <p>Progress saves in this browser.</p>
       <div class="inline">
-        <button type="button" class="secondary small" id="save-file">Save progress to file</button>
-        <label class="secondary small file-btn" for="load-file">Load progress file</label>
+        <button type="button" class="link" id="save-file">Save progress to file</button>
+        <label class="link" for="load-file">Load progress file</label>
         <input type="file" id="load-file" accept="application/json,.json" class="visually-hidden">
-        <button type="button" class="secondary small" id="clear">Clear saved progress</button>
+        <button type="button" class="link" id="clear">Clear saved progress</button>
       </div>
     </div>
   </footer>
@@ -226,6 +284,7 @@
   <script src="js/rules.js"></script>
   <script src="js/samples.js"></script>
   <script src="js/letter.js"></script>
+  <script src="js/ai.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

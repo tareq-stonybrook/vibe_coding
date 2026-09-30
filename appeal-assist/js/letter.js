@@ -35,7 +35,7 @@
     return m ? m + " " + parseInt(parts[2], 10) + ", " + parts[0] : v;
   }
 
-  function buildLetter(details, checklist) {
+  function buildLetter(details, checklist, ownWords) {
     var d = details || {};
     var have = (checklist || []).filter(function (item) { return item.have; });
     var lines = [];
@@ -66,8 +66,8 @@
     lines.push("\"" + orGap(d.reason, "denial reason exactly as written on your notice") + "\"");
     lines.push("");
     lines.push(
-      "I disagree with this decision. [ADD: in your own words, why you believe the hospital stay was needed. " +
-      "Your treating doctor can help explain this.]"
+      "I disagree with this decision. " + (clean(ownWords) ||
+      "[ADD: in your own words, why you believe the hospital stay was needed. Your treating doctor can help explain this.]")
     );
     lines.push("");
     if (have.length) {
@@ -129,7 +129,34 @@
     return withReminder(text);
   }
 
+  function squash(t) {
+    return (t || "").replace(/\s+/g, " ").trim().toLowerCase();
+  }
+
+  // Numbers in the letter that do not appear in anything the user entered.
+  // Catches invented dates, codes, amounts and citations in an AI draft.
+  function findUnsupported(text, sources) {
+    var body = (text || "").replace(PLACEHOLDER_RE, " ");
+    var src = (sources || []).map(function (x) { return x || ""; });
+    src = src.concat(src.map(formatDate));
+    var hay = squash(src.join(" \n "));
+    var tokens = body.match(/\d[\d,.\/-]*\d|\d/g) || [];
+    var seen = {};
+    return tokens.filter(function (t) {
+      if (seen[t]) return false;
+      seen[t] = true;
+      return hay.indexOf(t.toLowerCase()) === -1;
+    });
+  }
+
+  function containsReason(text, reason) {
+    var r = squash(reason);
+    return !r || squash(text).indexOf(r) !== -1;
+  }
+
   var api = {
+    findUnsupported: findUnsupported,
+    containsReason: containsReason,
     REMINDER: REMINDER,
     buildLetter: buildLetter,
     findPlaceholders: findPlaceholders,

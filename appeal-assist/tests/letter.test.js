@@ -72,3 +72,25 @@ test("unverified rules never show", () => {
   }
   assert.equal(Rules.getRules("CA", "medicare").covered, false);
 });
+
+test("unsupported numbers are flagged, confirmed ones are not", () => {
+  const d = { noticeDate: "2026-08-14", reason: "Stay not needed after day 3." };
+  const text = Letter.buildLetter(d, []) + "\nI was admitted on 2025-01-01 with code I50.9.";
+  const extra = Letter.findUnsupported(text, [d.noticeDate, d.reason]);
+  assert.ok(extra.includes("2025-01-01"));
+  assert.ok(extra.includes("50.9"));
+  assert.ok(!extra.includes("2026"));
+  assert.ok(!extra.includes("14"));
+  assert.ok(!extra.includes("3"));
+});
+
+test("reason check ignores whitespace and case", () => {
+  assert.ok(Letter.containsReason("They said \"not  Needed\" here", "not needed"));
+  assert.ok(!Letter.containsReason("nothing", "not needed"));
+});
+
+test("own words replace the gap in the template", () => {
+  const text = Letter.buildLetter({}, [], "I could not walk.");
+  assert.ok(text.includes("I could not walk."));
+  assert.ok(!text.includes("[ADD: in your own words"));
+});

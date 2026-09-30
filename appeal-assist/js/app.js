@@ -4,8 +4,9 @@
   var Rules = window.AppealRules;
   var Samples = window.AppealSamples.SAMPLES;
   var Letter = window.AppealLetter;
+  var AI = window.AppealAI;
 
-  var STORAGE_KEY = "appealAssist.v1";
+  var STORAGE_KEY = "appealAssist.v2";
   var STEP_NAMES = ["Start", "Your plan", "Notice", "Options", "Checklist", "Draft", "Review", "Download"];
   var CHECKLIST = [
     { id: "notice", label: "A copy of the denial notice" },
@@ -25,13 +26,19 @@
       planType: "",
       details: { planName: "", service: "", noticeDate: "", reason: "", instructions: "" },
       checklist: CHECKLIST.map(function (c) { return { id: c.id, label: c.label, have: false }; }),
+      ownWords: "",
+      tone: "plain",
       letter: "",
+      letterSource: "",
       letterEdited: false,
       reviewed: false
     };
   }
 
   var S = freshState();
+  var noticeFile = null;
+  var readCtl = null;
+  var writeCtl = null;
 
   // ---------- storage (browser only, may be unavailable) ----------
   function save() {
@@ -50,9 +57,11 @@
     var base = freshState();
     if (!obj || typeof obj !== "object") return base;
     Object.keys(base).forEach(function (k) {
-      if (k in obj) base[k] = obj[k];
+      if (k in obj && k !== "details" && k !== "checklist") base[k] = obj[k];
     });
-    base.details = Object.assign(freshState().details, obj.details || {});
+    DETAIL_FIELDS.forEach(function (f) {
+      if (obj.details && typeof obj.details[f] === "string") base.details[f] = obj.details[f];
+    });
     var have = {};
     (obj.checklist || []).forEach(function (c) { have[c.id] = Boolean(c.have); });
     base.checklist.forEach(function (c) { c.have = Boolean(have[c.id]); });
@@ -73,6 +82,11 @@
     s.textContent = "";
     setTimeout(function () { s.textContent = msg; }, 50);
   }
+  function setStatus(id, msg, isErr) {
+    var n = $(id);
+    n.textContent = msg || "";
+    n.classList.toggle("err", Boolean(isErr));
+  }
   function typeLabel(id) {
     var t = Rules.INSURANCE_TYPES.filter(function (x) { return x.id === id; })[0];
     return t ? t.label : "";
@@ -81,11 +95,15 @@
     var s = Rules.STATES.filter(function (x) { return x.id === id; })[0];
     return s ? s.label : "";
   }
+  function haveLabels() {
+    return S.checklist.filter(function (c) { return c.have; }).map(function (c) { return c.label; });
+  }
   function showError(section, msg) {
     var box = section.querySelector(".error");
     if (!box) {
       box = el("p", { "class": "error", role: "alert" });
-      section.querySelector(".actions").before(box);
+      var actions = section.querySelectorAll(".actions");
+      actions[actions.length - 1].before(box);
     }
     box.textContent = msg;
   }
@@ -93,6 +111,7 @@
     var box = section.querySelector(".error");
     if (box) box.remove();
   }
+
   // Two-click confirm. Works where window.confirm is blocked.
   function confirmClick(btn, prompt, action) {
     var original = btn.textContent;
@@ -112,23 +131,40 @@
       action();
     });
   }
-  function download(filename, content, type) {
-    var blob = new Blob([content], { type: type });
-    var url = URL.createObjectURL(blob);
+
+  // Uses the viewer's save dialog on claude.ai, a normal download elsewhere.
+  function saveFile(filename, content, type) {
+    return AI.getDownloads().then(function (dl) {
+      if (dl) {
+        return dl.save({ filename: filename, data: new Blob([content], { type: type }) }).then(
+          function () { return "Saved " + filename + "."; },
+          function (e) {
+            if (e && e.code === "unavailable") return blobDownload(filename, content, type);
+            return "Download cancelled.";
+          }
+        );
+      }
+      return blobDownload(filename, content, type);
+    });
+  }
+  function blobDownload(filename, content, type) {
+    var url = URL.createObjectURL(new Blob([content], { type: type }));
     var a = el("a", { href: url, download: filename });
     document.body.appendChild(a);
     a.click();
     a.remove();
     setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    return "Downloaded " + filename + ".";
   }
 
   // ---------- step navigation ----------
   function validate(step) {
-    if (step === 0 && !S.ack) return "Please check the box to confirm you understand what this guide does.";
-    if (step === 1 && !S.state) return "Please choose your state.";
-    if (step === 1 && !S.planType) return "Please choose your insurance type.";
+    if (step === 0 && !S.ack) return "Check the box to confirm you understand what this guide does.";
+    if (step === 1 && !S.state) return "Choose your state.";
+    if (step === 1 && !S.planType) return "Choose your insurance type.";
+    if (step === 5 && !S.letter.trim()) return "Write the letter first, with Claude or the basic template.";
     if (step === 6 && Letter.findPlaceholders(S.letter).length) return "Fill in or dismiss every gap before download.";
-    if (step === 6 && !S.reviewed) return "Please confirm you read the whole letter.";
+    if (step === 6 && !S.reviewed) return "Confirm you read the whole letter.";
     return "";
   }
 
@@ -139,7 +175,7 @@
     var section = $('.step[data-step="' + S.step + '"]');
     var h = section.querySelector("h1");
     h.setAttribute("tabindex", "-1");
-    h.focus();
+    h.focus({ preventScroll: true });
     window.scrollTo(0, 0);
     announce("Step " + (S.step + 1) + " of " + STEP_NAMES.length + ": " + STEP_NAMES[S.step]);
   }
@@ -159,9 +195,10 @@
     STEP_NAMES.forEach(function (name, i) {
       var li = el("li", {}, (i + 1) + ". " + name);
       if (i === S.step) li.setAttribute("aria-current", "step");
-      else if (i < S.step) li.className = "done";
       list.appendChild(li);
     });
+    $("#step-count").textContent = S.step === 0 ? "" : "Step " + (S.step + 1) + " of " + STEP_NAMES.length;
+    $("#progress-fill").style.width = (S.step / (STEP_NAMES.length - 1) * 100) + "%";
   }
 
   function renderContext() {
@@ -175,13 +212,13 @@
     var box = $("#plan-types");
     if (!box.children.length) {
       Rules.INSURANCE_TYPES.forEach(function (t) {
-        var row = el("div", { "class": "radio" });
-        var input = el("input", { type: "radio", name: "planType", id: "pt-" + t.id, value: t.id, "aria-describedby": "pt-" + t.id + "-hint" });
-        var wrap = el("div");
-        wrap.appendChild(el("label", { "for": "pt-" + t.id }, t.label));
-        wrap.appendChild(el("p", { "class": "hint", id: "pt-" + t.id + "-hint" }, t.hint));
+        var row = el("div", { "class": "choice" });
+        var input = el("input", { type: "radio", name: "planType", id: "pt-" + t.id, value: t.id });
+        var label = el("label", { "for": "pt-" + t.id });
+        label.appendChild(document.createTextNode(t.label));
+        label.appendChild(el("span", { "class": "hint", style: "display:block" }, t.hint));
         row.appendChild(input);
-        row.appendChild(wrap);
+        row.appendChild(label);
         box.appendChild(row);
       });
     }
@@ -195,9 +232,12 @@
       return (!S.state || s.state === S.state) && (!S.planType || s.planType === S.planType);
     });
     matching.forEach(function (s, i) {
-      sel.appendChild(el("option", { value: s.id }, "Synthetic notice " + (i + 1) + ": " + stateLabel(s.state) + ", " + typeLabel(s.planType)));
+      sel.appendChild(el("option", { value: s.id }, "Example " + (i + 1) + ": " + (s.planName || "notice with missing details")));
     });
     DETAIL_FIELDS.forEach(function (f) { $("#" + f).value = S.details[f] || ""; });
+    AI.getSample().then(function (s) {
+      if (!s) setStatus("#read-status", "Reading files needs Claude. It works when this page is opened from its claude.ai link. You can still type the details below.");
+    });
   }
 
   function renderGuide() {
@@ -212,13 +252,13 @@
 
     var box = $("#guide-rules");
     box.innerHTML = "";
-    var card = el("div", { "class": "card" });
+    var card = el("div", { "class": "tile" });
     card.appendChild(el("h2", {}, "Appeal paths and deadlines"));
 
     if (!rules.deadlines.length && !rules.paths.length) {
-      var note = el("div", { "class": "card note", role: "note" });
-      note.appendChild(el("p", {}, "We have not yet verified appeal rules or deadlines for " + stateLabel(S.state) + " and " + typeLabel(S.planType) + " against an official source, so we do not show them here."));
-      note.appendChild(el("p", {}, "Check your denial notice and your plan documents for the appeal steps and the deadline. If anything is unclear, call the phone number on your notice or insurance card."));
+      var note = el("div", { "class": "warn", role: "note" });
+      note.appendChild(el("p", {}, "We have not yet checked appeal rules or deadlines for " + stateLabel(S.state) + " and " + typeLabel(S.planType) + " against an official source, so we do not show them here."));
+      note.appendChild(el("p", { style: "margin:0" }, "Check your denial notice and plan documents for the appeal steps and deadline. If anything is unclear, call the number on your notice or insurance card."));
       card.appendChild(note);
     } else {
       rules.paths.forEach(function (p) { card.appendChild(renderRule(p)); });
@@ -226,9 +266,8 @@
     }
 
     var help = Rules.HELP_LINKS[S.planType] || Rules.HELP_LINKS.general;
-    var p = el("p", {}, "Official help: ");
-    var a = el("a", { href: help.url, target: "_blank", rel: "noopener" }, help.label);
-    p.appendChild(a);
+    var p = el("p", { style: "margin:0" }, "Official help: ");
+    p.appendChild(el("a", { href: help.url, target: "_blank", rel: "noopener" }, help.label));
     card.appendChild(p);
     box.appendChild(card);
 
@@ -248,15 +287,13 @@
     row(r.label, r.rule);
     if (r.countFrom) row("Counted from", r.countFrom);
     if (typeof r.days === "number" && r.countFrom === "notice date" && S.details.noticeDate) {
-      var d = new Date(S.details.noticeDate + "T00:00:00");
-      d.setDate(d.getDate() + r.days);
-      var iso = d.toISOString().slice(0, 10);
-      row("Estimated date, based on the notice date you entered", Letter.formatDate(iso) + ". Confirm this on your notice.");
+      var d = new Date(S.details.noticeDate + "T00:00:00Z");
+      d.setUTCDate(d.getUTCDate() + r.days);
+      row("Estimated date, based on the notice date you entered", Letter.formatDate(d.toISOString().slice(0, 10)) + ". Confirm this on your notice.");
     }
-    var dt = el("dt", {}, "Source");
+    wrap.appendChild(el("dt", {}, "Source"));
     var dd = el("dd", {});
     dd.appendChild(el("a", { href: r.sourceUrl, target: "_blank", rel: "noopener" }, r.citation));
-    wrap.appendChild(dt);
     wrap.appendChild(dd);
     row("Last verified", Letter.formatDate(r.verifiedOn));
     return wrap;
@@ -280,8 +317,27 @@
   }
 
   function renderDraft() {
-    if (!S.letter || !S.letterEdited) S.letter = Letter.buildLetter(S.details, S.checklist);
+    $("#ownWords").value = S.ownWords;
+    $("#tone").value = S.tone;
     $("#letter").value = S.letter;
+    AI.getSample().then(function (s) {
+      $("#write-ai").hidden = !s;
+      if (!s) {
+        if (!S.letter) buildTemplate();
+        setStatus("#ai-status", "Writing with Claude works when this page is opened from its claude.ai link. Below is the basic template.");
+      } else if (!S.letter) {
+        setStatus("#ai-status", "Press Write with Claude to draft your letter.");
+      }
+    });
+  }
+
+  function buildTemplate() {
+    S.letter = Letter.buildLetter(S.details, S.checklist, S.ownWords);
+    S.letterSource = "template";
+    S.letterEdited = false;
+    S.reviewed = false;
+    $("#letter").value = S.letter;
+    save();
   }
 
   function renderReview() {
@@ -290,13 +346,31 @@
     renderReviewList();
   }
 
+  function renderWarnings() {
+    var box = $("#review-warnings");
+    box.innerHTML = "";
+    var sources = DETAIL_FIELDS.map(function (f) { return S.details[f]; }).concat([S.ownWords]).concat(haveLabels());
+    var extra = Letter.findUnsupported(S.letter, sources);
+    var reasonOk = Letter.containsReason(S.letter, S.details.reason);
+    if (!extra.length && reasonOk) return;
+    var w = el("div", { "class": "warn", role: "note" });
+    w.appendChild(el("h2", {}, "Double check these"));
+    var ul = el("ul");
+    if (!reasonOk) ul.appendChild(el("li", {}, "The letter does not repeat the denial reason exactly as you entered it."));
+    extra.forEach(function (n) {
+      ul.appendChild(el("li", {}, "\"" + n + "\" is not in anything you entered. Remove it unless you added it yourself and know it is correct."));
+    });
+    w.appendChild(ul);
+    box.appendChild(w);
+  }
+
   function renderReviewList() {
     var list = $("#review-list");
     var gaps = Letter.findPlaceholders(S.letter);
     list.innerHTML = "";
-    var card = el("div", { "class": gaps.length ? "card note" : "card" });
+    var card = el("div", { "class": "tile" });
     if (!gaps.length) {
-      card.appendChild(el("p", {}, "No gaps remain."));
+      card.appendChild(el("p", { style: "margin:0" }, "No gaps remain."));
     } else {
       card.appendChild(el("h2", {}, gaps.length + (gaps.length === 1 ? " gap remains" : " gaps remain")));
       gaps.forEach(function (g) {
@@ -328,6 +402,7 @@
       });
     }
     list.appendChild(card);
+    renderWarnings();
     $("#to-download").disabled = Boolean(gaps.length) || !S.reviewed;
   }
 
@@ -353,6 +428,76 @@
     if (S.step === 7) renderDownload();
   }
 
+  // ---------- notice upload ----------
+  function pickFile(file) {
+    noticeFile = file || null;
+    var name = $("#file-name");
+    name.hidden = !file;
+    name.textContent = file ? "Selected: " + file.name : "";
+    $("#read-notice").disabled = !file;
+    setStatus("#read-status", "");
+  }
+
+  function readNotice() {
+    if (!noticeFile) return;
+    readCtl = new AbortController();
+    $("#read-notice").disabled = true;
+    $("#cancel-read").hidden = false;
+    setStatus("#read-status", "Claude is reading your notice. This can take up to a minute.");
+    AI.extractFromFile(noticeFile, { signal: readCtl.signal }).then(function (out) {
+      var filled = [];
+      DETAIL_FIELDS.forEach(function (f) {
+        var input = $("#" + f);
+        input.classList.remove("filled");
+        if (out[f]) {
+          S.details[f] = out[f];
+          input.value = out[f];
+          input.classList.add("filled");
+          filled.push(f);
+        }
+      });
+      save();
+      setStatus("#read-status", filled.length
+        ? "Filled " + filled.length + " of 5 fields, outlined in green. Check each one against your notice. Blank fields were not found."
+        : "Claude could not find the details on that file. Type them below.", !filled.length);
+    }, function (e) {
+      setStatus("#read-status", AI.errorMessage(e), e && e.code !== "cancelled");
+    }).then(function () {
+      $("#read-notice").disabled = !noticeFile;
+      $("#cancel-read").hidden = true;
+      readCtl = null;
+    });
+  }
+
+  // ---------- AI letter ----------
+  function writeWithAI() {
+    writeCtl = new AbortController();
+    $("#write-ai").disabled = true;
+    $("#cancel-ai").hidden = false;
+    setStatus("#ai-status", "Claude is writing your letter.");
+    var ta = $("#letter");
+    AI.writeLetter(S.details, haveLabels(), S.ownWords, S.tone, {
+      signal: writeCtl.signal,
+      onText: function (p) { ta.value = p.text; }
+    }).then(function (text) {
+      S.letter = text;
+      S.letterSource = "ai";
+      S.letterEdited = false;
+      S.reviewed = false;
+      ta.value = text;
+      save();
+      setStatus("#ai-status", "Draft written. Read it closely. You can edit anything, and the next step checks for gaps.");
+    }, function (e) {
+      if (e && e.text && e.code !== "refused") ta.value = e.text;
+      else ta.value = S.letter;
+      setStatus("#ai-status", AI.errorMessage(e), e && e.code !== "cancelled");
+    }).then(function () {
+      $("#write-ai").disabled = false;
+      $("#cancel-ai").hidden = true;
+      writeCtl = null;
+    });
+  }
+
   // ---------- events ----------
   function bind() {
     $all("[data-next]").forEach(function (b) { b.addEventListener("click", next); });
@@ -370,31 +515,59 @@
     });
 
     DETAIL_FIELDS.forEach(function (f) {
-      $("#" + f).addEventListener("input", function (e) { S.details[f] = e.target.value; save(); });
+      $("#" + f).addEventListener("input", function (e) {
+        S.details[f] = e.target.value;
+        e.target.classList.remove("filled");
+        save();
+      });
     });
+
+    var dz = $("#dropzone");
+    $("#notice-file").addEventListener("change", function (e) { pickFile(e.target.files && e.target.files[0]); });
+    ["dragenter", "dragover"].forEach(function (t) {
+      dz.addEventListener(t, function () { dz.classList.add("drag"); });
+    });
+    ["dragleave", "drop"].forEach(function (t) {
+      dz.addEventListener(t, function () { dz.classList.remove("drag"); });
+    });
+    $("#read-notice").addEventListener("click", readNotice);
+    $("#cancel-read").addEventListener("click", function () { if (readCtl) readCtl.abort(); });
+
     $("#load-sample").addEventListener("click", function () {
       var id = $("#sample").value;
       var s = Samples.filter(function (x) { return x.id === id; })[0];
       if (!s) return;
-      DETAIL_FIELDS.forEach(function (f) { S.details[f] = s[f] || ""; });
+      DETAIL_FIELDS.forEach(function (f) { S.details[f] = s[f] || ""; $("#" + f).classList.remove("filled"); });
       renderNotice();
       $("#sample").value = id;
       save();
-      announce("Synthetic notice loaded. Review the fields below.");
+      announce("Example notice loaded. Review the fields below.");
     });
 
+    $("#ownWords").addEventListener("input", function (e) { S.ownWords = e.target.value; save(); });
+    $("#tone").addEventListener("change", function (e) { S.tone = e.target.value; save(); });
+    $("#write-ai").addEventListener("click", writeWithAI);
+    $("#cancel-ai").addEventListener("click", function () { if (writeCtl) writeCtl.abort(); });
     $("#letter").addEventListener("input", function (e) {
       S.letter = e.target.value;
       S.letterEdited = true;
       S.reviewed = false;
       save();
     });
-    confirmClick($("#rebuild"), "Click again to replace your edits", function () {
-      S.letterEdited = false;
-      S.letter = Letter.buildLetter(S.details, S.checklist);
-      $("#letter").value = S.letter;
-      save();
-      announce("Draft rebuilt from your details.");
+    $("#rebuild").addEventListener("click", function () {
+      if (S.letter && S.letterEdited && $("#rebuild").getAttribute("data-armed") !== "1") {
+        $("#rebuild").setAttribute("data-armed", "1");
+        $("#rebuild").textContent = "Click again to replace your edits";
+        setTimeout(function () {
+          $("#rebuild").removeAttribute("data-armed");
+          $("#rebuild").textContent = "Use basic template";
+        }, 5000);
+        return;
+      }
+      $("#rebuild").removeAttribute("data-armed");
+      $("#rebuild").textContent = "Use basic template";
+      buildTemplate();
+      setStatus("#ai-status", "Basic template filled from your details.");
     });
 
     $("#letter-review").addEventListener("input", function (e) {
@@ -410,10 +583,24 @@
     });
 
     $("#dl-rtf").addEventListener("click", function () {
-      download("appeal-letter-draft.rtf", Letter.toRtf(S.letter), "application/rtf");
+      saveFile("appeal-letter-draft.rtf", Letter.toRtf(S.letter), "application/rtf").then(function (m) { setStatus("#dl-status", m); });
     });
     $("#dl-txt").addEventListener("click", function () {
-      download("appeal-letter-draft.txt", Letter.toPlainText(S.letter), "text/plain;charset=utf-8");
+      saveFile("appeal-letter-draft.txt", Letter.toPlainText(S.letter), "text/plain;charset=utf-8").then(function (m) { setStatus("#dl-status", m); });
+    });
+    $("#copy-letter").addEventListener("click", function () {
+      var text = Letter.toPlainText(S.letter);
+      function done(msg) { setStatus("#dl-status", msg); }
+      function fallback() {
+        go(6);
+        var ta = $("#letter-review");
+        ta.focus();
+        ta.select();
+        announce("Letter selected. Press copy on your keyboard.");
+      }
+      try {
+        navigator.clipboard.writeText(text).then(function () { done("Letter copied. Paste it into Word or Google Docs."); }, fallback);
+      } catch (e) { fallback(); }
     });
 
     confirmClick($("#start-over"), "Click again to clear everything", function () {
@@ -428,7 +615,7 @@
       announce("Saved progress cleared.");
     });
     $("#save-file").addEventListener("click", function () {
-      download("appeal-assist-progress.json", JSON.stringify(S, null, 2), "application/json");
+      saveFile("appeal-assist-progress.json", JSON.stringify(S, null, 2), "application/json").then(announce);
     });
     $("#load-file").addEventListener("change", function (e) {
       var file = e.target.files && e.target.files[0];

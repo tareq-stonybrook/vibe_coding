@@ -37,6 +37,7 @@ async function run(label, contextOpts) {
   // Step 2: load synthetic notice
   const opts = await page.$$eval("#sample option", (o) => o.length);
   check(`${label}: 3 samples offered for NY Medicare`, opts === 3, `got ${opts}`);
+  await page.click("details.example summary");
   await page.click("#load-sample");
   const reason = await page.inputValue("#reason");
   check(`${label}: sample fills reason`, reason.length > 10);
@@ -45,7 +46,7 @@ async function run(label, contextOpts) {
 
   // Step 3: fallback shown, no numbers invented
   const guide = await page.textContent("#guide-rules");
-  check(`${label}: unverified fallback shown`, guide.includes("have not yet verified"));
+  check(`${label}: unverified fallback shown`, guide.includes("have not yet checked"));
   await page.screenshot({ path: path.join(outDir, `${label}-guide.png`), fullPage: true });
   await page.click("section[data-step='3'] [data-next]");
 
@@ -53,7 +54,8 @@ async function run(label, contextOpts) {
   await page.check("#cl-records");
   await page.click("section[data-step='4'] [data-next]");
 
-  // Step 5: draft
+  // Step 5: draft (no Claude here, so template fills in)
+  await page.waitForFunction(() => document.querySelector("#letter").value.length > 0);
   const letter = await page.inputValue("#letter");
   check(`${label}: letter repeats reason`, letter.includes(reason));
   check(`${label}: letter has placeholders`, letter.includes("[ADD:"));
@@ -90,10 +92,63 @@ async function run(label, contextOpts) {
   await browser.close();
 }
 
+// Fake claude.use so the upload and AI paths run without claude.ai.
+const FAKE_LETTER = "Dear plan,\n\nYou wrote: \"REASON\". I disagree. Surgery on 2025-01-01 was required.\n\n[ADD: your full name]";
+async function runWithFakeClaude() {
+  const browser = await chromium.launch();
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.addInitScript((letter) => {
+    const fields = { planName: "Fake Plan (synthetic)", service: "Inpatient stay, 3 days", noticeDate: "2026-08-01",
+      reason: "Not medically necessary per review.", instructions: "Write to the Appeals Unit." };
+    const sample = async (input, opts) => {
+      const text = letter.replace("REASON", fields.reason);
+      if (opts && opts.onText) opts.onText({ text, delta: text });
+      window.__lastPrompt = input;
+      return { text, truncated: false };
+    };
+    sample.json = async () => fields;
+    sample.limits = async () => ({ maxPromptBytes: 262144, images: { maxCount: 4, maxInputBytes: 5e6, mediaTypes: ["image/png", "image/jpeg"] } });
+    window.claude = { use: async (name) => (name === "sample" ? sample : null) };
+  }, FAKE_LETTER);
+  await page.goto(url);
+  await page.check("#ack");
+  await page.click("section[data-step='0'] [data-next]");
+  await page.selectOption("#state", "NY");
+  await page.check("#pt-aca", { force: true });
+  await page.click("section[data-step='1'] [data-next]");
+  await page.setInputFiles("#notice-file", { name: "notice.txt", mimeType: "text/plain", buffer: Buffer.from("SYNTHETIC NOTICE text here") });
+  await page.click("#read-notice");
+  await page.waitForFunction(() => document.querySelector("#planName").value === "Fake Plan (synthetic)");
+  check("ai: upload fills fields", true);
+  check("ai: filled fields highlighted", (await page.$$(".filled")).length === 5);
+  await page.screenshot({ path: path.join(outDir, "ai-notice.png"), fullPage: true });
+  await page.click("section[data-step='2'] [data-next]");
+  await page.click("section[data-step='3'] [data-next]");
+  await page.click("section[data-step='4'] [data-next]");
+  check("ai: write button shown", await page.isVisible("#write-ai"));
+  await page.fill("#ownWords", "I could not breathe well at home.");
+  await page.click("#write-ai");
+  await page.waitForFunction(() => document.querySelector("#letter").value.startsWith("Dear plan"));
+  const prompt = await page.evaluate(() => window.__lastPrompt);
+  check("ai: prompt carries own words and rules", prompt.includes("I could not breathe well at home.") && prompt.includes("Do not add any fact"));
+  await page.screenshot({ path: path.join(outDir, "ai-draft.png"), fullPage: true });
+  await page.click("section[data-step='5'] [data-next]");
+  const warn = await page.textContent("#review-warnings");
+  check("ai: invented date flagged", warn.includes("2025-01-01"), warn);
+  check("ai: gap listed", (await page.$$("#review-list .review-item")).length === 1);
+  await page.screenshot({ path: path.join(outDir, "ai-review.png"), fullPage: true });
+  check("ai: no page errors", errors.length === 0, errors.join("; "));
+  await browser.close();
+}
+
 (async () => {
   fs.mkdirSync(outDir, { recursive: true });
   await run("desktop", { viewport: { width: 1280, height: 900 } });
   await run("mobile", { ...devices["Pixel 5"] });
+  await runWithFakeClaude();
   let failed = 0;
   for (const r of results) {
     if (!r.ok) failed++;
