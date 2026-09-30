@@ -1,0 +1,74 @@
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const Letter = require("../js/letter.js");
+const Rules = require("../js/rules.js");
+const { SAMPLES } = require("../js/samples.js");
+
+const checklist = [
+  { id: "records", label: "Records from the hospital stay", have: true },
+  { id: "doctor", label: "Doctor statement", have: false }
+];
+
+test("three synthetic notices per covered combination", () => {
+  for (const key of Object.keys(Rules.COMBINATIONS)) {
+    const [state, type] = key.split("|");
+    const n = SAMPLES.filter((s) => s.state === state && s.planType === type).length;
+    assert.ok(n >= 3, `${key} has ${n} samples`);
+  }
+});
+
+for (const sample of SAMPLES) {
+  test(`letter for ${sample.id} repeats reason and invents nothing`, () => {
+    const text = Letter.buildLetter(sample, checklist);
+    if (sample.reason) assert.ok(text.includes(`"${sample.reason}"`), "reason repeated verbatim");
+    if (sample.planName) assert.ok(text.includes(sample.planName));
+    else assert.ok(text.includes("[ADD: plan name]"));
+    if (!sample.noticeDate) assert.ok(text.includes("[ADD: date on your notice]"));
+    // No dates other than the notice date the user confirmed.
+    const years = text.match(/\b(19|20)\d{2}\b/g) || [];
+    const allowed = sample.noticeDate ? [sample.noticeDate.slice(0, 4)] : [];
+    for (const y of years) assert.ok(allowed.includes(y), `unexpected year ${y}`);
+    // No money amounts, diagnosis codes or URLs.
+    assert.doesNotMatch(text, /\$\s?\d/);
+    assert.doesNotMatch(text, /\b[A-TV-Z]\d{2}\.\d{1,4}\b/);
+    assert.doesNotMatch(text, /https?:\/\//);
+    // Only checked items listed.
+    assert.ok(text.includes("Records from the hospital stay"));
+    assert.ok(!text.includes("Doctor statement"));
+  });
+}
+
+test("empty details produce placeholders, not content", () => {
+  const text = Letter.buildLetter({}, []);
+  const gaps = Letter.findPlaceholders(text);
+  assert.ok(gaps.includes("[ADD: denial reason exactly as written on your notice]"));
+  assert.ok(gaps.includes("[ADD: list of documents you are enclosing]"));
+});
+
+test("dismissing a placeholder removes every copy", () => {
+  const text = Letter.buildLetter({}, []);
+  const gap = "[ADD: inpatient service that was denied]";
+  assert.ok(text.split(gap).length > 2, "appears twice");
+  const out = Letter.removePlaceholder(text, gap);
+  assert.ok(!Letter.findPlaceholders(out).includes(gap));
+});
+
+test("downloads carry the reminder", () => {
+  const txt = Letter.toPlainText("Body");
+  const rtf = Letter.toRtf("Body {with} braces\\ and café");
+  assert.ok(txt.startsWith(Letter.REMINDER));
+  assert.ok(rtf.startsWith("{\\rtf1"));
+  assert.ok(rtf.includes("no legal or medical advice"));
+  assert.ok(rtf.includes("\\{with\\}"));
+  assert.ok(rtf.includes("\\u233?"));
+});
+
+test("unverified rules never show", () => {
+  assert.equal(Rules.isVerified({ citation: "x", sourceUrl: "y" }), false);
+  for (const t of Rules.INSURANCE_TYPES) {
+    const r = Rules.getRules("NY", t.id);
+    assert.equal(r.covered, true);
+    for (const d of r.deadlines) assert.ok(Rules.isVerified(d));
+  }
+  assert.equal(Rules.getRules("CA", "medicare").covered, false);
+});

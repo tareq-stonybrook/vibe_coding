@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Appeal Assist</title>
+  <meta name="description" content="Guide and letter builder for inpatient medical necessity denials. Prototype using synthetic notices.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <header class="site-header">
+    <div class="wrap header-row">
+      <p class="brand">Appeal Assist</p>
+      <p class="badge" role="note">Prototype. Synthetic notices only. Do not enter real patient information.</p>
+    </div>
+    <nav aria-label="Progress" class="wrap">
+      <ol class="steps" id="step-list"></ol>
+    </nav>
+  </header>
+
+  <main id="main" class="wrap" tabindex="-1">
+    <p id="status" class="visually-hidden" aria-live="polite"></p>
+
+    <!-- Step 0: Purpose and limits (US-01) -->
+    <section class="step" data-step="0" aria-labelledby="h-intro">
+      <h1 id="h-intro">Get help answering a hospital stay denial</h1>
+      <p>This guide helps you organize an appeal when your insurance denied coverage for a hospital stay because it said the stay was not medically necessary.</p>
+      <div class="card">
+        <h2>What this guide does</h2>
+        <ul>
+          <li>Helps you write down the reason given on your denial notice.</li>
+          <li>Shows appeal information for your state and insurance type, only when our team has checked it against an official source.</li>
+          <li>Gives you a checklist of information that is commonly requested.</li>
+          <li>Builds a draft letter you review, edit and download.</li>
+        </ul>
+        <h2>What this guide does not do</h2>
+        <ul>
+          <li>It does not give legal advice or medical advice.</li>
+          <li>It does not decide whether you are covered.</li>
+          <li>It does not create medical facts or evidence.</li>
+          <li>It does not submit anything. You send your appeal yourself.</li>
+        </ul>
+        <p>For official help, visit <a id="intro-help" href="https://www.healthcare.gov/" target="_blank" rel="noopener">HealthCare.gov<span class="visually-hidden"> (opens in new tab)</span></a>.</p>
+      </div>
+      <div class="field check">
+        <input type="checkbox" id="ack">
+        <label for="ack">I understand this guide organizes my appeal, gives no legal or medical advice, and submits nothing.</label>
+      </div>
+      <div class="actions">
+        <button type="button" class="primary" data-next>Start</button>
+        <button type="button" id="resume" class="secondary" hidden>Resume saved progress</button>
+      </div>
+    </section>
+
+    <!-- Step 1: State and insurance type (US-03) -->
+    <section class="step" data-step="1" aria-labelledby="h-context" hidden>
+      <h1 id="h-context">Your state and insurance type</h1>
+      <p>Appeal rules differ by state and insurance type. Your choices decide what the guide shows you.</p>
+      <div class="field">
+        <label for="state">State</label>
+        <select id="state" aria-describedby="state-hint"></select>
+        <p class="hint" id="state-hint">Choose the state where your plan is based. Your notice or plan documents usually list it. This prototype covers New York only.</p>
+      </div>
+      <fieldset class="field">
+        <legend>Insurance type</legend>
+        <p class="hint">Look at the front of your insurance card or the top of your denial notice.</p>
+        <div id="plan-types"></div>
+      </fieldset>
+      <div class="actions">
+        <button type="button" class="secondary" data-back>Back</button>
+        <button type="button" class="primary" data-next>Continue</button>
+      </div>
+    </section>
+
+    <!-- Step 2: Notice details (US-02) -->
+    <section class="step" data-step="2" aria-labelledby="h-notice" hidden>
+      <h1 id="h-notice">Details from your denial notice</h1>
+      <p>Copy details from your notice. Leave anything you cannot find blank. The letter will mark it so you can fill it later.</p>
+      <div class="card sample-box">
+        <label for="sample">Testing: load a synthetic notice</label>
+        <div class="inline">
+          <select id="sample"></select>
+          <button type="button" class="secondary" id="load-sample">Load</button>
+        </div>
+      </div>
+      <div class="field">
+        <label for="planName">Plan name</label>
+        <input id="planName" type="text" autocomplete="off" aria-describedby="planName-hint">
+        <p class="hint" id="planName-hint">Usually in the letterhead or first paragraph of the notice.</p>
+      </div>
+      <div class="field">
+        <label for="service">Inpatient service denied</label>
+        <input id="service" type="text" autocomplete="off" aria-describedby="service-hint">
+        <p class="hint" id="service-hint">Look for words like "hospital stay", "admission" or "inpatient". Often near the top in a box or table.</p>
+      </div>
+      <div class="field">
+        <label for="noticeDate">Date on the notice</label>
+        <input id="noticeDate" type="date" aria-describedby="noticeDate-hint">
+        <p class="hint" id="noticeDate-hint">Usually at the top right or top left of the first page.</p>
+      </div>
+      <div class="field">
+        <label for="reason">Reason for denial, exactly as written</label>
+        <textarea id="reason" rows="4" aria-describedby="reason-hint"></textarea>
+        <p class="hint" id="reason-hint">Copy it word for word. Often under a heading like "Why we denied" or "Reason for our decision".</p>
+      </div>
+      <div class="field">
+        <label for="instructions">Appeal instructions printed on the notice</label>
+        <textarea id="instructions" rows="4" aria-describedby="instructions-hint"></textarea>
+        <p class="hint" id="instructions-hint">Often under a heading like "Your right to appeal" or "How to appeal". Include addresses, fax numbers and any deadline the notice gives.</p>
+      </div>
+      <div class="actions">
+        <button type="button" class="secondary" data-back>Back</button>
+        <button type="button" class="primary" data-next>Continue</button>
+      </div>
+    </section>
+
+    <!-- Step 3: Appeal guide and deadlines (US-04) -->
+    <section class="step" data-step="3" aria-labelledby="h-guide" hidden>
+      <h1 id="h-guide">Your appeal options and deadlines</h1>
+      <p id="guide-context"></p>
+      <div id="guide-reason" class="card"></div>
+      <div id="guide-rules"></div>
+      <div id="guide-instructions" class="card"></div>
+      <div class="actions">
+        <button type="button" class="secondary" data-back>Back</button>
+        <button type="button" class="primary" data-next>Continue</button>
+      </div>
+    </section>
+
+    <!-- Step 4: Checklist (US-05) -->
+    <section class="step" data-step="4" aria-labelledby="h-checklist" hidden>
+      <h1 id="h-checklist">Supporting information</h1>
+      <p>These items are commonly requested for a hospital stay denied as not medically necessary. Not every appeal needs every item. Check what you already have.</p>
+      <fieldset class="field">
+        <legend>What do you already have?</legend>
+        <div id="checklist"></div>
+      </fieldset>
+      <div class="card note" id="records-prompt">
+        <h2>Missing something?</h2>
+        <p>Ask your care team or the hospital's medical records office for records from your stay. You can also ask your plan for the documents it used to make its decision. Do not guess at medical details in your letter.</p>
+      </div>
+      <div class="actions">
+        <button type="button" class="secondary" data-back>Back</button>
+        <button type="button" class="primary" data-next>Build my letter</button>
+      </div>
+    </section>
+
+    <!-- Step 5: Draft letter (US-06) -->
+    <section class="step" data-step="5" aria-labelledby="h-draft" hidden>
+      <h1 id="h-draft">Your draft letter</h1>
+      <div class="card note" role="note">
+        <p><strong>Reminder:</strong> This guide gives no legal or medical advice and submits nothing. The draft uses only details you entered. Anything missing shows as <span class="ph">[ADD: ...]</span>.</p>
+      </div>
+      <div class="field">
+        <label for="letter">Letter text (you can edit it)</label>
+        <textarea id="letter" rows="24" spellcheck="true"></textarea>
+      </div>
+      <div class="actions">
+        <button type="button" class="secondary" data-back>Back</button>
+        <button type="button" class="secondary" id="rebuild">Rebuild from my details</button>
+        <button type="button" class="primary" data-next>Review letter</button>
+      </div>
+    </section>
+
+    <!-- Step 6: Review gate (US-07) -->
+    <section class="step" data-step="6" aria-labelledby="h-review" hidden>
+      <h1 id="h-review">Review before download</h1>
+      <p>Fill in each gap in the letter, or dismiss it if you will handle it yourself later. Download unlocks when no gaps remain.</p>
+      <div id="review-list"></div>
+      <div class="field">
+        <label for="letter-review">Letter text</label>
+        <textarea id="letter-review" rows="18"></textarea>
+      </div>
+      <div class="field check">
+        <input type="checkbox" id="reviewed">
+        <label for="reviewed">I read the whole letter and checked it against my notice.</label>
+      </div>
+      <div class="actions">
+        <button type="button" class="secondary" data-back>Back</button>
+        <button type="button" class="primary" data-next id="to-download" disabled>Continue to download</button>
+      </div>
+    </section>
+
+    <!-- Step 7: Download (US-08) -->
+    <section class="step" data-step="7" aria-labelledby="h-download" hidden>
+      <h1 id="h-download">Download and send your letter</h1>
+      <div class="card note" role="note">
+        <p><strong>Reminder:</strong> Check all details and attach your supporting information. This guide gives no legal or medical advice and does not submit your appeal. You send it yourself.</p>
+      </div>
+      <div class="actions">
+        <button type="button" class="primary" id="dl-rtf">Download editable letter (.rtf, opens in Word)</button>
+        <button type="button" class="secondary" id="dl-txt">Download plain text (.txt)</button>
+      </div>
+      <div class="card">
+        <h2>How to send it</h2>
+        <p>Follow the appeal instructions printed on your notice. You entered:</p>
+        <blockquote id="submit-instructions"></blockquote>
+        <ul>
+          <li>Keep a copy of everything you send.</li>
+          <li>Write down the date you send it and how you sent it.</li>
+          <li>If you are unsure about a deadline, call the phone number on your notice or insurance card.</li>
+        </ul>
+      </div>
+      <div class="actions">
+        <button type="button" class="secondary" data-back>Back</button>
+        <button type="button" class="secondary" id="start-over">Start over</button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap footer-row">
+      <p>Progress saves automatically in this browser.</p>
+      <div class="inline">
+        <button type="button" class="secondary small" id="save-file">Save progress to file</button>
+        <label class="secondary small file-btn" for="load-file">Load progress file</label>
+        <input type="file" id="load-file" accept="application/json,.json" class="visually-hidden">
+        <button type="button" class="secondary small" id="clear">Clear saved progress</button>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/rules.js"></script>
+  <script src="js/samples.js"></script>
+  <script src="js/letter.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
