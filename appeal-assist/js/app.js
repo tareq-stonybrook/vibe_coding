@@ -93,6 +93,25 @@
     var box = section.querySelector(".error");
     if (box) box.remove();
   }
+  // Two-click confirm. Works where window.confirm is blocked.
+  function confirmClick(btn, prompt, action) {
+    var original = btn.textContent;
+    btn.addEventListener("click", function () {
+      if (btn.getAttribute("data-armed") !== "1") {
+        btn.setAttribute("data-armed", "1");
+        btn.textContent = prompt;
+        announce(prompt);
+        setTimeout(function () {
+          btn.removeAttribute("data-armed");
+          btn.textContent = original;
+        }, 5000);
+        return;
+      }
+      btn.removeAttribute("data-armed");
+      btn.textContent = original;
+      action();
+    });
+  }
   function download(filename, content, type) {
     var blob = new Blob([content], { type: type });
     var url = URL.createObjectURL(blob);
@@ -370,8 +389,7 @@
       S.reviewed = false;
       save();
     });
-    $("#rebuild").addEventListener("click", function () {
-      if (S.letterEdited && !window.confirm("Rebuilding replaces your edits with a fresh draft. Continue?")) return;
+    confirmClick($("#rebuild"), "Click again to replace your edits", function () {
       S.letterEdited = false;
       S.letter = Letter.buildLetter(S.details, S.checklist);
       $("#letter").value = S.letter;
@@ -398,14 +416,12 @@
       download("appeal-letter-draft.txt", Letter.toPlainText(S.letter), "text/plain;charset=utf-8");
     });
 
-    $("#start-over").addEventListener("click", function () {
-      if (!window.confirm("Start over and clear everything you entered?")) return;
+    confirmClick($("#start-over"), "Click again to clear everything", function () {
       clearSaved();
       S = freshState();
       go(0);
     });
-    $("#clear").addEventListener("click", function () {
-      if (!window.confirm("Clear saved progress from this browser?")) return;
+    confirmClick($("#clear"), "Click again to clear saved progress", function () {
       clearSaved();
       S = freshState();
       go(0);
@@ -424,7 +440,7 @@
           go(S.step);
           announce("Progress loaded from file.");
         } catch (err) {
-          window.alert("That file could not be read as saved progress.");
+          announce("That file could not be read as saved progress.");
         }
         e.target.value = "";
       };
