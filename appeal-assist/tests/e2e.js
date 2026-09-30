@@ -74,10 +74,14 @@ async function run(label, contextOpts) {
   await page.click("#to-download");
 
   // Step 7: download
-  const [dl] = await Promise.all([page.waitForEvent("download"), page.click("#dl-rtf")]);
+  const [dl] = await Promise.all([page.waitForEvent("download"), page.click("#dl-docx")]);
   const file = await dl.path();
-  const rtf = fs.readFileSync(file, "utf8");
-  check(`${label}: rtf downloaded with reminder`, rtf.startsWith("{\\rtf1") && rtf.includes("no legal or medical advice"));
+  const docxPath = path.join(outDir, `${label}-letter.docx`);
+  fs.copyFileSync(file, docxPath);
+  const text = require("child_process").execFileSync("python3", ["-c",
+    "import docx,sys; print('\\n'.join(p.text for p in docx.Document(sys.argv[1]).paragraphs))", docxPath]).toString();
+  check(`${label}: docx opens and has reminder and reason`, text.includes("no legal or medical advice") && text.includes(reason));
+  check(`${label}: docx file name`, dl.suggestedFilename() === "appeal-letter-draft.docx");
   await page.screenshot({ path: path.join(outDir, `${label}-download.png`), fullPage: true });
 
   // Save and resume
@@ -130,6 +134,11 @@ async function runUpload() {
   await page.click("section[data-step='4'] [data-next]");
   const v0 = await page.inputValue("#letter");
   check("letter: written without AI, uses reason and doctor statement", v0.includes(reason) && /statement from (my treating doctor|a doctor)|doctor who treated me/.test(v0));
+  await page.fill("#s-name", "Test Person");
+  await page.fill("#s-address", "[1 Example Street]");
+  const header = await page.inputValue("#letter");
+  check("letter: labeled header lines", header.includes("Name: Test Person") && header.includes("Address: 1 Example Street") && header.includes("Phone: [ADD: your phone number]"));
+  check("letter: brackets stripped from typed details", !header.includes("[1 Example"));
   await page.fill("#ownWords", "i could not breathe at home");
   const v1 = await page.inputValue("#letter");
   check("letter: own words tidied and inserted", v1.includes("I could not breathe at home."));
@@ -143,6 +152,16 @@ async function runUpload() {
   await page.click("section[data-step='5'] [data-next]");
   const warn = await page.textContent("#review-warnings");
   check("letter: no unsupported numbers flagged", warn.trim() === "", warn);
+  const phoneRow = page.locator(".review-item", { hasText: "[ADD: your phone number]" });
+  await phoneRow.locator("input").fill("[555 0100]");
+  await phoneRow.locator("button:has-text('Fill in')").click();
+  const afterFill = await page.inputValue("#letter-review");
+  check("review: fill box replaces whole placeholder", afterFill.includes("Phone: 555 0100") && !afterFill.includes("[555"));
+  await page.fill("#letter-review", afterFill.replace("Name: Test Person", "Name: [Tareq]"));
+  await page.waitForSelector("text=Remove leftover brackets");
+  await page.click("text=Remove the brackets for me");
+  check("review: stray brackets removed", (await page.inputValue("#letter-review")).includes("Name: Tareq"));
+  await page.screenshot({ path: path.join(outDir, "review-fill.png"), fullPage: true });
   check("upload: no page errors", errors.length === 0, errors.join("; "));
   await browser.close();
 }

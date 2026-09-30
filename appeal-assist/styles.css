@@ -159,6 +159,15 @@ textarea.letter { font-family: var(--mono); font-size: 0.9rem; line-height: 1.55
 .check-list .check { padding: 12px 0; border-bottom: 1px solid var(--line); }
 .check-list .check:last-child { border-bottom: 0; }
 
+.sender { margin: 24px 0; }
+.sender legend { float: left; width: 100%; font-size: 1.25rem; margin-bottom: 4px; }
+.sender .hint { clear: both; }
+.sender-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 0 16px; }
+.sender-grid .field { margin: 12px 0 0; }
+.sender-grid .wide { grid-column: 1 / -1; }
+.fill-row { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; }
+.fill-row input { flex: 1 1 12rem; min-width: 0; }
+
 /* Upload */
 .upload h2 { margin-bottom: 2px; }
 .dropzone { position: relative; margin-top: 12px; }

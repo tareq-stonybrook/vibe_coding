@@ -154,7 +154,29 @@
     return !r || squash(text).indexOf(r) !== -1;
   }
 
+  // Square brackets the user left behind, e.g. "[Tareq]" after typing
+  // inside a placeholder. Placeholders themselves are not counted.
+  function findStrayBrackets(text) {
+    return ((text || "").match(/\[[^\]\n]*\]/g) || []).filter(function (b) {
+      return !/^\[ADD: /.test(b);
+    });
+  }
+
+  function removeStrayBrackets(text) {
+    return (text || "").replace(/\[([^\]\n]*)\]/g, function (m, inner) {
+      return /^ADD: /.test(inner) ? m : inner.trim();
+    });
+  }
+
+  function toDocx(text) {
+    var Docx = root.AppealDocx || (typeof require === "function" ? require("./docx.js") : null);
+    return Docx.build((text || "").split("\n"), REMINDER);
+  }
+
   var api = {
+    findStrayBrackets: findStrayBrackets,
+    removeStrayBrackets: removeStrayBrackets,
+    toDocx: toDocx,
     findUnsupported: findUnsupported,
     containsReason: containsReason,
     REMINDER: REMINDER,

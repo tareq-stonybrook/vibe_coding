@@ -145,3 +145,36 @@ test("reader: nothing found stays blank", () => {
   const out = Reader.parseNoticeText("hello there\nnothing useful");
   assert.deepEqual(out, { planName: "", service: "", noticeDate: "", reason: "", instructions: "" });
 });
+
+test("composer: labeled header uses sender details", () => {
+  const text = Composer.compose({ details: SAMPLES[0], sender: { name: "Test Person", address: "1 Example Street", date: "2026-09-30" } });
+  assert.ok(text.includes("Name: Test Person"));
+  assert.ok(text.includes("Address: 1 Example Street"));
+  assert.ok(text.includes("Phone: [ADD: your phone number]"));
+  assert.ok(text.includes("Date: September 30, 2026"));
+  assert.ok(text.includes("To: " + SAMPLES[0].planName));
+  assert.ok(text.trim().endsWith("Test Person"));
+});
+
+test("stray brackets found and removed, placeholders kept", () => {
+  const t = "Name: [Tareq]\nPhone: [ADD: your phone number]";
+  assert.deepEqual(Letter.findStrayBrackets(t), ["[Tareq]"]);
+  assert.equal(Letter.removeStrayBrackets(t), "Name: Tareq\nPhone: [ADD: your phone number]");
+});
+
+test("docx is a valid Word file", () => {
+  const fs = require("fs"), os = require("os"), path = require("path"), cp = require("child_process");
+  const bytes = Letter.toDocx("Name: Tareq & <Co>\n\nLine with café");
+  const f = path.join(os.tmpdir(), "t-" + process.pid + ".docx");
+  fs.writeFileSync(f, bytes);
+  const out = cp.execFileSync("python3", ["-c", "import docx,sys; print('|'.join(p.text for p in docx.Document(sys.argv[1]).paragraphs))", f]).toString();
+  assert.ok(out.includes("Name: Tareq & <Co>"));
+  assert.ok(out.includes("Line with café"));
+  assert.ok(out.includes("no legal or medical advice"));
+});
+
+test("enclosures read in first person", () => {
+  const text = Composer.compose({ details: SAMPLES[0], checklist: [{ id: "doctor", label: "A statement from your treating doctor", have: true }] });
+  assert.ok(text.includes("* A statement from my treating doctor"));
+  assert.ok(!text.includes("your treating doctor"));
+});

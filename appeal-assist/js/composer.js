@@ -122,6 +122,16 @@
     return out;
   }
 
+  // Checklist items as the patient names them in their own letter.
+  var ENCLOSURES = {
+    notice: "A copy of the denial notice",
+    records: "Records from my hospital stay",
+    doctor: "A statement from my treating doctor",
+    planDocs: "The documents and criteria used in your decision",
+    coverage: "My plan's coverage document",
+    log: "My notes of dates, calls and people I spoke with"
+  };
+
   function compose(input) {
     var d = input.details || {};
     var tone = TONES[input.tone] || TONES.plain;
@@ -133,18 +143,19 @@
     var own = tidy(input.ownWords);
     var L = [];
 
-    L.push(gap("your full name"));
-    L.push(gap("your mailing address"));
-    L.push(gap("your phone number"));
+    var me = input.sender || {};
+    var field = function (label, value, what) { return label + ": " + (clean(value) || gap(what)); };
+    L.push(field("Name", me.name, "your full name"));
+    L.push(field("Address", me.address, "your mailing address"));
+    L.push(field("Phone", me.phone, "your phone number"));
+    L.push(field("Date", clean(me.date) ? Letter.formatDate(me.date) : "", "today's date"));
     L.push("");
-    L.push(gap("today's date"));
-    L.push("");
-    L.push(clean(d.planName) || gap("plan name"));
-    L.push(gap("appeals address from your notice"));
+    L.push(field("To", d.planName, "plan name"));
+    L.push(field("Appeals address", me.appealsAddress, "appeals address from your notice"));
     L.push("");
     L.push("Re: Appeal of denial for " + service);
-    L.push("Member ID: " + gap("member ID from your insurance card"));
-    L.push("Claim or reference number: " + gap("reference number from your notice"));
+    L.push(field("Member ID", me.memberId, "member ID from your insurance card"));
+    L.push(field("Claim or reference number", me.refNumber, "reference number from your notice"));
     L.push("Date of denial notice: " + (clean(d.noticeDate) ? Letter.formatDate(d.noticeDate) : gap("date on your notice")));
     L.push("");
     L.push(pick(tone.greeting, v, 0));
@@ -164,7 +175,7 @@
       L.push("");
     });
     L.push("I have enclosed:");
-    if (have.length) have.forEach(function (c) { L.push("  * " + c.label.replace(/\s*\(you can ask the plan for these\)/, "")); });
+    if (have.length) have.forEach(function (c) { L.push("  * " + (ENCLOSURES[c.id] || c.label)); });
     else L.push("  * " + gap("list of documents you are enclosing"));
     L.push("");
     L.push(pick([
@@ -176,7 +187,7 @@
     L.push("");
     L.push(pick(tone.signoff, v, 7));
     L.push("");
-    L.push(gap("your signature and printed name"));
+    L.push(clean(me.name) || gap("your signature and printed name"));
     return L.join("\n");
   }
 

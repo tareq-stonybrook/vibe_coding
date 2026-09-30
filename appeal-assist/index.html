@@ -190,6 +190,20 @@
       <h1 id="h-draft">Your appeal letter</h1>
       <div class="banner" role="note">This guide gives no legal or medical advice and submits nothing. The letter may only use details you entered. Gaps show as <span class="ph">[ADD: ...]</span>.</div>
 
+      <fieldset class="field tile sender">
+        <legend>Your details for the letter</legend>
+        <p class="hint">Type plain text only, no brackets. Leave anything blank to fill in later. Use made up details while testing.</p>
+        <div class="sender-grid">
+          <div class="field"><label for="s-name">Full name</label><input id="s-name" type="text" autocomplete="off"></div>
+          <div class="field"><label for="s-phone">Phone</label><input id="s-phone" type="text" autocomplete="off" inputmode="tel"></div>
+          <div class="field wide"><label for="s-address">Mailing address</label><input id="s-address" type="text" autocomplete="off"></div>
+          <div class="field"><label for="s-memberId">Member ID</label><input id="s-memberId" type="text" autocomplete="off" aria-describedby="s-memberId-hint"><p class="hint" id="s-memberId-hint">On your insurance card.</p></div>
+          <div class="field"><label for="s-refNumber">Claim or reference number</label><input id="s-refNumber" type="text" autocomplete="off" aria-describedby="s-refNumber-hint"><p class="hint" id="s-refNumber-hint">On your notice.</p></div>
+          <div class="field wide"><label for="s-appealsAddress">Appeals address</label><input id="s-appealsAddress" type="text" autocomplete="off" aria-describedby="s-appealsAddress-hint"><p class="hint" id="s-appealsAddress-hint">Where your notice says to send the appeal.</p></div>
+          <div class="field"><label for="s-date">Date of letter</label><input id="s-date" type="date"></div>
+        </div>
+      </fieldset>
+
       <div class="field">
         <label for="ownWords">In your own words, why do you think the stay was needed? (optional)</label>
         <textarea id="ownWords" rows="4" aria-describedby="ownWords-hint"></textarea>
@@ -246,7 +260,7 @@
       <h1 id="h-download">Download and send your letter</h1>
       <div class="banner" role="note">Check all details and attach your supporting information. This guide gives no legal or medical advice and does not submit your appeal. You send it yourself.</div>
       <div class="actions">
-        <button type="button" class="primary" id="dl-rtf">Download for Word (.rtf)</button>
+        <button type="button" class="primary" id="dl-docx">Download Word document (.docx)</button>
         <button type="button" class="secondary" id="dl-txt">Download text (.txt)</button>
         <button type="button" class="secondary" id="copy-letter">Copy letter</button>
       </div>
@@ -282,6 +296,7 @@
 
   <script src="js/rules.js"></script>
   <script src="js/samples.js"></script>
+  <script src="js/docx.js"></script>
   <script src="js/letter.js"></script>
   <script src="js/reader.js"></script>
   <script src="js/composer.js"></script>

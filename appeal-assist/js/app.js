@@ -19,6 +19,12 @@
   ];
   var DETAIL_FIELDS = ["planName", "service", "noticeDate", "reason", "instructions"];
 
+  var SENDER_FIELDS = ["name", "phone", "address", "memberId", "refNumber", "appealsAddress", "date"];
+  function todayIso() {
+    var d = new Date();
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
+
   function freshState() {
     return {
       step: 0,
@@ -28,12 +34,14 @@
       details: { planName: "", service: "", noticeDate: "", reason: "", instructions: "" },
       checklist: CHECKLIST.map(function (c) { return { id: c.id, label: c.label, have: false }; }),
       ownWords: "",
+      sender: { name: "", phone: "", address: "", memberId: "", refNumber: "", appealsAddress: "", date: todayIso() },
       tone: "plain",
       version: 0,
       letter: "",
       letterSource: "",
       letterEdited: false,
-      reviewed: false
+      reviewed: false,
+      fills: []
     };
   }
 
@@ -57,7 +65,11 @@
     var base = freshState();
     if (!obj || typeof obj !== "object") return base;
     Object.keys(base).forEach(function (k) {
-      if (k in obj && k !== "details" && k !== "checklist") base[k] = obj[k];
+      if (k in obj && k !== "details" && k !== "checklist" && k !== "sender" && k !== "fills") base[k] = obj[k];
+    });
+    if (Array.isArray(obj.fills)) base.fills = obj.fills.filter(function (x) { return typeof x === "string"; });
+    SENDER_FIELDS.forEach(function (f) {
+      if (obj.sender && typeof obj.sender[f] === "string") base.sender[f] = obj.sender[f];
     });
     DETAIL_FIELDS.forEach(function (f) {
       if (obj.details && typeof obj.details[f] === "string") base.details[f] = obj.details[f];
@@ -323,6 +335,7 @@
   }
 
   function renderDraft() {
+    SENDER_FIELDS.forEach(function (f) { $("#s-" + f).value = S.sender[f] || ""; });
     $("#ownWords").value = S.ownWords;
     $("#tone").value = S.tone;
     if (!S.letter || !S.letterEdited) writeLetter(S.version);
@@ -336,6 +349,7 @@
       details: S.details,
       checklist: S.checklist,
       ownWords: S.ownWords,
+      sender: S.sender,
       tone: S.tone,
       version: version
     });
@@ -356,9 +370,28 @@
   function renderWarnings() {
     var box = $("#review-warnings");
     box.innerHTML = "";
-    var sources = DETAIL_FIELDS.map(function (f) { return S.details[f]; }).concat([S.ownWords]).concat(haveLabels());
+    var sources = DETAIL_FIELDS.map(function (f) { return S.details[f]; })
+      .concat(SENDER_FIELDS.map(function (f) { return S.sender[f]; }))
+      .concat(S.fills).concat([S.ownWords]).concat(haveLabels());
     var extra = Letter.findUnsupported(S.letter, sources);
     var reasonOk = Letter.containsReason(S.letter, S.details.reason);
+    var stray = Letter.findStrayBrackets(S.letter);
+    if (stray.length) {
+      var b = el("div", { "class": "warn", role: "note" });
+      b.appendChild(el("h2", {}, "Remove leftover brackets"));
+      b.appendChild(el("p", {}, "These still have square brackets around them: " + stray.join(", ") + ". Letters read better without them."));
+      var fix = el("button", { type: "button", "class": "secondary small" }, "Remove the brackets for me");
+      fix.addEventListener("click", function () {
+        S.letter = Letter.removeStrayBrackets(S.letter);
+        S.letterEdited = true;
+        $("#letter-review").value = S.letter;
+        renderReviewList();
+        save();
+        announce("Brackets removed.");
+      });
+      b.appendChild(fix);
+      box.appendChild(b);
+    }
     if (!extra.length && reasonOk) return;
     var w = el("div", { "class": "warn", role: "note" });
     w.appendChild(el("h2", {}, "Double check these"));
@@ -383,15 +416,26 @@
       gaps.forEach(function (g) {
         var row = el("div", { "class": "review-item" });
         row.appendChild(el("span", { "class": "ph" }, g));
-        var btns = el("div", { "class": "inline" });
-        var find = el("button", { type: "button", "class": "secondary small" }, "Go to it");
-        find.setAttribute("aria-label", "Go to " + g + " in the letter");
-        find.addEventListener("click", function () {
-          var ta = $("#letter-review");
-          var i = ta.value.indexOf(g);
-          ta.focus();
-          if (i >= 0) ta.setSelectionRange(i, i + g.length);
-        });
+        var fillRow = el("div", { "class": "fill-row" });
+        var fid = "fill-" + Math.random().toString(36).slice(2, 8);
+        var input = el("input", { type: "text", id: fid, autocomplete: "off" });
+        input.setAttribute("aria-label", "Text to replace " + g);
+        input.setAttribute("placeholder", "Type it here, no brackets");
+        var fill = el("button", { type: "button", "class": "primary small" }, "Fill in");
+        fill.setAttribute("aria-label", "Fill in " + g);
+        function doFill() {
+          var v = input.value.trim().replace(/^\[|\]$/g, "").trim();
+          if (!v) { input.focus(); return; }
+          S.letter = S.letter.split(g).join(v);
+          S.fills.push(v);
+          S.letterEdited = true;
+          $("#letter-review").value = S.letter;
+          renderReviewList();
+          save();
+          announce("Filled in.");
+        }
+        fill.addEventListener("click", doFill);
+        input.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); doFill(); } });
         var dismiss = el("button", { type: "button", "class": "secondary small" }, "Dismiss");
         dismiss.setAttribute("aria-label", "Dismiss " + g + " and remove it from the letter");
         dismiss.addEventListener("click", function () {
@@ -402,9 +446,10 @@
           save();
           announce("Removed " + g);
         });
-        btns.appendChild(find);
-        btns.appendChild(dismiss);
-        row.appendChild(btns);
+        fillRow.appendChild(input);
+        fillRow.appendChild(fill);
+        fillRow.appendChild(dismiss);
+        row.appendChild(fillRow);
         card.appendChild(row);
       });
     }
@@ -543,6 +588,13 @@
     });
 
     // Until the user edits the letter by hand, it follows these inputs live.
+    SENDER_FIELDS.forEach(function (f) {
+      $("#s-" + f).addEventListener("input", function (e) {
+        S.sender[f] = e.target.value.replace(/[\[\]]/g, "");
+        if (e.target.value !== S.sender[f]) e.target.value = S.sender[f];
+        if (!S.letterEdited) writeLetter(S.version); else save();
+      });
+    });
     $("#ownWords").addEventListener("input", function (e) {
       S.ownWords = e.target.value;
       if (!S.letterEdited) writeLetter(S.version); else save();
@@ -582,8 +634,9 @@
       save();
     });
 
-    $("#dl-rtf").addEventListener("click", function () {
-      saveFile("appeal-letter-draft.rtf", Letter.toRtf(S.letter), "application/rtf").then(function (m) { setStatus("#dl-status", m); });
+    $("#dl-docx").addEventListener("click", function () {
+      saveFile("appeal-letter-draft.docx", Letter.toDocx(S.letter),
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document").then(function (m) { setStatus("#dl-status", m); });
     });
     $("#dl-txt").addEventListener("click", function () {
       saveFile("appeal-letter-draft.txt", Letter.toPlainText(S.letter), "text/plain;charset=utf-8").then(function (m) { setStatus("#dl-status", m); });

@@ -23,9 +23,9 @@ Publish a new version: `python3 build.py out.html` inlines everything into one f
 | 3 | Upload notice (PDF with text, or .txt) and the app fills the fields by finding labels and headings, or type them. Example notices can fill the form or download as a file to test upload | US-02 |
 | 4 | Stated reason, appeal paths and deadlines (verified only), notice instructions | US-04 |
 | 5 | Supporting information checklist, records prompt | US-05 |
-| 6 | App writes the letter from confirmed details, the user's own words and checked documents. Paragraphs change with the kind of denial reason (care setting, length of stay, records, criteria). Three tones. "Write another version" rewords with the same facts. Gaps shown as `[ADD: ...]` | US-06 |
-| 7 | Review gate: fill or dismiss every gap, confirm review. Flags numbers not found in anything the user entered, and a missing denial reason | US-07 |
-| 8 | Download `.rtf` (Word) or `.txt`, submission instructions | US-08 |
+| 6 | "Your details" fields (name, address, phone, member ID, reference number, appeals address, date) print as labeled lines like `Name: ...`. App writes the letter from confirmed details, the user's own words and checked documents. Paragraphs change with the kind of denial reason (care setting, length of stay, records, criteria). Three tones. "Write another version" rewords with the same facts. Gaps shown as `[ADD: ...]` | US-06 |
+| 7 | Review gate: each gap has its own fill box, or dismiss it. Leftover square brackets get flagged with a one click fix. Confirm review. Flags numbers not found in anything the user entered, and a missing denial reason | US-07 |
+| 8 | Download Word `.docx` or `.txt`, copy letter, submission instructions | US-08 |
 | all | Labeled fields, keyboard use, focus moves to each heading, mobile layout | US-9 |
 | all | Autosave in browser, save or load progress file | US-10 |
 
@@ -50,6 +50,7 @@ Edit `js/rules.js`. Add an entry to the matching `COMBINATIONS` key with `citati
 * `index.html`, `styles.css`, `js/app.js`: UI
 * `js/reader.js`: reads notice files, finds the five fields, PDF text via pdf.js from cdnjs
 * `js/composer.js`: writes the letter, no AI
+* `js/docx.js`: builds the Word file, no library
 * `js/letter.js`: letter builder, placeholder detection, RTF and text export
 * `js/rules.js`: states, insurance types, verified rules, help links
 * `js/samples.js`: 12 synthetic notices, 3 per insurance type
