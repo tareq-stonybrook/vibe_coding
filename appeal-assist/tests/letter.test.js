@@ -94,3 +94,54 @@ test("own words replace the gap in the template", () => {
   assert.ok(text.includes("I could not walk."));
   assert.ok(!text.includes("[ADD: in your own words"));
 });
+
+const Composer = require("../js/composer.js");
+const Reader = require("../js/reader.js");
+
+test("composer: every sample, tone and version invents no numbers and quotes the reason", () => {
+  const cl = [{ id: "records", label: "Records from the hospital stay", have: true }, { id: "doctor", label: "Doctor statement", have: true }];
+  for (const s of SAMPLES) for (const tone of ["plain", "formal", "warm"]) for (const version of [0, 1, 2, 3]) {
+    const text = Composer.compose({ details: s, checklist: cl, ownWords: "i felt very sick", tone, version });
+    assert.deepEqual(Letter.findUnsupported(text, [s.noticeDate, s.reason, s.service, s.planName, s.instructions]), [], `${s.id} ${tone} ${version}`);
+    assert.ok(Letter.containsReason(text, s.reason));
+    assert.ok(text.includes("I felt very sick."));
+    assert.doesNotMatch(text, /https?:|\$|§/);
+  }
+});
+
+test("composer: versions and tones differ", () => {
+  const d = SAMPLES[0];
+  const a = Composer.compose({ details: d, tone: "plain", version: 0 });
+  assert.notEqual(a, Composer.compose({ details: d, tone: "plain", version: 1 }));
+  assert.notEqual(a, Composer.compose({ details: d, tone: "formal", version: 0 }));
+});
+
+test("composer: reason kinds drive paragraphs", () => {
+  assert.deepEqual(Composer.reasonKinds("Could have been treated in an outpatient setting."), ["setting"]);
+  assert.ok(Composer.reasonKinds("Continued stay beyond day 3 did not meet criteria.").includes("length"));
+  const noRecords = Composer.compose({ details: { reason: "Documentation did not support inpatient care." }, checklist: [] });
+  assert.ok(noRecords.includes("[ADD: say whether you are sending records"));
+});
+
+test("reader: round trips every synthetic notice", () => {
+  for (const s of SAMPLES) {
+    const out = Reader.parseNoticeText(Reader.sampleToText(s, "Plan"));
+    for (const f of ["planName", "service", "noticeDate", "reason", "instructions"]) {
+      assert.equal(out[f], s[f] || "", `${s.id} ${f}`);
+    }
+  }
+});
+
+test("reader: free form notice", () => {
+  const out = Reader.parseNoticeText("Sample Community Health Plan\nAugust 3, 2026\n\nRE: Inpatient admission\n\nWhy we denied your request:\nThe stay did not meet\ninpatient criteria.\n\nWhat to do if you disagree:\nFax the Appeals Unit.\n\nSincerely,");
+  assert.equal(out.planName, "Sample Community Health Plan");
+  assert.equal(out.noticeDate, "2026-08-03");
+  assert.equal(out.service, "Inpatient admission");
+  assert.equal(out.reason, "The stay did not meet inpatient criteria.");
+  assert.equal(out.instructions, "Fax the Appeals Unit.");
+});
+
+test("reader: nothing found stays blank", () => {
+  const out = Reader.parseNoticeText("hello there\nnothing useful");
+  assert.deepEqual(out, { planName: "", service: "", noticeDate: "", reason: "", instructions: "" });
+});

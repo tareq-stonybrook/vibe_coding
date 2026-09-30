@@ -37,10 +37,10 @@
           <div class="tile">
             <h2>What it does</h2>
             <ul class="ticks">
-              <li>Reads the details from your notice, or lets you type them.</li>
+              <li>Reads the details from your notice file, or lets you type them.</li>
               <li>Shows appeal rules only when our team has checked them against an official source.</li>
               <li>Lists information that is commonly requested.</li>
-              <li>Writes a draft letter with Claude, using only what you confirmed.</li>
+              <li>Writes a draft letter for you, using only what you confirmed.</li>
             </ul>
           </div>
           <div class="tile">
@@ -90,13 +90,13 @@
     <section class="step wrap" data-step="2" aria-labelledby="h-notice" hidden>
       <p class="eyebrow">Your notice</p>
       <h1 id="h-notice">What does your denial notice say?</h1>
-      <p class="lede">Upload the notice and Claude will pull out the details, or type them yourself. Either way, you check every field.</p>
+      <p class="lede">Upload the notice and the guide will pull out the details, or type them yourself. Either way, you check every field.</p>
 
       <div class="tile upload" id="upload-tile">
         <h2>Upload your notice</h2>
-        <p class="hint" id="upload-hint">Photo, screenshot, PDF or text file. Synthetic notices only.</p>
+        <p class="hint" id="upload-hint">PDF or text file. Synthetic notices only. Everything stays on your device.</p>
         <div class="dropzone" id="dropzone">
-          <input type="file" id="notice-file" accept="image/png,image/jpeg,image/webp,image/gif,application/pdf,.pdf,text/plain,.txt" aria-describedby="upload-hint">
+          <input type="file" id="notice-file" accept="application/pdf,.pdf,text/plain,.txt" aria-describedby="upload-hint">
           <label for="notice-file" class="dropzone-label">
             <span class="dz-title">Choose a file</span>
             <span class="dz-sub">or drag it here</span>
@@ -104,8 +104,7 @@
         </div>
         <p id="file-name" class="file-name" hidden></p>
         <div class="actions tight">
-          <button type="button" class="primary" id="read-notice" disabled>Read with Claude</button>
-          <button type="button" class="secondary" id="cancel-read" hidden>Stop</button>
+          <button type="button" class="primary" id="read-notice" disabled>Read my notice</button>
         </div>
         <p id="read-status" class="read-status" role="status"></p>
       </div>
@@ -116,7 +115,8 @@
         <div class="inline">
           <label for="sample" class="visually-hidden">Example notice</label>
           <select id="sample"></select>
-          <button type="button" class="secondary" id="load-sample">Use this example</button>
+          <button type="button" class="secondary" id="load-sample">Fill the form</button>
+          <button type="button" class="secondary" id="dl-sample">Download as a file to test upload</button>
         </div>
       </details>
 
@@ -193,7 +193,7 @@
       <div class="field">
         <label for="ownWords">In your own words, why do you think the stay was needed? (optional)</label>
         <textarea id="ownWords" rows="4" aria-describedby="ownWords-hint"></textarea>
-        <p class="hint" id="ownWords-hint">Plain words are fine. Claude will tidy the wording but must not add medical facts. If you leave this blank, the letter keeps a gap for it.</p>
+        <p class="hint" id="ownWords-hint">Plain words are fine. The guide puts them in the letter as you wrote them, with small spelling and capital letter fixes. If you leave this blank, the letter keeps a gap for it.</p>
       </div>
       <div class="field">
         <label for="tone">Tone</label>
@@ -204,11 +204,10 @@
         </select>
       </div>
       <div class="actions tight">
-        <button type="button" class="primary" id="write-ai">Write with Claude</button>
-        <button type="button" class="secondary" id="cancel-ai" hidden>Stop</button>
-        <button type="button" class="secondary" id="rebuild">Use basic template</button>
+        <button type="button" class="primary" id="write-letter">Write my letter</button>
+        <button type="button" class="secondary" id="another">Write another version</button>
       </div>
-      <p id="ai-status" class="read-status" role="status"></p>
+      <p id="letter-status" class="read-status" role="status"></p>
 
       <div class="field">
         <label for="letter">Letter text (edit anything)</label>
@@ -284,7 +283,8 @@
   <script src="js/rules.js"></script>
   <script src="js/samples.js"></script>
   <script src="js/letter.js"></script>
-  <script src="js/ai.js"></script>
+  <script src="js/reader.js"></script>
+  <script src="js/composer.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

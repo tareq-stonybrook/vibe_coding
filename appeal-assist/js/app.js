@@ -4,7 +4,8 @@
   var Rules = window.AppealRules;
   var Samples = window.AppealSamples.SAMPLES;
   var Letter = window.AppealLetter;
-  var AI = window.AppealAI;
+  var Reader = window.AppealReader;
+  var Composer = window.AppealComposer;
 
   var STORAGE_KEY = "appealAssist.v2";
   var STEP_NAMES = ["Start", "Your plan", "Notice", "Options", "Checklist", "Draft", "Review", "Download"];
@@ -28,6 +29,7 @@
       checklist: CHECKLIST.map(function (c) { return { id: c.id, label: c.label, have: false }; }),
       ownWords: "",
       tone: "plain",
+      version: 0,
       letter: "",
       letterSource: "",
       letterEdited: false,
@@ -37,8 +39,6 @@
 
   var S = freshState();
   var noticeFile = null;
-  var readCtl = null;
-  var writeCtl = null;
 
   // ---------- storage (browser only, may be unavailable) ----------
   function save() {
@@ -133,8 +133,17 @@
   }
 
   // Uses the viewer's save dialog on claude.ai, a normal download elsewhere.
+  var downloadsPromise = null;
+  function getDownloads() {
+    if (!downloadsPromise) {
+      downloadsPromise = (window.claude && typeof window.claude.use === "function")
+        ? window.claude.use("downloads").catch(function () { return null; })
+        : Promise.resolve(null);
+    }
+    return downloadsPromise;
+  }
   function saveFile(filename, content, type) {
-    return AI.getDownloads().then(function (dl) {
+    return getDownloads().then(function (dl) {
       if (dl) {
         return dl.save({ filename: filename, data: new Blob([content], { type: type }) }).then(
           function () { return "Saved " + filename + "."; },
@@ -162,7 +171,7 @@
     if (step === 0 && !S.ack) return "Check the box to confirm you understand what this guide does.";
     if (step === 1 && !S.state) return "Choose your state.";
     if (step === 1 && !S.planType) return "Choose your insurance type.";
-    if (step === 5 && !S.letter.trim()) return "Write the letter first, with Claude or the basic template.";
+    if (step === 5 && !S.letter.trim()) return "Press Write my letter first.";
     if (step === 6 && Letter.findPlaceholders(S.letter).length) return "Fill in or dismiss every gap before download.";
     if (step === 6 && !S.reviewed) return "Confirm you read the whole letter.";
     return "";
@@ -235,9 +244,6 @@
       sel.appendChild(el("option", { value: s.id }, "Example " + (i + 1) + ": " + (s.planName || "notice with missing details")));
     });
     DETAIL_FIELDS.forEach(function (f) { $("#" + f).value = S.details[f] || ""; });
-    AI.getSample().then(function (s) {
-      if (!s) setStatus("#read-status", "Reading files needs Claude. It works when this page is opened from its claude.ai link. You can still type the details below.");
-    });
   }
 
   function renderGuide() {
@@ -319,24 +325,25 @@
   function renderDraft() {
     $("#ownWords").value = S.ownWords;
     $("#tone").value = S.tone;
+    if (!S.letter || !S.letterEdited) writeLetter(S.version);
     $("#letter").value = S.letter;
-    AI.getSample().then(function (s) {
-      $("#write-ai").hidden = !s;
-      if (!s) {
-        if (!S.letter) buildTemplate();
-        setStatus("#ai-status", "Writing with Claude works when this page is opened from its claude.ai link. Below is the basic template.");
-      } else if (!S.letter) {
-        setStatus("#ai-status", "Press Write with Claude to draft your letter.");
-      }
-    });
+    $("#another").hidden = !S.letter;
   }
 
-  function buildTemplate() {
-    S.letter = Letter.buildLetter(S.details, S.checklist, S.ownWords);
-    S.letterSource = "template";
+  function writeLetter(version) {
+    S.version = version;
+    S.letter = Composer.compose({
+      details: S.details,
+      checklist: S.checklist,
+      ownWords: S.ownWords,
+      tone: S.tone,
+      version: version
+    });
+    S.letterSource = "composer";
     S.letterEdited = false;
     S.reviewed = false;
     $("#letter").value = S.letter;
+    $("#another").hidden = false;
     save();
   }
 
@@ -440,11 +447,9 @@
 
   function readNotice() {
     if (!noticeFile) return;
-    readCtl = new AbortController();
     $("#read-notice").disabled = true;
-    $("#cancel-read").hidden = false;
-    setStatus("#read-status", "Claude is reading your notice. This can take up to a minute.");
-    AI.extractFromFile(noticeFile, { signal: readCtl.signal }).then(function (out) {
+    setStatus("#read-status", "Reading your notice.");
+    Reader.readFile(noticeFile).then(function (out) {
       var filled = [];
       DETAIL_FIELDS.forEach(function (f) {
         var input = $("#" + f);
@@ -458,44 +463,32 @@
       });
       save();
       setStatus("#read-status", filled.length
-        ? "Filled " + filled.length + " of 5 fields, outlined in green. Check each one against your notice. Blank fields were not found."
-        : "Claude could not find the details on that file. Type them below.", !filled.length);
+        ? "Filled " + filled.length + " of 5 fields, outlined in green. Check each one against your notice." +
+          (filled.length < 5 ? " Type anything still blank." : "")
+        : "Could not find the details in that file. Type them below.", !filled.length);
     }, function (e) {
-      setStatus("#read-status", AI.errorMessage(e), e && e.code !== "cancelled");
+      setStatus("#read-status", Reader.errorMessage(e), true);
     }).then(function () {
       $("#read-notice").disabled = !noticeFile;
-      $("#cancel-read").hidden = true;
-      readCtl = null;
     });
   }
 
-  // ---------- AI letter ----------
-  function writeWithAI() {
-    writeCtl = new AbortController();
-    $("#write-ai").disabled = true;
-    $("#cancel-ai").hidden = false;
-    setStatus("#ai-status", "Claude is writing your letter.");
-    var ta = $("#letter");
-    AI.writeLetter(S.details, haveLabels(), S.ownWords, S.tone, {
-      signal: writeCtl.signal,
-      onText: function (p) { ta.value = p.text; }
-    }).then(function (text) {
-      S.letter = text;
-      S.letterSource = "ai";
-      S.letterEdited = false;
-      S.reviewed = false;
-      ta.value = text;
-      save();
-      setStatus("#ai-status", "Draft written. Read it closely. You can edit anything, and the next step checks for gaps.");
-    }, function (e) {
-      if (e && e.text && e.code !== "refused") ta.value = e.text;
-      else ta.value = S.letter;
-      setStatus("#ai-status", AI.errorMessage(e), e && e.code !== "cancelled");
-    }).then(function () {
-      $("#write-ai").disabled = false;
-      $("#cancel-ai").hidden = true;
-      writeCtl = null;
-    });
+  function confirmReplace(btn, action) {
+    if (S.letterEdited && btn.getAttribute("data-armed") !== "1") {
+      var original = btn.textContent;
+      btn.setAttribute("data-armed", "1");
+      btn.textContent = "Click again to replace your edits";
+      setTimeout(function () {
+        btn.removeAttribute("data-armed");
+        btn.textContent = original;
+      }, 5000);
+      return;
+    }
+    if (btn.getAttribute("data-armed") === "1") {
+      btn.removeAttribute("data-armed");
+      btn.textContent = btn.id === "another" ? "Write another version" : "Write my letter";
+    }
+    action();
   }
 
   // ---------- events ----------
@@ -531,7 +524,12 @@
       dz.addEventListener(t, function () { dz.classList.remove("drag"); });
     });
     $("#read-notice").addEventListener("click", readNotice);
-    $("#cancel-read").addEventListener("click", function () { if (readCtl) readCtl.abort(); });
+    $("#dl-sample").addEventListener("click", function () {
+      var id = $("#sample").value;
+      var s = Samples.filter(function (x) { return x.id === id; })[0];
+      if (!s) return;
+      saveFile("synthetic-notice-" + s.id + ".txt", Reader.sampleToText(s, typeLabel(s.planType)), "text/plain;charset=utf-8").then(announce);
+    });
 
     $("#load-sample").addEventListener("click", function () {
       var id = $("#sample").value;
@@ -544,30 +542,32 @@
       announce("Example notice loaded. Review the fields below.");
     });
 
-    $("#ownWords").addEventListener("input", function (e) { S.ownWords = e.target.value; save(); });
-    $("#tone").addEventListener("change", function (e) { S.tone = e.target.value; save(); });
-    $("#write-ai").addEventListener("click", writeWithAI);
-    $("#cancel-ai").addEventListener("click", function () { if (writeCtl) writeCtl.abort(); });
+    // Until the user edits the letter by hand, it follows these inputs live.
+    $("#ownWords").addEventListener("input", function (e) {
+      S.ownWords = e.target.value;
+      if (!S.letterEdited) writeLetter(S.version); else save();
+    });
+    $("#tone").addEventListener("change", function (e) {
+      S.tone = e.target.value;
+      if (!S.letterEdited) writeLetter(S.version); else save();
+    });
+    $("#write-letter").addEventListener("click", function () {
+      confirmReplace($("#write-letter"), function () {
+        writeLetter(S.version);
+        setStatus("#letter-status", "Letter written from your details. Read it closely and edit anything.");
+      });
+    });
+    $("#another").addEventListener("click", function () {
+      confirmReplace($("#another"), function () {
+        writeLetter(S.version + 1);
+        setStatus("#letter-status", "New version written. Same facts, different wording.");
+      });
+    });
     $("#letter").addEventListener("input", function (e) {
       S.letter = e.target.value;
       S.letterEdited = true;
       S.reviewed = false;
       save();
-    });
-    $("#rebuild").addEventListener("click", function () {
-      if (S.letter && S.letterEdited && $("#rebuild").getAttribute("data-armed") !== "1") {
-        $("#rebuild").setAttribute("data-armed", "1");
-        $("#rebuild").textContent = "Click again to replace your edits";
-        setTimeout(function () {
-          $("#rebuild").removeAttribute("data-armed");
-          $("#rebuild").textContent = "Use basic template";
-        }, 5000);
-        return;
-      }
-      $("#rebuild").removeAttribute("data-armed");
-      $("#rebuild").textContent = "Use basic template";
-      buildTemplate();
-      setStatus("#ai-status", "Basic template filled from your details.");
     });
 
     $("#letter-review").addEventListener("input", function (e) {

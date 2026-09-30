@@ -92,55 +92,58 @@ async function run(label, contextOpts) {
   await browser.close();
 }
 
-// Fake claude.use so the upload and AI paths run without claude.ai.
-const FAKE_LETTER = "Dear plan,\n\nYou wrote: \"REASON\". I disagree. Surgery on 2025-01-01 was required.\n\n[ADD: your full name]";
-async function runWithFakeClaude() {
+// Upload a synthetic notice file and let the app write the letter, no AI.
+async function runUpload() {
   const browser = await chromium.launch();
-  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, acceptDownloads: true });
   const page = await ctx.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  await page.addInitScript((letter) => {
-    const fields = { planName: "Fake Plan (synthetic)", service: "Inpatient stay, 3 days", noticeDate: "2026-08-01",
-      reason: "Not medically necessary per review.", instructions: "Write to the Appeals Unit." };
-    const sample = async (input, opts) => {
-      const text = letter.replace("REASON", fields.reason);
-      if (opts && opts.onText) opts.onText({ text, delta: text });
-      window.__lastPrompt = input;
-      return { text, truncated: false };
-    };
-    sample.json = async () => fields;
-    sample.limits = async () => ({ maxPromptBytes: 262144, images: { maxCount: 4, maxInputBytes: 5e6, mediaTypes: ["image/png", "image/jpeg"] } });
-    window.claude = { use: async (name) => (name === "sample" ? sample : null) };
-  }, FAKE_LETTER);
   await page.goto(url);
   await page.check("#ack");
   await page.click("section[data-step='0'] [data-next]");
   await page.selectOption("#state", "NY");
   await page.check("#pt-aca", { force: true });
   await page.click("section[data-step='1'] [data-next]");
-  await page.setInputFiles("#notice-file", { name: "notice.txt", mimeType: "text/plain", buffer: Buffer.from("SYNTHETIC NOTICE text here") });
+
+  // Download an example notice file, then upload it.
+  await page.click("details.example summary");
+  const [dl] = await Promise.all([page.waitForEvent("download"), page.click("#dl-sample")]);
+  const noticePath = await dl.path();
+  const noticeText = fs.readFileSync(noticePath, "utf8");
+  check("upload: example file is marked synthetic", noticeText.includes("SYNTHETIC"));
+  await page.setInputFiles("#notice-file", { name: "notice.txt", mimeType: "text/plain", buffer: Buffer.from(noticeText) });
   await page.click("#read-notice");
-  await page.waitForFunction(() => document.querySelector("#planName").value === "Fake Plan (synthetic)");
-  check("ai: upload fills fields", true);
-  check("ai: filled fields highlighted", (await page.$$(".filled")).length === 5);
-  await page.screenshot({ path: path.join(outDir, "ai-notice.png"), fullPage: true });
+  await page.waitForFunction(() => document.querySelectorAll(".filled").length > 0);
+  check("upload: all 5 fields filled", (await page.$$(".filled")).length === 5);
+  const reason = await page.inputValue("#reason");
+  await page.screenshot({ path: path.join(outDir, "upload-notice.png"), fullPage: true });
+
+  await page.setInputFiles("#notice-file", { name: "photo.png", mimeType: "image/png", buffer: Buffer.from([137, 80, 78, 71]) });
+  await page.click("#read-notice");
+  await page.waitForFunction(() => document.querySelector("#read-status").textContent.includes("Photos"));
+  check("upload: photo gets a clear message", true);
+
   await page.click("section[data-step='2'] [data-next]");
   await page.click("section[data-step='3'] [data-next]");
+  await page.check("#cl-doctor");
   await page.click("section[data-step='4'] [data-next]");
-  check("ai: write button shown", await page.isVisible("#write-ai"));
-  await page.fill("#ownWords", "I could not breathe well at home.");
-  await page.click("#write-ai");
-  await page.waitForFunction(() => document.querySelector("#letter").value.startsWith("Dear plan"));
-  const prompt = await page.evaluate(() => window.__lastPrompt);
-  check("ai: prompt carries own words and rules", prompt.includes("I could not breathe well at home.") && prompt.includes("Do not add any fact"));
-  await page.screenshot({ path: path.join(outDir, "ai-draft.png"), fullPage: true });
+  const v0 = await page.inputValue("#letter");
+  check("letter: written without AI, uses reason and doctor statement", v0.includes(reason) && /statement from (my treating doctor|a doctor)|doctor who treated me/.test(v0));
+  await page.fill("#ownWords", "i could not breathe at home");
+  const v1 = await page.inputValue("#letter");
+  check("letter: own words tidied and inserted", v1.includes("I could not breathe at home."));
+  await page.selectOption("#tone", "formal");
+  const v2 = await page.inputValue("#letter");
+  check("letter: tone changes wording", v2 !== v1 && /respectfully/i.test(v2));
+  await page.click("#another");
+  const v3 = await page.inputValue("#letter");
+  check("letter: another version differs", v3 !== v2 && v3.includes(reason));
+  await page.screenshot({ path: path.join(outDir, "upload-draft.png"), fullPage: true });
   await page.click("section[data-step='5'] [data-next]");
   const warn = await page.textContent("#review-warnings");
-  check("ai: invented date flagged", warn.includes("2025-01-01"), warn);
-  check("ai: gap listed", (await page.$$("#review-list .review-item")).length === 1);
-  await page.screenshot({ path: path.join(outDir, "ai-review.png"), fullPage: true });
-  check("ai: no page errors", errors.length === 0, errors.join("; "));
+  check("letter: no unsupported numbers flagged", warn.trim() === "", warn);
+  check("upload: no page errors", errors.length === 0, errors.join("; "));
   await browser.close();
 }
 
@@ -148,7 +151,7 @@ async function runWithFakeClaude() {
   fs.mkdirSync(outDir, { recursive: true });
   await run("desktop", { viewport: { width: 1280, height: 900 } });
   await run("mobile", { ...devices["Pixel 5"] });
-  await runWithFakeClaude();
+  await runUpload();
   let failed = 0;
   for (const r of results) {
     if (!r.ok) failed++;
