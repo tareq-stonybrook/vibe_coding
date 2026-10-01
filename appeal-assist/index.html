@@ -94,9 +94,9 @@
 
       <div class="tile upload" id="upload-tile">
         <h2>Upload your notice</h2>
-        <p class="hint" id="upload-hint">PDF or text file. Synthetic notices only. Everything stays on your device.</p>
+        <p class="hint" id="upload-hint">Word (.docx), PDF or text file. Synthetic notices only. Everything stays on your device.</p>
         <div class="dropzone" id="dropzone">
-          <input type="file" id="notice-file" accept="application/pdf,.pdf,text/plain,.txt" aria-describedby="upload-hint">
+          <input type="file" id="notice-file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.doc,application/msword,application/pdf,.pdf,text/plain,.txt" aria-describedby="upload-hint">
           <label for="notice-file" class="dropzone-label">
             <span class="dz-title">Choose a file</span>
             <span class="dz-sub">or drag it here</span>
@@ -116,7 +116,8 @@
           <label for="sample" class="visually-hidden">Example notice</label>
           <select id="sample"></select>
           <button type="button" class="secondary" id="load-sample">Fill the form</button>
-          <button type="button" class="secondary" id="dl-sample">Download as a file to test upload</button>
+          <button type="button" class="secondary" id="dl-sample-docx">Download as Word file</button>
+          <button type="button" class="secondary" id="dl-sample">Download as text file</button>
         </div>
       </details>
 

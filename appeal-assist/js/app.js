@@ -569,6 +569,14 @@
       dz.addEventListener(t, function () { dz.classList.remove("drag"); });
     });
     $("#read-notice").addEventListener("click", readNotice);
+    $("#dl-sample-docx").addEventListener("click", function () {
+      var id = $("#sample").value;
+      var s = Samples.filter(function (x) { return x.id === id; })[0];
+      if (!s) return;
+      var bytes = window.AppealDocx.build(Reader.sampleToText(s, typeLabel(s.planType)).split("\n"));
+      saveFile("synthetic-notice-" + s.id + ".docx", bytes,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document").then(announce);
+    });
     $("#dl-sample").addEventListener("click", function () {
       var id = $("#sample").value;
       var s = Samples.filter(function (x) { return x.id === id; })[0];

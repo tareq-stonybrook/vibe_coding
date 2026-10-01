@@ -20,7 +20,7 @@ Publish a new version: `python3 build.py out.html` inlines everything into one f
 | --- | --- | --- |
 | 1 | Purpose and limits, acknowledgement, official help link | US-01 |
 | 2 | State and insurance type, with card hints | US-03 |
-| 3 | Upload notice (PDF with text, or .txt) and the app fills the fields by finding labels and headings, or type them. Example notices can fill the form or download as a file to test upload | US-02 |
+| 3 | Upload notice (Word .docx, PDF with text, or .txt) and the app fills the fields by finding labels and headings, or type them. Example notices can fill the form or download as a file to test upload | US-02 |
 | 4 | Stated reason, appeal paths and deadlines (verified only), notice instructions | US-04 |
 | 5 | Supporting information checklist, records prompt | US-05 |
 | 6 | "Your details" fields (name, address, phone, member ID, reference number, appeals address, date) print as labeled lines like `Name: ...`. App writes the letter from confirmed details, the user's own words and checked documents. Paragraphs change with the kind of denial reason (care setting, length of stay, records, criteria). Three tones. "Write another version" rewords with the same facts. Gaps shown as `[ADD: ...]` | US-06 |
@@ -48,7 +48,7 @@ Edit `js/rules.js`. Add an entry to the matching `COMBINATIONS` key with `citati
 ## Files
 
 * `index.html`, `styles.css`, `js/app.js`: UI
-* `js/reader.js`: reads notice files, finds the five fields, PDF text via pdf.js from cdnjs
+* `js/reader.js`: reads notice files (.docx unzipped with the browser built in decompressor, PDF text via pdf.js from cdnjs, .txt), finds the five fields
 * `js/composer.js`: writes the letter, no AI
 * `js/docx.js`: builds the Word file, no library
 * `js/letter.js`: letter builder, placeholder detection, RTF and text export

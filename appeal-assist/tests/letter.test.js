@@ -178,3 +178,28 @@ test("enclosures read in first person", () => {
   assert.ok(text.includes("* A statement from my treating doctor"));
   assert.ok(!text.includes("your treating doctor"));
 });
+
+test("reader: Word .docx notice made by Word tools is read", async () => {
+  const fs = require("fs"), path = require("path");
+  const buf = fs.readFileSync(path.join(__dirname, "fixtures", "notice-word.docx"));
+  const file = new File([buf], "notice.docx", { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+  const out = await Reader.readFile(file);
+  assert.equal(out.planName, "Sample Riverside Health Plan (synthetic)");
+  assert.equal(out.noticeDate, "2026-09-02");
+  assert.equal(out.service, "Inpatient hospital stay, 3 days & 2 nights");
+  assert.equal(out.reason, "The inpatient stay was not medically necessary because care could be given in an outpatient setting.");
+  assert.equal(out.instructions, "Write to the Appeals Unit, PO Box 100, Albany NY. Fax 555 0100.");
+});
+
+test("reader: app's own Word example round trips", async () => {
+  const Docx = require("../js/docx.js");
+  const s = SAMPLES[0];
+  const bytes = Docx.build(Reader.sampleToText(s, "Medicare").split("\n"));
+  const out = await Reader.readFile(new File([bytes], "x.docx"));
+  for (const f of ["planName", "service", "noticeDate", "reason", "instructions"]) assert.equal(out[f], s[f]);
+});
+
+test("reader: old .doc and photos get clear errors", async () => {
+  await assert.rejects(Reader.readFile(new File(["x"], "old.doc")), (e) => e.code === "old_doc");
+  await assert.rejects(Reader.readFile(new File(["x"], "p.png", { type: "image/png" })), (e) => e.code === "image");
+});

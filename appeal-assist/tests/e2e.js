@@ -123,6 +123,15 @@ async function runUpload() {
   const reason = await page.inputValue("#reason");
   await page.screenshot({ path: path.join(outDir, "upload-notice.png"), fullPage: true });
 
+  await page.setInputFiles("#notice-file", path.join(__dirname, "fixtures", "notice-word.docx"));
+  await page.click("#read-notice");
+  await page.waitForFunction(() => document.querySelector("#planName").value === "Sample Riverside Health Plan (synthetic)");
+  check("upload: Word .docx fills all 5 fields", (await page.$$(".filled")).length === 5);
+  await page.screenshot({ path: path.join(outDir, "upload-docx.png"), fullPage: true });
+  // Put the text example back so later checks match it.
+  await page.setInputFiles("#notice-file", { name: "notice.txt", mimeType: "text/plain", buffer: Buffer.from(noticeText) });
+  await page.click("#read-notice");
+  await page.waitForFunction((r) => document.querySelector("#reason").value === r, reason);
   await page.setInputFiles("#notice-file", { name: "photo.png", mimeType: "image/png", buffer: Buffer.from([137, 80, 78, 71]) });
   await page.click("#read-notice");
   await page.waitForFunction(() => document.querySelector("#read-status").textContent.includes("Photos"));
