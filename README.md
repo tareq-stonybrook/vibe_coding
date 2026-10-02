@@ -17,7 +17,7 @@ To run it from the code, open `appeal-assist/index.html` in Chrome, Edge, Safari
 ## What it does
 
 1. **Start.** Explains what the guide does and does not do. The user confirms before continuing.
-2. **Your plan.** Pick a state and insurance type (Medicare, Medicaid, ACA marketplace or employer plan).
+2. **Your plan.** Pick a state and employer plan insurance type 
 3. **Your notice.** Upload the notice as a Word (.docx), PDF or text file and the app fills in plan name, service, date, denial reason and appeal instructions. Or type them. Made up example notices are built in for testing.
 4. **Options.** Shows the denial reason and the appeal instructions from the notice. Appeal rules and deadlines show only after the team checks them against an official source.
 5. **Checklist.** Supporting information that is commonly requested, with a prompt to ask the care team or plan for records.
