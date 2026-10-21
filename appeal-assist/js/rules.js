@@ -48,6 +48,12 @@
 
   var STATES = [{ id: "NY", label: "New York" }];
 
+  // Plans offered for each insurance type. Only types listed here show a
+  // plan picker. Team to confirm the exact plan name from plan documents.
+  var PLANS = {
+    aca: [{ id: "healthfirst-silver-leaf", label: "Healthfirst Silver Leaf Plan" }]
+  };
+
   var HELP_LINKS = {
     general: { label: "HealthCare.gov", url: "https://www.healthcare.gov/" },
     medicare: { label: "Medicare.gov", url: "https://www.medicare.gov/" },
@@ -82,6 +88,7 @@
   var api = {
     INSURANCE_TYPES: INSURANCE_TYPES,
     STATES: STATES,
+    PLANS: PLANS,
     HELP_LINKS: HELP_LINKS,
     COMBINATIONS: COMBINATIONS,
     getRules: getRules,

@@ -21,6 +21,7 @@ async function run(label, contextOpts) {
   await page.goto(url);
 
   // Step 0: gate on acknowledgement
+  check(`${label}: new example panel heading`, (await page.textContent("details.example summary")) === "No notice to upload? Update manually.");
   check(`${label}: new opening line`, (await page.textContent(".hero .lede")).includes("Break down your denial notice, be informed on requested documents, and receive a drafted appeal letter to review and submit."));
   await page.click("section[data-step='0'] [data-next]");
   check(`${label}: ack required`, await page.isVisible("section[data-step='0'] .error"));
@@ -32,6 +33,7 @@ async function run(label, contextOpts) {
   await page.selectOption("#state", "NY");
   await page.focus("#pt-medicare");
   await page.keyboard.press("Space");
+  check(`${label}: no plan picker for Medicare`, !(await page.isVisible("#plan")));
   check(`${label}: radio via keyboard`, await page.isChecked("#pt-medicare"));
   await page.click("section[data-step='1'] [data-next]");
 
@@ -109,7 +111,14 @@ async function runUpload() {
   await page.click("section[data-step='0'] [data-next]");
   await page.selectOption("#state", "NY");
   await page.check("#pt-aca", { force: true });
+  check("plan: picker shows for ACA", await page.isVisible("#plan"));
+  const planOpts = await page.$$eval("#plan option", (o) => o.map((x) => x.textContent));
+  check("plan: only one plan offered", planOpts.length === 2 && planOpts[1] === "Healthfirst Silver Leaf Plan", planOpts.join("|"));
   await page.click("section[data-step='1'] [data-next]");
+  check("plan: required for ACA", await page.isVisible("section[data-step='1'] .error"));
+  await page.selectOption("#plan", "healthfirst-silver-leaf");
+  await page.click("section[data-step='1'] [data-next]");
+  check("plan: fills plan name on notice step", (await page.inputValue("#planName")) === "Healthfirst Silver Leaf Plan");
 
   // Download an example notice file, then upload it.
   await page.click("details.example summary");

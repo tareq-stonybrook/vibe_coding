@@ -19,7 +19,7 @@ Publish a new version: `python3 build.py out.html` inlines everything into one f
 | Step | Screen | Story |
 | --- | --- | --- |
 | 1 | Purpose and limits, acknowledgement, official help link | US-01 |
-| 2 | State and insurance type, with card hints | US-03 |
+| 2 | State and insurance type, with card hints. ACA marketplace shows a plan picker with one plan, set in `js/rules.js` PLANS | US-03 |
 | 3 | Upload notice (Word .docx, PDF with text, or .txt) and the app fills the fields by finding labels and headings, or type them. Example notices can fill the form or download as a file to test upload | US-02 |
 | 4 | Stated reason, appeal paths and deadlines (verified only), notice instructions | US-04 |
 | 5 | Supporting information checklist, records prompt | US-05 |

@@ -80,6 +80,11 @@
         <p class="hint">Look at the front of your insurance card or the top of your denial notice.</p>
         <div id="plan-types" class="choice-grid"></div>
       </fieldset>
+      <div class="field" id="plan-field" hidden>
+        <label for="plan">Plan</label>
+        <select id="plan" aria-describedby="plan-hint"></select>
+        <p class="hint" id="plan-hint">The plan name on your insurance card. This prototype covers one ACA marketplace plan.</p>
+      </div>
       <div class="actions">
         <button type="button" class="secondary" data-back>Back</button>
         <button type="button" class="primary" data-next>Continue</button>
@@ -110,8 +115,8 @@
       </div>
 
       <details class="example">
-        <summary>No notice handy? Try a made up example</summary>
-        <p class="hint">These are fictional notices our team wrote for testing. They are not real letters.</p>
+        <summary>No notice to upload? Update manually.</summary>
+        <p class="hint">Type the details from your notice in the fields below. To test the app, you can also fill them from a made up example our team wrote. Examples are not real letters.</p>
         <div class="inline">
           <label for="sample" class="visually-hidden">Example notice</label>
           <select id="sample"></select>

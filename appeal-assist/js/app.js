@@ -31,6 +31,7 @@
       ack: false,
       state: "",
       planType: "",
+      plan: "",
       details: { planName: "", service: "", noticeDate: "", reason: "", instructions: "" },
       checklist: CHECKLIST.map(function (c) { return { id: c.id, label: c.label, have: false }; }),
       ownWords: "",
@@ -181,6 +182,7 @@
     if (step === 0 && !S.ack) return "Check the box to confirm you understand what this guide does.";
     if (step === 1 && !S.state) return "Choose your state.";
     if (step === 1 && !S.planType) return "Choose your insurance type.";
+    if (step === 1 && plansFor(S.planType).length && !S.plan) return "Choose your plan.";
     if (step === 5 && !S.letter.trim()) return "Press Write my letter first.";
     if (step === 6 && Letter.findPlaceholders(S.letter).length) return "Fill in or dismiss every gap before download.";
     if (step === 6 && !S.reviewed) return "Confirm you read the whole letter.";
@@ -242,6 +244,27 @@
       });
     }
     $all('input[name="planType"]').forEach(function (r) { r.checked = r.value === S.planType; });
+    renderPlan();
+  }
+
+  function plansFor(type) {
+    return Rules.PLANS[type] || [];
+  }
+  function planLabel(id) {
+    var p = plansFor(S.planType).filter(function (x) { return x.id === id; })[0];
+    return p ? p.label : "";
+  }
+
+  // Plan picker shows only for insurance types that list plans.
+  function renderPlan() {
+    var plans = plansFor(S.planType);
+    $("#plan-field").hidden = !plans.length;
+    var sel = $("#plan");
+    sel.innerHTML = "";
+    if (!plans.length) return;
+    sel.appendChild(el("option", { value: "" }, "Choose a plan"));
+    plans.forEach(function (p) { sel.appendChild(el("option", { value: p.id }, p.label)); });
+    sel.value = S.plan;
   }
 
   function renderNotice() {
@@ -258,7 +281,8 @@
 
   function renderGuide() {
     var rules = Rules.getRules(S.state, S.planType);
-    $("#guide-context").textContent = "Showing results for " + stateLabel(S.state) + " and " + typeLabel(S.planType) + ".";
+    $("#guide-context").textContent = "Showing results for " + stateLabel(S.state) + ", " + typeLabel(S.planType) +
+      (planLabel(S.plan) ? ", " + planLabel(S.plan) : "") + ".";
 
     var reasonBox = $("#guide-reason");
     reasonBox.innerHTML = "";
@@ -541,7 +565,19 @@
 
     $("#state").addEventListener("change", function (e) { S.state = e.target.value; save(); });
     $("#plan-types").addEventListener("change", function (e) {
-      if (e.target.name === "planType") { S.planType = e.target.value; save(); }
+      if (e.target.name === "planType") {
+        S.planType = e.target.value;
+        if (!planLabel(S.plan)) S.plan = "";
+        renderPlan();
+        save();
+      }
+    });
+    $("#plan").addEventListener("change", function (e) {
+      var old = planLabel(S.plan);
+      S.plan = e.target.value;
+      // Fill the plan name on the notice step unless the user typed their own.
+      if (!S.details.planName || S.details.planName === old) S.details.planName = planLabel(S.plan);
+      save();
     });
 
     DETAIL_FIELDS.forEach(function (f) {
