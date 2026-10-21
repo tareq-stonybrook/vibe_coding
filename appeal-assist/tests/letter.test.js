@@ -213,3 +213,11 @@ test("reader: old .doc and photos get clear errors", async () => {
   await assert.rejects(Reader.readFile(new File(["x"], "old.doc")), (e) => e.code === "old_doc");
   await assert.rejects(Reader.readFile(new File(["x"], "p.png", { type: "image/png" })), (e) => e.code === "image");
 });
+
+test("team wording for the letter", () => {
+  const t = Composer.compose({ details: SAMPLES[0] });
+  assert.ok(t.includes("I respectfully request that you review the additional clinical documentation provided and consider overturning your coverage decision."));
+  assert.ok(t.includes("Here is why I believe the hospital stay was necessary:"));
+  assert.ok(!/do not agree|disagree|dispute/i.test(t));
+  assert.ok(!t.includes("was needed:"));
+});

@@ -4,7 +4,7 @@ const path = require("path");
 const fs = require("fs");
 const { chromium, devices } = require("playwright");
 
-const url = "file://" + path.resolve(__dirname, "..", "index.html");
+const url = process.env.APP_URL || "file://" + path.resolve(__dirname, "..", "index.html");
 const outDir = process.env.SHOT_DIR || path.resolve(__dirname, "..", "screenshots");
 const results = [];
 
@@ -21,6 +21,7 @@ async function run(label, contextOpts) {
   await page.goto(url);
 
   // Step 0: gate on acknowledgement
+  check(`${label}: new opening line`, (await page.textContent(".hero .lede")).includes("Break down your denial notice, be informed on requested documents, and receive a drafted appeal letter to review and submit."));
   await page.click("section[data-step='0'] [data-next]");
   check(`${label}: ack required`, await page.isVisible("section[data-step='0'] .error"));
   await page.check("#ack");

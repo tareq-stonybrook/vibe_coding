@@ -56,15 +56,13 @@
       signoff: ["Sincerely,", "Sincerely,"]
     },
     formal: {
-      greeting: ["Dear Appeals Review Department:", "To the Appeals Review Department:"],
-      open: [
-        "Please accept this letter as my formal appeal of your decision to deny coverage for SERVICE.",
-        "I respectfully request a full review of your decision to deny coverage for SERVICE."
-      ],
-      disagree: ["I respectfully disagree with this determination.", "I respectfully dispute this determination."],
-      own: ["My reasons for believing the hospital stay was necessary are as follows:", "I submit the following account of why the hospital stay was necessary:"],
-      close: ["I appreciate your prompt attention to this appeal.", "Thank you for your careful consideration of this appeal."],
-      signoff: ["Respectfully,", "Sincerely,"]
+      // Wording reviewed by the team for US-02. One phrasing per slot.
+      greeting: ["Dear Appeals Review Department:"],
+      open: ["Please accept this letter as my formal appeal of your decision to deny coverage for SERVICE."],
+      disagree: ["I respectfully request that you review the additional clinical documentation provided and consider overturning your coverage decision."],
+      own: ["Here is why I believe the hospital stay was necessary:"],
+      close: ["Thank you for your careful consideration of this appeal."],
+      signoff: ["Sincerely,"]
     },
     warm: {
       greeting: ["Dear Appeals Team,", "Dear Appeals Department,"],
@@ -157,7 +155,7 @@
     var basis = parts.length
       ? "Based on these reasons, including " + parts.join(", as well as ") + ", "
       : "Based on the reasons I have described above, ";
-    return basis + "I believe my hospital stay was medically necessary. I respectfully request that you reverse your decision and approve coverage for " + service + ".";
+    return basis + "I believe my hospital stay was medically necessary. I therefore ask that you reverse your decision and approve coverage for " + service + ".";
   }
 
   function compose(input) {
