@@ -21,9 +21,11 @@ async function run(label, contextOpts) {
   await page.goto(url);
 
   // Step 0: gate on acknowledgement
+  check(`${label}: hero shows name and tagline only`, (await page.textContent("#h-intro")) === "Appeal Assist" && (await page.textContent(".tagline")) === "Helping patients overturn denials.");
+  check(`${label}: no prototype or synthetic wording`, !/prototype|synthetic/i.test(await page.innerText("body")));
   check(`${label}: outcome disclaimer on first page`, (await page.textContent("ul.crosses")).includes("We are not responsible for whether your appeal is approved or denied."));
   check(`${label}: new example panel heading`, (await page.textContent("details.example summary")) === "No notice to upload? Update manually.");
-  check(`${label}: new opening line`, (await page.textContent(".hero .lede")).includes("Break down your denial notice, be informed on requested documents, and receive a drafted appeal letter to review and submit."));
+  check(`${label}: new opening line`, (await page.textContent(".intro")).includes("Break down your denial notice, be informed on requested documents, and receive a drafted appeal letter to review and submit."));
   await page.click("section[data-step='0'] [data-next]");
   check(`${label}: ack required`, await page.isVisible("section[data-step='0'] .error"));
   await page.check("#ack");
@@ -128,7 +130,7 @@ async function runUpload() {
   const [dl] = await Promise.all([page.waitForEvent("download"), page.click("#dl-sample")]);
   const noticePath = await dl.path();
   const noticeText = fs.readFileSync(noticePath, "utf8");
-  check("upload: example file is marked synthetic", noticeText.includes("SYNTHETIC"));
+  check("upload: example file is marked as an example", noticeText.includes("EXAMPLE NOTICE. NOT A REAL LETTER."));
   await page.setInputFiles("#notice-file", { name: "notice.txt", mimeType: "text/plain", buffer: Buffer.from(noticeText) });
   await page.click("#read-notice");
   await page.waitForFunction(() => document.querySelectorAll(".filled").length > 0);

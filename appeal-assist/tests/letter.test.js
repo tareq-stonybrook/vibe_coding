@@ -231,7 +231,11 @@ test("opening names the plan and notice date", () => {
   assert.ok(blank.includes("denial issued by [ADD: plan name] in its notice dated [ADD: date on your notice]"));
 });
 
-test("examples use the post operative scenario and the Silver Leaf plan for ACA", () => {
-  for (const s of SAMPLES) assert.match(s.service, /surgery/i, s.id);
+test("examples: one stay after surgery per insurance type, others varied, Silver Leaf for ACA", () => {
+  for (const type of ["medicare", "medicaid", "aca", "employer"]) {
+    const list = SAMPLES.filter((x) => x.planType === type);
+    assert.match(list[0].service, /surgery/i, type);
+    assert.ok(list.some((x) => !/surgery/i.test(x.service)), type + " has a non surgery example");
+  }
   for (const s of SAMPLES.filter((x) => x.planType === "aca")) assert.equal(s.planName, "Healthfirst Silver Leaf Plan");
 });

@@ -4,7 +4,7 @@ This is a vibe coded app for course HHA 502.
 
 Appeal Assist helps a patient or caregiver answer an insurance denial for a hospital stay that the plan says was not medically necessary. It walks through the denial notice, shows what to gather, and writes a draft appeal letter the user reviews, edits and sends themselves.
 
-**Prototype.** Use synthetic (made up) notices only. Do not enter or upload real patient information.
+**Tagline:** Helping patients overturn denials.
 
 ## Try it
 

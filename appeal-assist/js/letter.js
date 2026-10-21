@@ -11,8 +11,8 @@
   var PLACEHOLDER_RE = /\[ADD: [^\]]+\]/g;
 
   var REMINDER =
-    "REMINDER (delete this note before sending): This draft was organized by Appeal Assist, " +
-    "a prototype. It gives no legal or medical advice and did not submit anything. " +
+    "REMINDER (delete this note before sending): This draft was organized by Appeal Assist. " +
+    "It gives no legal or medical advice and did not submit anything. " +
     "Check every detail against your notice, fill any gaps, and attach your supporting information. " +
     "You send the appeal yourself.";
 

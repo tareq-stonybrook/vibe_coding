@@ -614,14 +614,14 @@
       var s = Samples.filter(function (x) { return x.id === id; })[0];
       if (!s) return;
       var bytes = window.AppealDocx.build(Reader.sampleToText(s, typeLabel(s.planType)).split("\n"));
-      saveFile("synthetic-notice-" + s.id + ".docx", bytes,
+      saveFile("example-notice-" + s.id + ".docx", bytes,
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document").then(announce);
     });
     $("#dl-sample").addEventListener("click", function () {
       var id = $("#sample").value;
       var s = Samples.filter(function (x) { return x.id === id; })[0];
       if (!s) return;
-      saveFile("synthetic-notice-" + s.id + ".txt", Reader.sampleToText(s, typeLabel(s.planType)), "text/plain;charset=utf-8").then(announce);
+      saveFile("example-notice-" + s.id + ".txt", Reader.sampleToText(s, typeLabel(s.planType)), "text/plain;charset=utf-8").then(announce);
     });
 
     $("#load-sample").addEventListener("click", function () {

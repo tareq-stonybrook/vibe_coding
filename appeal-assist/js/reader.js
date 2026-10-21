@@ -227,11 +227,11 @@
     return map[e && e.code] || "Could not read that file. Type the details below.";
   }
 
-  // A synthetic notice as a text file, so testers can try the upload.
+  // An example notice as a text file, so people can try the upload.
   function sampleToText(s, planLabel) {
     var L = [];
     if (s.planName) L.push(s.planName);
-    L.push("SYNTHETIC NOTICE FOR TESTING. NOT A REAL LETTER.");
+    L.push("EXAMPLE NOTICE. NOT A REAL LETTER.");
     L.push("");
     if (s.noticeDate) L.push("Date: " + s.noticeDate);
     L.push("Plan type: " + planLabel);

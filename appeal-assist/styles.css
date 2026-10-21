@@ -105,7 +105,10 @@ a:hover { text-decoration: underline; }
 main { padding-block: 16px 64px; }
 main:focus { outline: none; }
 
-.hero { text-align: center; padding-block: 48px 24px; }
+.hero { text-align: center; padding-block: 72px 32px; }
+.brand-title { font-size: clamp(3rem, 9vw, 5rem); line-height: 1.02; letter-spacing: -0.035em; margin: 0; }
+.tagline { font-size: clamp(1.25rem, 3vw, 1.6rem); color: var(--muted); margin: 12px 0 0; letter-spacing: -0.015em; }
+.intro { font-size: 1.125rem; text-align: center; max-width: 34rem; margin: 0 auto 28px; color: var(--text); }
 .hero .lede { margin-inline: auto; max-width: 34rem; }
 .eyebrow { color: var(--muted); font-size: 0.9rem; font-weight: 600; margin: 24px 0 0; }
 .hero .eyebrow { margin-top: 0; }

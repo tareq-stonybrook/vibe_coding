@@ -1,5 +1,5 @@
 /*
- * SYNTHETIC denial notices for testing. Dates and wording are made up.
+ * Example denial notices, made up for testing. Dates and wording are made up.
  * The ACA examples use the team's scenario plan name, Healthfirst Silver
  * Leaf Plan, but the notices themselves are invented. They are not copies
  * of any real notice and contain no real patient information. Three notices per state and insurance type, per the
@@ -7,8 +7,9 @@
  */
 (function (root) {
   var SAMPLES = [
-    // Scenario for all examples: inpatient stay after surgery (post operative),
-    // denied as not medically necessary.
+    // Inpatient stays denied as not medically necessary. The first example
+    // for each insurance type is a stay after surgery (the team's main
+    // scenario). The others cover other common inpatient denials.
     // Medicare
     {
       id: "ny-medicare-1", state: "NY", planType: "medicare",
@@ -21,17 +22,17 @@
     {
       id: "ny-medicare-2", state: "NY", planType: "medicare",
       planName: "Sample Medicare Advantage Plan B (synthetic)",
-      service: "Continued inpatient stay after surgery, post operative day 3 onward",
+      service: "Continued inpatient stay for heart failure, day 4 onward",
       noticeDate: "2026-07-02",
-      reason: "Continued hospital care beyond post operative day 3 did not meet medical necessity criteria. Your condition was stable for discharge.",
+      reason: "Continued hospital care beyond day 3 did not meet medical necessity criteria. Your condition was stable for discharge.",
       instructions: "You or someone acting for you may request a reconsideration in writing. See the back of this page for mailing and fax details."
     },
     {
       id: "ny-medicare-3", state: "NY", planType: "medicare",
       planName: "Sample Health Plan C (synthetic)",
-      service: "Inpatient admission following outpatient surgery",
+      service: "Inpatient rehabilitation admission",
       noticeDate: "2026-09-05",
-      reason: "Documentation did not show that you required an inpatient level of care after your procedure.",
+      reason: "Documentation did not show that you required an inpatient level of care.",
       instructions: ""
     },
     // Medicaid
@@ -46,15 +47,15 @@
     {
       id: "ny-medicaid-2", state: "NY", planType: "medicaid",
       planName: "Sample Managed Care Plan D (synthetic)",
-      service: "Inpatient stay after surgery, 2 days",
+      service: "Inpatient psychiatric stay",
       noticeDate: "2026-06-30",
-      reason: "The records received did not support inpatient care after surgery. A lower level of care was appropriate.",
+      reason: "The records received did not support inpatient care. A lower level of care was appropriate.",
       instructions: "Complete the attached appeal form and return it by mail or fax."
     },
     {
       id: "ny-medicaid-3", state: "NY", planType: "medicaid",
       planName: "",
-      service: "Inpatient stay after surgery",
+      service: "Inpatient hospital admission",
       noticeDate: "",
       reason: "Admission criteria were not met.",
       instructions: ""
@@ -71,17 +72,17 @@
     {
       id: "ny-aca-2", state: "NY", planType: "aca",
       planName: "Healthfirst Silver Leaf Plan",
-      service: "Continued inpatient stay after surgery, post operative day 2 onward",
+      service: "Inpatient hospital stay for pneumonia, 4 days",
       noticeDate: "2026-09-12",
-      reason: "Continued inpatient care after post operative day 2 did not meet medical necessity criteria. You were stable for discharge.",
+      reason: "Inpatient care after day 2 did not meet medical necessity criteria. You were stable for discharge.",
       instructions: "Send your appeal and any supporting documents to the address on the last page."
     },
     {
       id: "ny-aca-3", state: "NY", planType: "aca",
       planName: "Healthfirst Silver Leaf Plan",
-      service: "Inpatient admission after surgery",
+      service: "Inpatient admission for observation of chest pain",
       noticeDate: "2026-07-18",
-      reason: "The information submitted did not support an inpatient level of care after your procedure.",
+      reason: "The information submitted did not support an inpatient level of care. Observation status was appropriate.",
       instructions: ""
     },
     // Employer plan
@@ -96,17 +97,17 @@
     {
       id: "ny-employer-2", state: "NY", planType: "employer",
       planName: "Sample Self-Funded Employer Plan G (synthetic)",
-      service: "Inpatient stay after surgery, 3 days",
+      service: "Inpatient cardiac monitoring stay",
       noticeDate: "2026-06-10",
-      reason: "Post operative services did not meet the plan's definition of medically necessary care.",
+      reason: "Services did not meet the plan's definition of medically necessary care.",
       instructions: "See the enclosed Summary of Appeal Rights."
     },
     {
       id: "ny-employer-3", state: "NY", planType: "employer",
       planName: "Sample Union Health Fund H (synthetic)",
-      service: "Inpatient stay after emergency surgery",
+      service: "Inpatient stay following emergency visit",
       noticeDate: "2026-09-01",
-      reason: "The emergency surgery was covered. The inpatient stay after surgery was not medically necessary.",
+      reason: "The emergency department visit was covered. The following inpatient admission was not medically necessary.",
       instructions: "Appeals must be in writing. Mail to the Fund Office."
     }
   ];

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Appeal Assist</title>
-  <meta name="description" content="Guide and letter builder for inpatient medical necessity denials. Prototype using synthetic notices.">
+  <meta name="description" content="Appeal Assist helps patients overturn insurance denials with a guided appeal letter.">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -27,12 +27,11 @@
     <!-- Step 0: Purpose and limits (US-01) -->
     <section class="step" data-step="0" aria-labelledby="h-intro">
       <div class="hero wrap">
-        <p class="eyebrow">Inpatient medical necessity denials</p>
-        <h1 id="h-intro">Answer a hospital stay denial, one step at a time.</h1>
-        <p class="lede">Break down your denial notice, be informed on requested documents, and receive a drafted appeal letter to review and submit.</p>
+        <h1 id="h-intro" class="brand-title">Appeal Assist</h1>
+        <p class="tagline">Helping patients overturn denials.</p>
       </div>
       <div class="wrap">
-        <div class="banner" role="note">Prototype. Use synthetic notices only. Do not enter or upload real patient information.</div>
+        <p class="intro">Break down your denial notice, be informed on requested documents, and receive a drafted appeal letter to review and submit.</p>
         <div class="grid-2">
           <div class="tile">
             <h2>What it does</h2>
@@ -74,7 +73,7 @@
       <div class="field">
         <label for="state">State</label>
         <select id="state" aria-describedby="state-hint"></select>
-        <p class="hint" id="state-hint">The state where your plan is based. This prototype covers New York only.</p>
+        <p class="hint" id="state-hint">The state where your plan is based. Currently available for New York.</p>
       </div>
       <fieldset class="field">
         <legend>Insurance type</legend>
@@ -84,7 +83,7 @@
       <div class="field" id="plan-field" hidden>
         <label for="plan">Plan</label>
         <select id="plan" aria-describedby="plan-hint"></select>
-        <p class="hint" id="plan-hint">The plan name on your insurance card. This prototype covers one ACA marketplace plan.</p>
+        <p class="hint" id="plan-hint">The plan name on your insurance card.</p>
       </div>
       <div class="actions">
         <button type="button" class="secondary" data-back>Back</button>
@@ -100,7 +99,7 @@
 
       <div class="tile upload" id="upload-tile">
         <h2>Upload your notice</h2>
-        <p class="hint" id="upload-hint">Word (.docx), PDF or text file. Synthetic notices only. Everything stays on your device.</p>
+        <p class="hint" id="upload-hint">Word (.docx), PDF or text file. Everything stays on your device.</p>
         <div class="dropzone" id="dropzone">
           <input type="file" id="notice-file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.doc,application/msword,application/pdf,.pdf,text/plain,.txt" aria-describedby="upload-hint">
           <label for="notice-file" class="dropzone-label">
@@ -117,7 +116,7 @@
 
       <details class="example">
         <summary>No notice to upload? Update manually.</summary>
-        <p class="hint">Type the details from your notice in the fields below. To test the app, you can also fill them from a made up example our team wrote. Examples are not real letters.</p>
+        <p class="hint">Type the details from your notice in the fields below, or fill them from an example notice to see how it works.</p>
         <div class="inline">
           <label for="sample" class="visually-hidden">Example notice</label>
           <select id="sample"></select>
@@ -199,7 +198,7 @@
 
       <fieldset class="field tile sender">
         <legend>Your details for the letter</legend>
-        <p class="hint">Type plain text only, no brackets. Leave anything blank to fill in later. Use made up details while testing.</p>
+        <p class="hint">Type plain text only, no brackets. Leave anything blank to fill in later.</p>
         <div class="sender-grid">
           <div class="field"><label for="s-name">Full name</label><input id="s-name" type="text" autocomplete="off"></div>
           <div class="field"><label for="s-phone">Phone</label><input id="s-phone" type="text" autocomplete="off" inputmode="tel"></div>
