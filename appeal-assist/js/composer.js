@@ -116,7 +116,7 @@
     if (hasDoctor) {
       out.push(pick([
         "I am also enclosing a statement from my treating doctor. I ask you to give it careful weight, since it comes from a doctor who treated me.",
-        "I have included a statement from my treating doctor, who cared for me during this stay. Please consider it carefully."
+        "I have included a statement from my treating doctor. Please consider it carefully."
       ], v, 5));
     }
     return out;
@@ -132,10 +132,39 @@
     log: "My notes of dates, calls and people I spoke with"
   };
 
+  // The user's own reasons joined into one clause, wording unchanged:
+  // "I could not breathe. My oxygen was low." -> "I could not breathe and my oxygen was low"
+  function reasonsClause(text) {
+    var t = tidy(text);
+    if (!t) return "";
+    var sentences = (t.match(/[^.!?]+[.!?]*/g) || []).map(function (x) {
+      x = x.trim().replace(/[.!?]+$/, "");
+      return /^I\b/.test(x) ? x : x.charAt(0).toLowerCase() + x.slice(1);
+    }).filter(Boolean);
+    if (sentences.length < 2) return sentences.join("");
+    return sentences.slice(0, -1).join(", ") + " and " + sentences[sentences.length - 1];
+  }
+
+  // Closing paragraph that sums up the patient's reasons.
+  function summary(ownWords, hasDoctor, hasRecords, service) {
+    var parts = [];
+    var own = reasonsClause(ownWords);
+    if (own) parts.push("that " + own);
+    var docs = [];
+    if (hasDoctor) docs.push("my treating doctor's statement");
+    if (hasRecords) docs.push("the records from my hospital stay");
+    if (docs.length) parts.push(docs.join(" and "));
+    var basis = parts.length
+      ? "Based on these reasons, including " + parts.join(", as well as ") + ", "
+      : "Based on the reasons I have described above, ";
+    return basis + "I believe my hospital stay was medically necessary. I respectfully request that you reverse your decision and approve coverage for " + service + ".";
+  }
+
   function compose(input) {
     var d = input.details || {};
-    var tone = TONES[input.tone] || TONES.plain;
-    var v = Math.max(0, parseInt(input.version, 10) || 0);
+    // The letter is always formal, with one fixed wording.
+    var tone = TONES.formal;
+    var v = 0;
     var have = (input.checklist || []).filter(function (c) { return c.have; });
     var hasId = function (id) { return have.some(function (c) { return c.id === id; }); };
     var service = clean(d.service) || gap("inpatient service that was denied");
@@ -178,10 +207,7 @@
     if (have.length) have.forEach(function (c) { L.push("  * " + (ENCLOSURES[c.id] || c.label)); });
     else L.push("  * " + gap("list of documents you are enclosing"));
     L.push("");
-    L.push(pick([
-      "Please send me a copy of all documents, records and criteria you used to make this decision, and tell me in writing if you need anything else from me.",
-      "Please also send me copies of the documents, records and criteria used in this decision, and let me know in writing if you need more information from me."
-    ], v, 5));
+    L.push(summary(input.ownWords, hasId("doctor"), hasId("records"), service));
     L.push("");
     L.push(pick(tone.close, v, 6));
     L.push("");

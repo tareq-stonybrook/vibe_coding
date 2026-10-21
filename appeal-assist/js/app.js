@@ -35,8 +35,6 @@
       checklist: CHECKLIST.map(function (c) { return { id: c.id, label: c.label, have: false }; }),
       ownWords: "",
       sender: { name: "", phone: "", address: "", memberId: "", refNumber: "", appealsAddress: "", date: todayIso() },
-      tone: "plain",
-      version: 0,
       letter: "",
       letterSource: "",
       letterEdited: false,
@@ -337,27 +335,21 @@
   function renderDraft() {
     SENDER_FIELDS.forEach(function (f) { $("#s-" + f).value = S.sender[f] || ""; });
     $("#ownWords").value = S.ownWords;
-    $("#tone").value = S.tone;
-    if (!S.letter || !S.letterEdited) writeLetter(S.version);
+    if (!S.letter || !S.letterEdited) writeLetter();
     $("#letter").value = S.letter;
-    $("#another").hidden = !S.letter;
   }
 
-  function writeLetter(version) {
-    S.version = version;
+  function writeLetter() {
     S.letter = Composer.compose({
       details: S.details,
       checklist: S.checklist,
       ownWords: S.ownWords,
       sender: S.sender,
-      tone: S.tone,
-      version: version
     });
     S.letterSource = "composer";
     S.letterEdited = false;
     S.reviewed = false;
     $("#letter").value = S.letter;
-    $("#another").hidden = false;
     save();
   }
 
@@ -531,7 +523,7 @@
     }
     if (btn.getAttribute("data-armed") === "1") {
       btn.removeAttribute("data-armed");
-      btn.textContent = btn.id === "another" ? "Write another version" : "Write my letter";
+      btn.textContent = "Write my letter";
     }
     action();
   }
@@ -600,27 +592,17 @@
       $("#s-" + f).addEventListener("input", function (e) {
         S.sender[f] = e.target.value.replace(/[\[\]]/g, "");
         if (e.target.value !== S.sender[f]) e.target.value = S.sender[f];
-        if (!S.letterEdited) writeLetter(S.version); else save();
+        if (!S.letterEdited) writeLetter(); else save();
       });
     });
     $("#ownWords").addEventListener("input", function (e) {
       S.ownWords = e.target.value;
-      if (!S.letterEdited) writeLetter(S.version); else save();
-    });
-    $("#tone").addEventListener("change", function (e) {
-      S.tone = e.target.value;
-      if (!S.letterEdited) writeLetter(S.version); else save();
+      if (!S.letterEdited) writeLetter(); else save();
     });
     $("#write-letter").addEventListener("click", function () {
       confirmReplace($("#write-letter"), function () {
-        writeLetter(S.version);
+        writeLetter();
         setStatus("#letter-status", "Letter written from your details. Read it closely and edit anything.");
-      });
-    });
-    $("#another").addEventListener("click", function () {
-      confirmReplace($("#another"), function () {
-        writeLetter(S.version + 1);
-        setStatus("#letter-status", "New version written. Same facts, different wording.");
       });
     });
     $("#letter").addEventListener("input", function (e) {

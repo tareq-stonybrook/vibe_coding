@@ -21,7 +21,7 @@ To run it from the code, open `appeal-assist/index.html` in Chrome, Edge, Safari
 3. **Your notice.** Upload the notice as a Word (.docx), PDF or text file and the app fills in plan name, service, date, denial reason and appeal instructions. Or type them. Made up example notices are built in for testing.
 4. **Options.** Shows the denial reason and the appeal instructions from the notice. Appeal rules and deadlines show only after the team checks them against an official source.
 5. **Checklist.** Supporting information that is commonly requested, with a prompt to ask the care team or plan for records.
-6. **Draft.** The user enters their details (name, address, phone, member ID and similar) and, if they want, their own words about why the stay was needed. The app writes the letter. Paragraphs change with the kind of denial reason. Three tones. "Write another version" rewords with the same facts.
+6. **Draft.** The user enters their details (name, address, phone, member ID and similar) and, if they want, their own words about why the stay was needed. The app writes the letter. The letter is formal. Paragraphs change with the kind of denial reason, and the closing paragraph sums up the reasons the patient gave.
 7. **Review.** Every gap shows as `[ADD: ...]` with its own fill box. Download stays locked until each gap is filled or dismissed. The app flags leftover brackets and any number the user never entered.
 8. **Download.** Word (.docx) or text file, plus a copy button and sending tips. The app never submits anything.
 

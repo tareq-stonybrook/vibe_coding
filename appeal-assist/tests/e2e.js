@@ -151,12 +151,10 @@ async function runUpload() {
   await page.fill("#ownWords", "i could not breathe at home");
   const v1 = await page.inputValue("#letter");
   check("letter: own words tidied and inserted", v1.includes("I could not breathe at home."));
-  await page.selectOption("#tone", "formal");
-  const v2 = await page.inputValue("#letter");
-  check("letter: tone changes wording", v2 !== v1 && /respectfully/i.test(v2));
-  await page.click("#another");
-  const v3 = await page.inputValue("#letter");
-  check("letter: another version differs", v3 !== v2 && v3.includes(reason));
+  check("letter: formal wording", /respectfully/i.test(v1));
+  check("letter: no tone picker or version button", !(await page.$("#tone")) && !(await page.$("#another")));
+  check("letter: closing summary uses own words", v1.includes("Based on these reasons, including that I could not breathe at home"));
+  check("letter: copies request removed", !v1.includes("send me copies") && !v1.includes("send me a copy"));
   await page.screenshot({ path: path.join(outDir, "upload-draft.png"), fullPage: true });
   await page.click("section[data-step='5'] [data-next]");
   const warn = await page.textContent("#review-warnings");

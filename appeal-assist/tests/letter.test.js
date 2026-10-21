@@ -109,11 +109,21 @@ test("composer: every sample, tone and version invents no numbers and quotes the
   }
 });
 
-test("composer: versions and tones differ", () => {
+test("composer: always formal, same letter whatever tone or version is passed", () => {
   const d = SAMPLES[0];
-  const a = Composer.compose({ details: d, tone: "plain", version: 0 });
-  assert.notEqual(a, Composer.compose({ details: d, tone: "plain", version: 1 }));
-  assert.notEqual(a, Composer.compose({ details: d, tone: "formal", version: 0 }));
+  const a = Composer.compose({ details: d });
+  assert.equal(a, Composer.compose({ details: d, tone: "warm", version: 3 }));
+  assert.match(a, /respectfully/i);
+});
+
+test("composer: closing summary restates the patient's reasons", () => {
+  const cl = [{ id: "doctor", have: true }, { id: "records", have: true }];
+  const t = Composer.compose({ details: SAMPLES[0], checklist: cl, ownWords: "i could not breathe at home. my oxygen was low" });
+  assert.ok(t.includes("Based on these reasons, including that I could not breathe at home and my oxygen was low, as well as my treating doctor's statement and the records from my hospital stay, I believe"));
+  assert.ok(t.includes("approve coverage for " + SAMPLES[0].service + "."));
+  assert.ok(!/send me (a copy|copies)/.test(t));
+  const blank = Composer.compose({ details: SAMPLES[0] });
+  assert.ok(blank.includes("Based on the reasons I have described above,"));
 });
 
 test("composer: reason kinds drive paragraphs", () => {
