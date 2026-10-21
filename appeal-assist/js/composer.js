@@ -44,36 +44,14 @@
   }
 
   var TONES = {
-    plain: {
-      greeting: ["To whom it may concern,", "Dear Appeals Department,"],
-      open: [
-        "I am writing to appeal your decision to deny coverage for SERVICE.",
-        "I am appealing your decision to deny coverage for SERVICE, and I ask you to review it."
-      ],
-      disagree: ["I disagree with this decision.", "I do not agree with this decision."],
-      own: ["Here is why I believe the hospital stay was needed:", "In my own words:"],
-      close: ["Thank you for reviewing my appeal.", "Thank you for your time."],
-      signoff: ["Sincerely,", "Sincerely,"]
-    },
     formal: {
       // Wording reviewed by the team for US-02. One phrasing per slot.
       greeting: ["Dear Appeals Review Department:"],
-      open: ["Please accept this letter as my formal appeal of your decision to deny coverage for SERVICE."],
+      open: ["Please accept this letter as my formal appeal of the denial issued by PLAN in its notice dated DATE, which denied coverage for SERVICE."],
       disagree: ["I respectfully request that you review the additional clinical documentation provided and consider overturning your coverage decision."],
       own: ["Here is why I believe the hospital stay was necessary:"],
       close: ["Thank you for your careful consideration of this appeal."],
       signoff: ["Sincerely,"]
-    },
-    warm: {
-      greeting: ["Dear Appeals Team,", "Dear Appeals Department,"],
-      open: [
-        "I am writing to ask you to take another look at your decision to deny coverage for SERVICE.",
-        "I am writing to ask you, respectfully, to reconsider your decision to deny coverage for SERVICE."
-      ],
-      disagree: ["I sincerely believe this decision should be reconsidered.", "I believe this decision was not right for my situation."],
-      own: ["I want to explain in my own words why I needed to be in the hospital:", "I would like you to understand my situation:"],
-      close: ["Thank you for taking the time to reconsider my case.", "I truly appreciate you taking another look at my case."],
-      signoff: ["With thanks,", "Sincerely,"]
     }
   };
 
@@ -144,18 +122,24 @@
   }
 
   // Closing paragraph that sums up the patient's reasons.
+  // "Inpatient stay" -> "inpatient stay" so it reads inside a sentence.
+  function lowerFirst(t) {
+    return /^[A-Z][a-z]/.test(t) ? t.charAt(0).toLowerCase() + t.slice(1) : t;
+  }
+
+  // Closing summary, in the team's wording: "Based on the aforementioned
+  // clinical information, I believe the ___ was medically necessary based on ..."
   function summary(ownWords, hasDoctor, hasRecords, service) {
-    var parts = [];
     var own = reasonsClause(ownWords);
-    if (own) parts.push("that " + own);
+    // "the stay after surgery, 3 days, was" needs the second comma.
+    var svc = lowerFirst(service) + (/,/.test(service) && !/^\[ADD:/.test(service) ? "," : "");
+    var text = "Based on the aforementioned clinical information, I believe the " + svc +
+      " was medically necessary" + (own ? " based on the following: " + own : "") + ".";
     var docs = [];
     if (hasDoctor) docs.push("my treating doctor's statement");
     if (hasRecords) docs.push("the records from my hospital stay");
-    if (docs.length) parts.push(docs.join(" and "));
-    var basis = parts.length
-      ? "Based on these reasons, including " + parts.join(", as well as ") + ", "
-      : "Based on the reasons I have described above, ";
-    return basis + "I believe my hospital stay was medically necessary. I therefore ask that you reverse your decision and approve coverage for " + service + ".";
+    if (docs.length) text += " This is supported by " + docs.join(" and ") + ".";
+    return text + " I therefore ask that you reverse your decision and approve coverage for " + lowerFirst(service) + ".";
   }
 
   function compose(input) {
@@ -187,7 +171,10 @@
     L.push("");
     L.push(pick(tone.greeting, v, 0));
     L.push("");
-    L.push(pick(tone.open, v, 1).replace("SERVICE", service));
+    L.push(pick(tone.open, v, 1)
+      .replace("PLAN", clean(d.planName) || gap("plan name"))
+      .replace("DATE", clean(d.noticeDate) ? Letter.formatDate(d.noticeDate) : gap("date on your notice"))
+      .replace("SERVICE", service));
     L.push("");
     L.push(pick(["Your notice gives this reason for the denial:", "According to your notice, the reason for the denial is:"], v, 2));
     L.push("\"" + (reason || gap("denial reason exactly as written on your notice")) + "\"");
@@ -195,7 +182,7 @@
     L.push(pick(tone.disagree, v, 3));
     L.push("");
     L.push(pick(tone.own, v, 4));
-    L.push(own || gap("in your own words, why you believe the hospital stay was needed. Your treating doctor can help explain this"));
+    L.push(own || gap("in your own words, why you believe the hospital stay was necessary. Your treating doctor can help explain this"));
     L.push("");
     reasonParagraphs(reasonKinds(reason), hasId("doctor"), hasId("records"), v).forEach(function (p) {
       L.push(p);

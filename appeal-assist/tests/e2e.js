@@ -21,6 +21,7 @@ async function run(label, contextOpts) {
   await page.goto(url);
 
   // Step 0: gate on acknowledgement
+  check(`${label}: outcome disclaimer on first page`, (await page.textContent("ul.crosses")).includes("We are not responsible for whether your appeal is approved or denied."));
   check(`${label}: new example panel heading`, (await page.textContent("details.example summary")) === "No notice to upload? Update manually.");
   check(`${label}: new opening line`, (await page.textContent(".hero .lede")).includes("Break down your denial notice, be informed on requested documents, and receive a drafted appeal letter to review and submit."));
   await page.click("section[data-step='0'] [data-next]");
@@ -47,7 +48,9 @@ async function run(label, contextOpts) {
   await page.screenshot({ path: path.join(outDir, `${label}-notice.png`), fullPage: true });
   await page.click("section[data-step='2'] [data-next]");
 
-  // Step 3: fallback shown, no numbers invented
+  // Step 3: denial facts and fallback shown, no numbers invented
+  const denial = await page.textContent("#guide-reason");
+  check(`${label}: options page shows plan, date and plan's reason`, denial.includes("Denied by") && denial.includes("Date of notice") && denial.includes("as stated by your plan") && denial.includes(reason));
   const guide = await page.textContent("#guide-rules");
   check(`${label}: unverified fallback shown`, guide.includes("have not yet checked"));
   await page.screenshot({ path: path.join(outDir, `${label}-guide.png`), fullPage: true });
@@ -163,7 +166,8 @@ async function runUpload() {
   check("letter: own words tidied and inserted", v1.includes("I could not breathe at home."));
   check("letter: formal wording", /respectfully/i.test(v1));
   check("letter: no tone picker or version button", !(await page.$("#tone")) && !(await page.$("#another")));
-  check("letter: closing summary uses own words", v1.includes("Based on these reasons, including that I could not breathe at home"));
+  check("letter: closing summary uses own words", v1.includes("Based on the aforementioned clinical information, I believe the") && v1.includes("was medically necessary based on the following: I could not breathe at home"));
+  check("letter: opening names plan and notice date", v1.includes("denial issued by Healthfirst Silver Leaf Plan in its notice dated"));
   check("letter: copies request removed", !v1.includes("send me copies") && !v1.includes("send me a copy"));
   await page.screenshot({ path: path.join(outDir, "upload-draft.png"), fullPage: true });
   await page.click("section[data-step='5'] [data-next]");

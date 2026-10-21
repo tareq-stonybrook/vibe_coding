@@ -119,11 +119,12 @@ test("composer: always formal, same letter whatever tone or version is passed", 
 test("composer: closing summary restates the patient's reasons", () => {
   const cl = [{ id: "doctor", have: true }, { id: "records", have: true }];
   const t = Composer.compose({ details: SAMPLES[0], checklist: cl, ownWords: "i could not breathe at home. my oxygen was low" });
-  assert.ok(t.includes("Based on these reasons, including that I could not breathe at home and my oxygen was low, as well as my treating doctor's statement and the records from my hospital stay, I believe"));
-  assert.ok(t.includes("approve coverage for " + SAMPLES[0].service + "."));
+  const svc = SAMPLES[0].service.charAt(0).toLowerCase() + SAMPLES[0].service.slice(1);
+  assert.ok(t.includes("Based on the aforementioned clinical information, I believe the " + svc + ", was medically necessary based on the following: I could not breathe at home and my oxygen was low. This is supported by my treating doctor's statement and the records from my hospital stay."));
+  assert.ok(t.includes("approve coverage for " + svc + "."));
   assert.ok(!/send me (a copy|copies)/.test(t));
   const blank = Composer.compose({ details: SAMPLES[0] });
-  assert.ok(blank.includes("Based on the reasons I have described above,"));
+  assert.ok(blank.includes("Based on the aforementioned clinical information, I believe the " + svc + ", was medically necessary. I therefore ask"));
 });
 
 test("composer: reason kinds drive paragraphs", () => {
@@ -220,4 +221,17 @@ test("team wording for the letter", () => {
   assert.ok(t.includes("Here is why I believe the hospital stay was necessary:"));
   assert.ok(!/do not agree|disagree|dispute/i.test(t));
   assert.ok(!t.includes("was needed:"));
+});
+
+test("opening names the plan and notice date", () => {
+  const aca = SAMPLES.find((x) => x.id === "ny-aca-1");
+  const t = Composer.compose({ details: aca });
+  assert.ok(t.includes("Please accept this letter as my formal appeal of the denial issued by Healthfirst Silver Leaf Plan in its notice dated August 1, 2026, which denied coverage for Inpatient hospital stay after surgery, 3 days."));
+  const blank = Composer.compose({ details: {} });
+  assert.ok(blank.includes("denial issued by [ADD: plan name] in its notice dated [ADD: date on your notice]"));
+});
+
+test("examples use the post operative scenario and the Silver Leaf plan for ACA", () => {
+  for (const s of SAMPLES) assert.match(s.service, /surgery/i, s.id);
+  for (const s of SAMPLES.filter((x) => x.planType === "aca")) assert.equal(s.planName, "Healthfirst Silver Leaf Plan");
 });

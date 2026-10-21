@@ -215,6 +215,11 @@ blockquote { margin: 8px 0 12px; padding: 4px 0 4px 16px; border-left: 3px solid
 .warn { background: var(--warn-bg); color: var(--warn-text); border-radius: 14px; padding: 16px 20px; margin: 16px 0; }
 .warn ul { margin: 6px 0 0; padding-left: 1.2rem; }
 
+h3 { font-size: 1rem; font-weight: 600; margin: 16px 0 4px; }
+.facts { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 8px 0 0; }
+.facts dt { color: var(--muted); }
+.facts dd { margin: 0; font-weight: 500; min-width: 0; overflow-wrap: anywhere; }
+.facts dd.missing { color: var(--muted); font-weight: 400; font-style: italic; }
 .deadline { border-left: 3px solid var(--btn); padding-left: 14px; margin: 14px 0; }
 .deadline dt { font-weight: 600; }
 .deadline dd { margin: 0 0 6px; }

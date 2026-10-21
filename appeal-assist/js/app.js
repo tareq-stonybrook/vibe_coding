@@ -286,7 +286,17 @@
 
     var reasonBox = $("#guide-reason");
     reasonBox.innerHTML = "";
-    reasonBox.appendChild(el("h2", {}, "The reason you were given"));
+    reasonBox.appendChild(el("h2", {}, "Your denial"));
+    var facts = el("dl", { "class": "facts" });
+    function fact(k, v, missing) {
+      facts.appendChild(el("dt", {}, k));
+      facts.appendChild(el("dd", v ? {} : { "class": "missing" }, v || missing));
+    }
+    fact("Denied by", S.details.planName.trim() || planLabel(S.plan), "Not entered yet");
+    fact("Date of notice", S.details.noticeDate ? Letter.formatDate(S.details.noticeDate) : "", "Not entered yet");
+    fact("Service denied", S.details.service.trim(), "Not entered yet");
+    reasonBox.appendChild(facts);
+    reasonBox.appendChild(el("h3", {}, "Reason for denial, as stated by your plan"));
     if (S.details.reason.trim()) reasonBox.appendChild(el("blockquote", {}, S.details.reason.trim()));
     else reasonBox.appendChild(el("p", {}, "You have not entered the denial reason yet. Go back to add it, or fill it in later in the letter."));
 
@@ -297,7 +307,9 @@
 
     if (!rules.deadlines.length && !rules.paths.length) {
       var note = el("div", { "class": "warn", role: "note" });
-      note.appendChild(el("p", {}, "We have not yet checked appeal rules or deadlines for " + stateLabel(S.state) + " and " + typeLabel(S.planType) + " against an official source, so we do not show them here."));
+      note.appendChild(el("p", {}, "We have not yet checked appeal rules or deadlines for " +
+        (planLabel(S.plan) ? planLabel(S.plan) + " (" + typeLabel(S.planType) + ") in " + stateLabel(S.state) : stateLabel(S.state) + " and " + typeLabel(S.planType)) +
+        " against an official source, so we do not show them here."));
       note.appendChild(el("p", { style: "margin:0" }, "Check your denial notice and plan documents for the appeal steps and deadline. If anything is unclear, call the number on your notice or insurance card."));
       card.appendChild(note);
     } else {
