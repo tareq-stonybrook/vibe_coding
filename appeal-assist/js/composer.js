@@ -23,8 +23,7 @@
   var REASON_KINDS = [
     { id: "setting", re: /observation|outpatient|lower level|another setting|less intensive|different setting|home/i },
     { id: "length", re: /continued|beyond day|stable for discharge|ready for discharge|days? \d|length of stay|additional days/i },
-    { id: "records", re: /documentation|records|information (submitted|received|provided)|did not (show|support)|not supported|not established/i },
-    { id: "criteria", re: /criteria|definition|guideline|policy|standard/i }
+    { id: "records", re: /documentation|records|information (submitted|received|provided)|did not (show|support)|not supported|not established/i }
   ];
 
   function reasonKinds(reason) {
@@ -76,12 +75,6 @@
           "Your notice says the documents you reviewed did not support inpatient care. I am enclosing records from my stay so your review is based on complete information."
         ], v, 2)
         : "Your notice says the information you had did not support inpatient care. " + gap("say whether you are sending records from your stay now, or will send them once you receive them"));
-    }
-    if (kinds.indexOf("criteria") !== -1) {
-      out.push(pick([
-        "Please tell me exactly which criteria or guidelines you applied, and explain which part of my case you believe did not meet them.",
-        "Please identify the specific criteria you used and explain how you decided my stay did not meet them."
-      ], v, 3));
     }
     if (!out.length) {
       out.push(pick([

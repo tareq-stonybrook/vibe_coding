@@ -78,11 +78,6 @@
       lines.push("  * [ADD: list of documents you are enclosing]");
     }
     lines.push("");
-    lines.push(
-      "Please send me a copy of the documents and criteria used to make this decision, " +
-      "and let me know in writing if you need anything else from me."
-    );
-    lines.push("");
     lines.push("Sincerely,");
     lines.push("");
     lines.push("[ADD: your signature and printed name]");
