@@ -34,7 +34,7 @@ Reminder text (no legal or medical advice, nothing submitted) shows on screen 1,
 ## Scope in this version
 
 * State: New York only.
-* Insurance types: Medicare, Medicaid, ACA marketplace, employer plan.
+* Insurance type: ACA marketplace only, with one plan, Healthfirst Silver Leaf Plan.
 * Photos and scanned PDFs cannot be read without OCR or AI. The app says so and the user types the details.
 * Notice upload changes charter scope: the charter lists "Uploading and reading a real denial letter automatically" as out of scope. The app still says synthetic notices only.
 * The review check flags any number in the letter the user did not enter, and a missing denial reason. Useful once the user edits the letter by hand.
@@ -53,7 +53,7 @@ Edit `js/rules.js`. Add an entry to the matching `COMBINATIONS` key with `citati
 * `js/docx.js`: builds the Word file, no library
 * `js/letter.js`: letter builder, placeholder detection, RTF and text export
 * `js/rules.js`: states, insurance types, verified rules, help links
-* `js/samples.js`: 12 synthetic notices, 3 per insurance type
+* `js/samples.js`: 3 synthetic notices for the ACA marketplace plan
 * `tests/letter.test.js`: unit tests (`npm test`)
 * `tests/e2e.js`: browser flow on desktop and mobile (`npm run e2e`, needs Playwright)
 

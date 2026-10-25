@@ -70,7 +70,8 @@ test("unverified rules never show", () => {
     assert.equal(r.covered, true);
     for (const d of r.deadlines) assert.ok(Rules.isVerified(d));
   }
-  assert.equal(Rules.getRules("CA", "medicare").covered, false);
+  assert.equal(Rules.getRules("CA", "aca").covered, false);
+  assert.equal(Rules.getRules("NY", "medicare").covered, false);
 });
 
 test("unsupported numbers are flagged, confirmed ones are not", () => {
@@ -231,8 +232,14 @@ test("opening names the plan and notice date", () => {
   assert.ok(blank.includes("denial issued by [ADD: plan name] in its notice dated [ADD: date on your notice]"));
 });
 
+test("only ACA marketplace offered, with Silver Leaf as its one plan", () => {
+  assert.deepEqual(Rules.INSURANCE_TYPES.map((t) => t.id), ["aca"]);
+  assert.deepEqual(Rules.PLANS.aca.map((p) => p.label), ["Healthfirst Silver Leaf Plan"]);
+  assert.ok(SAMPLES.every((s) => s.planType === "aca"));
+});
+
 test("examples: one stay after surgery per insurance type, others varied, Silver Leaf for ACA", () => {
-  for (const type of ["medicare", "medicaid", "aca", "employer"]) {
+  for (const type of Rules.INSURANCE_TYPES.map((t) => t.id)) {
     const list = SAMPLES.filter((x) => x.planType === type);
     assert.match(list[0].service, /surgery/i, type);
     assert.ok(list.some((x) => !/surgery/i.test(x.service)), type + " has a non surgery example");

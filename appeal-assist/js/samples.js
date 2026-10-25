@@ -7,60 +7,9 @@
  */
 (function (root) {
   var SAMPLES = [
-    // Inpatient stays denied as not medically necessary. The first example
-    // for each insurance type is a stay after surgery (the team's main
-    // scenario). The others cover other common inpatient denials.
-    // Medicare
-    {
-      id: "ny-medicare-1", state: "NY", planType: "medicare",
-      planName: "Sample Senior Health Plan (synthetic)",
-      service: "Inpatient hospital stay after surgery, 4 days",
-      noticeDate: "2026-08-14",
-      reason: "The inpatient admission after your surgery was not medically necessary. Your post operative care could have been provided safely in an observation or outpatient setting.",
-      instructions: "To appeal, write to the Appeals Unit at the address on page 2 of this notice. Include a copy of this notice."
-    },
-    {
-      id: "ny-medicare-2", state: "NY", planType: "medicare",
-      planName: "Sample Medicare Advantage Plan B (synthetic)",
-      service: "Continued inpatient stay for heart failure, day 4 onward",
-      noticeDate: "2026-07-02",
-      reason: "Continued hospital care beyond day 3 did not meet medical necessity criteria. Your condition was stable for discharge.",
-      instructions: "You or someone acting for you may request a reconsideration in writing. See the back of this page for mailing and fax details."
-    },
-    {
-      id: "ny-medicare-3", state: "NY", planType: "medicare",
-      planName: "Sample Health Plan C (synthetic)",
-      service: "Inpatient rehabilitation admission",
-      noticeDate: "2026-09-05",
-      reason: "Documentation did not show that you required an inpatient level of care.",
-      instructions: ""
-    },
-    // Medicaid
-    {
-      id: "ny-medicaid-1", state: "NY", planType: "medicaid",
-      planName: "Sample Community Care Plan (synthetic)",
-      service: "Inpatient hospital stay after surgery, 3 days",
-      noticeDate: "2026-08-20",
-      reason: "The hospital stay after your surgery was not medically necessary because your recovery could have been managed in an outpatient setting.",
-      instructions: "To ask for a plan appeal, call Member Services or write to the address in the enclosed appeal form."
-    },
-    {
-      id: "ny-medicaid-2", state: "NY", planType: "medicaid",
-      planName: "Sample Managed Care Plan D (synthetic)",
-      service: "Inpatient psychiatric stay",
-      noticeDate: "2026-06-30",
-      reason: "The records received did not support inpatient care. A lower level of care was appropriate.",
-      instructions: "Complete the attached appeal form and return it by mail or fax."
-    },
-    {
-      id: "ny-medicaid-3", state: "NY", planType: "medicaid",
-      planName: "",
-      service: "Inpatient hospital admission",
-      noticeDate: "",
-      reason: "Admission criteria were not met.",
-      instructions: ""
-    },
-    // ACA marketplace: the team's scenario plan
+    // Inpatient stays denied as not medically necessary, all for the team's
+    // scenario plan. The first example is a stay after surgery (the team's
+    // main scenario). The others cover other common inpatient denials.
     {
       id: "ny-aca-1", state: "NY", planType: "aca",
       planName: "Healthfirst Silver Leaf Plan",
@@ -84,31 +33,6 @@
       noticeDate: "2026-07-18",
       reason: "The information submitted did not support an inpatient level of care. Observation status was appropriate.",
       instructions: ""
-    },
-    // Employer plan
-    {
-      id: "ny-employer-1", state: "NY", planType: "employer",
-      planName: "Sample Employer Group Plan (synthetic)",
-      service: "Inpatient hospital stay after surgery, 2 days",
-      noticeDate: "2026-08-25",
-      reason: "The inpatient admission after your surgery was not medically necessary based on the information submitted.",
-      instructions: "To appeal, send a written request to the Claims Review Unit at the address shown on this notice."
-    },
-    {
-      id: "ny-employer-2", state: "NY", planType: "employer",
-      planName: "Sample Self-Funded Employer Plan G (synthetic)",
-      service: "Inpatient cardiac monitoring stay",
-      noticeDate: "2026-06-10",
-      reason: "Services did not meet the plan's definition of medically necessary care.",
-      instructions: "See the enclosed Summary of Appeal Rights."
-    },
-    {
-      id: "ny-employer-3", state: "NY", planType: "employer",
-      planName: "Sample Union Health Fund H (synthetic)",
-      service: "Inpatient stay following emergency visit",
-      noticeDate: "2026-09-01",
-      reason: "The emergency department visit was covered. The following inpatient admission was not medically necessary.",
-      instructions: "Appeals must be in writing. Mail to the Fund Office."
     }
   ];
 

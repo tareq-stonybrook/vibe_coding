@@ -34,15 +34,16 @@ async function run(label, contextOpts) {
   // Step 1: keyboard selection
   await page.focus("#state");
   await page.selectOption("#state", "NY");
-  await page.focus("#pt-medicare");
+  check(`${label}: only ACA insurance type offered`, (await page.$$eval('input[name="planType"]', (r) => r.map((x) => x.value))).join() === "aca");
+  await page.focus("#pt-aca");
   await page.keyboard.press("Space");
-  check(`${label}: no plan picker for Medicare`, !(await page.isVisible("#plan")));
-  check(`${label}: radio via keyboard`, await page.isChecked("#pt-medicare"));
+  check(`${label}: radio via keyboard`, await page.isChecked("#pt-aca"));
+  await page.selectOption("#plan", "healthfirst-silver-leaf");
   await page.click("section[data-step='1'] [data-next]");
 
   // Step 2: load synthetic notice
   const opts = await page.$$eval("#sample option", (o) => o.length);
-  check(`${label}: 3 samples offered for NY Medicare`, opts === 3, `got ${opts}`);
+  check(`${label}: 3 samples offered for NY ACA`, opts === 3, `got ${opts}`);
   await page.click("details.example summary");
   await page.click("#load-sample");
   const reason = await page.inputValue("#reason");

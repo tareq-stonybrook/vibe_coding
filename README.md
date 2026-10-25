@@ -17,7 +17,7 @@ To run it from the code, open `appeal-assist/index.html` in Chrome, Edge, Safari
 ## What it does
 
 1. **Start.** Explains what the guide does and does not do. The user confirms before continuing.
-2. **Your plan.** Pick a state and employer plan insurance type 
+2. **Your plan.** Pick a state, then the ACA marketplace plan type and the Healthfirst Silver Leaf Plan.
 3. **Your notice.** Upload the notice as a Word (.docx), PDF or text file and the app fills in plan name, service, date, denial reason and appeal instructions. Or type them. Made up example notices are built in for testing.
 4. **Options.** Shows the denial reason and the appeal instructions from the notice. Appeal rules and deadlines show only after the team checks them against an official source.
 5. **Checklist.** Supporting information that is commonly requested, with a prompt to ask the care team or plan for records.
@@ -37,6 +37,7 @@ Progress saves automatically in the browser and can be saved to or loaded from a
 ## Current scope
 
 * State: New York only.
+* Insurance type: ACA marketplace only, with one plan, Healthfirst Silver Leaf Plan.
 * Appeal rules and deadlines: none checked yet, so the app tells users to follow their notice and plan documents.
 * Files: photos and scanned PDFs cannot be read without AI, and old .doc files need saving as .docx first.
 * Charter note: the charter lists automatic reading of a denial letter as out of scope. Upload was added later at the team's request.

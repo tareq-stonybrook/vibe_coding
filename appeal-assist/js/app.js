@@ -66,6 +66,9 @@
     Object.keys(base).forEach(function (k) {
       if (k in obj && k !== "details" && k !== "checklist" && k !== "sender" && k !== "fills") base[k] = obj[k];
     });
+    // Saved progress may name an insurance type or plan we no longer offer.
+    if (!Rules.INSURANCE_TYPES.some(function (t) { return t.id === base.planType; })) base.planType = "";
+    if (!plansFor(base.planType).some(function (p) { return p.id === base.plan; })) base.plan = "";
     if (Array.isArray(obj.fills)) base.fills = obj.fills.filter(function (x) { return typeof x === "string"; });
     SENDER_FIELDS.forEach(function (f) {
       if (obj.sender && typeof obj.sender[f] === "string") base.sender[f] = obj.sender[f];
