@@ -55,7 +55,7 @@ async function run(label, contextOpts) {
   const denial = await page.textContent("#guide-reason");
   check(`${label}: options page shows plan, date and plan's reason`, denial.includes("Denied by") && denial.includes("Date of notice") && denial.includes("as stated by your plan") && denial.includes(reason));
   const guide = await page.textContent("#guide-rules");
-  check(`${label}: Silver Leaf rules shown, not the fallback`, !guide.includes("have not yet checked") && guide.includes("Not fully verified yet"));
+  check(`${label}: Silver Leaf rules shown, not the fallback`, !guide.includes("have not yet checked") && guide.includes("Confirm every deadline on your denial notice."));
   check(`${label}: plain explanation of the denial`, denial.includes("What this means, in plain words") && denial.includes("does not decide who is correct"));
   await page.screenshot({ path: path.join(outDir, `${label}-guide.png`), fullPage: true });
   await page.click("section[data-step='3'] [data-next]");
@@ -181,7 +181,7 @@ async function runUpload() {
   const guide = await page.textContent("#guide-rules");
   check("guide: Silver Leaf rules shown with source and date checked", guide.includes("180 calendar days") && guide.includes("plan contract, Section XX") && guide.includes("Date checked: October 28, 2026."));
   check("guide: deadlines split by who acts", guide.includes("Your deadlines to ask for an appeal") && guide.includes("How long the plan has to respond"));
-  check("guide: pending warning kept", guide.includes("Not fully verified yet"));
+  check("guide: short confirm note, no verification talk", guide.includes("Confirm every deadline on your denial notice.") && !/Claude|not yet confirmed|Not fully verified/.test(guide));
   check("guide: contacts and missing address", guide.includes("888-250-2220") && guide.includes("877-779-2959") && guide.includes("does not list a mailing address"));
   check("guide: earliest deadline from notice date", guide.includes("January 28, 2027"));
   const plain = await page.textContent("#guide-reason");
