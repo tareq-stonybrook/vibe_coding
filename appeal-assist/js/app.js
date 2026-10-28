@@ -214,7 +214,9 @@
     a.click();
     a.remove();
     setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
-    return "Downloaded " + filename + ".";
+    // The browser or the page host can still block this download without
+    // telling the page, so the message does not claim success.
+    return "Download of " + filename + " started. If no file appears, use Copy letter. Your draft is still saved here.";
   }
 
   // ---------- step navigation ----------
