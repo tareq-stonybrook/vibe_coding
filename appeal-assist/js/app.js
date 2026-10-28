@@ -71,6 +71,9 @@
     Object.keys(base).forEach(function (k) {
       if (k in obj && ["details", "checklist", "sender", "fills", "deferred", "clinician"].indexOf(k) === -1) base[k] = obj[k];
     });
+    // Saved progress may name an insurance type or plan we no longer offer.
+    if (!Rules.INSURANCE_TYPES.some(function (t) { return t.id === base.planType; })) base.planType = "";
+    if (!plansFor(base.planType).some(function (p) { return p.id === base.plan; })) base.plan = "";
     ["fills", "deferred"].forEach(function (k) {
       if (Array.isArray(obj[k])) base[k] = obj[k].filter(function (x) { return typeof x === "string"; });
     });

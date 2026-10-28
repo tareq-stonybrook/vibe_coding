@@ -31,24 +31,9 @@
 (function (root) {
   var INSURANCE_TYPES = [
     {
-      id: "medicare",
-      label: "Medicare",
-      hint: "Red, white and blue Medicare card, or a Medicare Advantage plan card that names Medicare."
-    },
-    {
-      id: "medicaid",
-      label: "Medicaid",
-      hint: "State Medicaid card or a managed care plan card that says Medicaid."
-    },
-    {
       id: "aca",
       label: "ACA marketplace plan",
       hint: "Plan bought through the health insurance marketplace. Your card or notice may say marketplace or exchange."
-    },
-    {
-      id: "employer",
-      label: "Employer plan",
-      hint: "Coverage through your job or a family member's job. Your card may name the employer or a plan administrator."
     }
   ];
 
@@ -64,10 +49,7 @@
 
   var HELP_LINKS = {
     general: { label: "HealthCare.gov", url: "https://www.healthcare.gov/" },
-    medicare: { label: "Medicare.gov", url: "https://www.medicare.gov/" },
-    medicaid: { label: "New York State Department of Health", url: "https://www.health.ny.gov/" },
-    aca: { label: "New York State Department of Financial Services", url: "https://www.dfs.ny.gov/" },
-    employer: { label: "U.S. Department of Labor", url: "https://www.dol.gov/" }
+    aca: { label: "New York State Department of Financial Services", url: "https://www.dfs.ny.gov/" }
   };
 
   // Healthfirst Silver Leaf, planned inpatient admission denied before
@@ -161,10 +143,7 @@
   // One entry per state and insurance type combination we cover.
   // Empty arrays mean nothing verified yet, so the fallback shows.
   var COMBINATIONS = {
-    "NY|medicare": { deadlines: [], paths: [] },
-    "NY|medicaid": { deadlines: [], paths: [] },
-    "NY|aca": NY_ACA,
-    "NY|employer": { deadlines: [], paths: [] }
+    "NY|aca": NY_ACA
   };
 
   function isVerified(entry) {

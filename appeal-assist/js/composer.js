@@ -33,6 +33,8 @@
   var PRIVATE_GAPS = Object.keys(PRIVATE).map(function (k) { return gap(PRIVATE[k]); });
 
   // What kind of reason did the plan give? More than one can apply.
+  // "criteria" only feeds the plain explanation on the guide step. Per
+  // team feedback the letter never asks the plan to identify criteria.
   var REASON_KINDS = [
     { id: "setting", re: /observation|outpatient|lower level|another setting|less intensive|different setting|home/i },
     { id: "length", re: /continued|beyond day|stable for discharge|ready for discharge|days? \d|length of stay|additional days/i },
@@ -110,9 +112,6 @@
         : said + gap(planned
           ? "say whether you will send records that support the planned admission"
           : "say whether you are sending records from your stay now, or will send them once you receive them"));
-    }
-    if (kinds.indexOf("criteria") !== -1) {
-      out.push("Please identify the specific criteria you used and explain how you decided my case did not meet them.");
     }
     if (!out.length) {
       out.push(planned

@@ -34,15 +34,16 @@ async function run(label, contextOpts) {
   // Step 1: keyboard selection
   await page.focus("#state");
   await page.selectOption("#state", "NY");
-  await page.focus("#pt-medicare");
+  check(`${label}: only ACA insurance type offered`, (await page.$$eval('input[name="planType"]', (r) => r.map((x) => x.value))).join() === "aca");
+  await page.focus("#pt-aca");
   await page.keyboard.press("Space");
-  check(`${label}: no plan picker for Medicare`, !(await page.isVisible("#plan")));
-  check(`${label}: radio via keyboard`, await page.isChecked("#pt-medicare"));
+  check(`${label}: radio via keyboard`, await page.isChecked("#pt-aca"));
+  await page.selectOption("#plan", "healthfirst-silver-leaf");
   await page.click("section[data-step='1'] [data-next]");
 
   // Step 2: load synthetic notice
   const opts = await page.$$eval("#sample option", (o) => o.length);
-  check(`${label}: 3 samples offered for NY Medicare`, opts === 3, `got ${opts}`);
+  check(`${label}: 3 samples offered for NY ACA`, opts === 3, `got ${opts}`);
   await page.click("details.example summary");
   await page.click("#load-sample");
   const reason = await page.inputValue("#reason");
@@ -54,7 +55,7 @@ async function run(label, contextOpts) {
   const denial = await page.textContent("#guide-reason");
   check(`${label}: options page shows plan, date and plan's reason`, denial.includes("Denied by") && denial.includes("Date of notice") && denial.includes("as stated by your plan") && denial.includes(reason));
   const guide = await page.textContent("#guide-rules");
-  check(`${label}: unverified fallback shown`, guide.includes("have not yet checked"));
+  check(`${label}: Silver Leaf rules shown, not the fallback`, !guide.includes("have not yet checked") && guide.includes("Not fully verified yet"));
   check(`${label}: plain explanation of the denial`, denial.includes("What this means, in plain words") && denial.includes("does not decide who is correct"));
   await page.screenshot({ path: path.join(outDir, `${label}-guide.png`), fullPage: true });
   await page.click("section[data-step='3'] [data-next]");
@@ -71,7 +72,7 @@ async function run(label, contextOpts) {
   const letter = await page.inputValue("#letter");
   check(`${label}: letter repeats reason`, letter.includes(reason));
   check(`${label}: letter has placeholders`, letter.includes("[ADD:"));
-  check(`${label}: only attached items enclosed`, letter.includes("* Records from my hospital stay") && !letter.includes("* A copy of the denial notice"));
+  check(`${label}: only attached items enclosed`, letter.includes("* Records about my condition and the planned admission") && !letter.includes("* A copy of the denial notice"));
   check(`${label}: no personal detail fields`, !(await page.$("#s-name")) && !(await page.$("#s-phone")) && !(await page.$("#s-memberId")) && !(await page.$("#s-address")));
   await page.click("section[data-step='5'] [data-next]");
 
