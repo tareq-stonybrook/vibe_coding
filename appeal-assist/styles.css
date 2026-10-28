@@ -242,3 +242,14 @@ p.missing { color: var(--muted); font-style: italic; }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
 }
+
+/* Fictional example start and synthetic file confirm */
+.start-example select { margin-top: 8px; }
+.section-title { margin-top: 32px; }
+details.upload { background: var(--bg-alt); border-radius: 18px; padding: 16px 24px; }
+details.upload .hint { margin-bottom: 8px; }
+dialog {
+  max-width: min(28rem, calc(100vw - 32px)); border: 1px solid var(--line); border-radius: 18px;
+  padding: 24px; background: var(--bg); color: var(--text);
+}
+dialog::backdrop { background: rgba(0, 0, 0, 0.45); }

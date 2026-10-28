@@ -18,11 +18,11 @@ To run it from the code, open `appeal-assist/index.html` in Chrome, Edge, Safari
 
 1. **Start.** Explains what the guide does and does not do. The user confirms before continuing.
 2. **Your plan.** Pick a state, then the ACA marketplace plan type and the Healthfirst Silver Leaf Plan.
-3. **Your notice.** Upload the notice as a Word (.docx), PDF or text file and the app fills in plan name, service, date, denial reason and appeal instructions. Or type them. Made up example notices are built in for testing.
+3. **Your notice.** Start with a fictional example notice, or type the details. An optional panel tests reading an example notice file (Word, PDF or text) after the user confirms it is synthetic data. Real notices and medical records are not accepted.
 4. **Options.** Shows the denial reason and the appeal instructions from the notice. Appeal rules and deadlines show only after the team checks them against an official source.
-5. **Checklist.** Supporting information that is commonly requested, with a prompt to ask the care team or plan for records.
-6. **Draft.** The user enters their details (name, address, phone, member ID and similar) and, if they want, their own words about why the stay was needed. The app writes the letter. The letter is formal. Paragraphs change with the kind of denial reason, and the closing paragraph sums up the reasons the patient gave.
-7. **Review.** Every gap shows as `[ADD: ...]` with its own fill box. Download stays locked until each gap is filled or dismissed. The app flags leftover brackets and any number the user never entered.
+5. **Which documents will you attach?** Supporting information that is commonly requested. Ticked items are listed as enclosed, and the user attaches them outside the app.
+6. **Draft.** The app never asks for name, address, phone, member ID, reference number or signature. Those stay marked for the user to add privately after download. The user can give their clinician's explanation of why inpatient care is needed, or say they are not sure. The app writes the letter. The letter is formal. Paragraphs change with the kind of denial reason, and the closing paragraph sums up the reasons the patient gave.
+7. **Review.** Every gap shows as `[ADD: ...]`. Personal details have no fill box and stay for after download. Other gaps can be filled or left for later, and anything left stays marked in the download. The app flags leftover brackets and any number the user never entered.
 8. **Download.** Word (.docx) or text file, plus a copy button and sending tips. The app never submits anything.
 
 Progress saves automatically in the browser and can be saved to or loaded from a file.
@@ -40,7 +40,8 @@ Progress saves automatically in the browser and can be saved to or loaded from a
 * Insurance type: ACA marketplace only, with one plan, Healthfirst Silver Leaf Plan.
 * Appeal rules and deadlines: none checked yet, so the app tells users to follow their notice and plan documents.
 * Files: photos and scanned PDFs cannot be read without AI, and old .doc files need saving as .docx first.
-* Charter note: the charter lists automatic reading of a denial letter as out of scope. Upload was added later at the team's request.
+* Charter note: the charter lists automatic reading of a denial letter as out of scope. The fictional example is the main route. Reading an example file stays as an optional test, at the team's request.
+* Theme: follows the device light or dark mode setting, so the background can be white on one device and black on another.
 
 ## Project files
 

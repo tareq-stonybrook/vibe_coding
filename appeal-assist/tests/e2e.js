@@ -12,6 +12,36 @@ function check(name, ok, detail) {
   results.push({ name, ok: Boolean(ok), detail: detail || "" });
 }
 
+// Lowest text contrast among visible text on the page (WCAG formula).
+// Walks up to the first solid background behind each element.
+function lowestContrast() {
+  function rgb(c) { const m = c.match(/[\d.]+/g).map(Number); return { r: m[0], g: m[1], b: m[2], a: m.length > 3 ? m[3] : 1 }; }
+  function lum(c) {
+    return [c.r, c.g, c.b].map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); })
+      .reduce((s, v, i) => s + v * [0.2126, 0.7152, 0.0722][i], 0);
+  }
+  function bg(node) {
+    for (let n = node; n; n = n.parentElement) {
+      const c = rgb(getComputedStyle(n).backgroundColor);
+      if (c.a >= 0.95) return c;
+    }
+    return rgb(getComputedStyle(document.body).backgroundColor);
+  }
+  let worst = { ratio: 99, what: "" };
+  for (const n of document.querySelectorAll("body *")) {
+    if (!n.offsetParent || !Array.from(n.childNodes).some((t) => t.nodeType === 3 && t.textContent.trim())) continue;
+    if (n.closest(".visually-hidden") || n.closest("button:disabled")) continue;
+    const a = lum(rgb(getComputedStyle(n).color)), b = lum(bg(n));
+    const ratio = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+    if (ratio < worst.ratio) worst = { ratio: Math.round(ratio * 100) / 100, what: n.tagName + "." + n.className + " " + n.textContent.trim().slice(0, 30) };
+  }
+  return worst;
+}
+async function contrastCheck(page, label, where) {
+  const w = await page.evaluate(lowestContrast);
+  check(`${label}: ${where} text contrast at least 4.5:1`, w.ratio >= 4.5, `${w.ratio} ${w.what}`);
+}
+
 async function run(label, contextOpts) {
   const browser = await chromium.launch();
   const ctx = await browser.newContext({ ...contextOpts, acceptDownloads: true });
@@ -19,12 +49,16 @@ async function run(label, contextOpts) {
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto(url);
+  const scheme = contextOpts.colorScheme || "light";
+  const bodyBg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  check(`${label}: ${scheme} mode background follows the device`, bodyBg === (scheme === "dark" ? "rgb(0, 0, 0)" : "rgb(255, 255, 255)"), bodyBg);
+  await contrastCheck(page, label, "start page");
 
   // Step 0: gate on acknowledgement
   check(`${label}: hero shows name and tagline only`, (await page.textContent("#h-intro")) === "Appeal Assist" && (await page.textContent(".tagline")) === "Helping patients understand denials and prepare an appeal.");
   check(`${label}: no prototype or synthetic wording`, !/prototype|synthetic/i.test(await page.innerText("body")));
   check(`${label}: outcome disclaimer on first page`, (await page.textContent("ul.crosses")).includes("We are not responsible for whether your appeal is approved or denied."));
-  check(`${label}: new example panel heading`, (await page.textContent("details.example summary")) === "No notice to upload? Update manually.");
+  check(`${label}: no real notices on first page`, (await page.textContent("ul.crosses")).includes("Accept real notices or medical records."));
   check(`${label}: new opening line`, (await page.textContent(".intro")).includes("Break down your denial notice, be informed on requested documents, and receive a drafted appeal letter to review and submit."));
   await page.click("section[data-step='0'] [data-next]");
   check(`${label}: ack required`, await page.isVisible("section[data-step='0'] .error"));
@@ -44,7 +78,9 @@ async function run(label, contextOpts) {
   // Step 2: load synthetic notice
   const opts = await page.$$eval("#sample option", (o) => o.length);
   check(`${label}: 3 samples offered for NY ACA`, opts === 3, `got ${opts}`);
-  await page.click("details.example summary");
+  check(`${label}: fictional example is the primary start`, (await page.isVisible("#load-sample")) && (await page.getAttribute("#load-sample", "class")) === "primary" &&
+    (await page.textContent("#example-tile h2")) === "Start with a fictional example");
+  check(`${label}: upload is optional and collapsed`, (await page.isHidden("#dropzone")) && (await page.textContent("#upload-tile summary")).startsWith("Optional"));
   await page.click("#load-sample");
   const reason = await page.inputValue("#reason");
   check(`${label}: sample fills reason`, reason.length > 10);
@@ -58,9 +94,11 @@ async function run(label, contextOpts) {
   check(`${label}: Silver Leaf rules shown, not the fallback`, !guide.includes("have not yet checked") && guide.includes("Confirm every deadline on your denial notice."));
   check(`${label}: plain explanation of the denial`, denial.includes("What this means, in plain words") && denial.includes("does not decide who is correct"));
   await page.screenshot({ path: path.join(outDir, `${label}-guide.png`), fullPage: true });
+  await contrastCheck(page, label, "options page");
   await page.click("section[data-step='3'] [data-next]");
 
-  // Step 4: checklist. Having a document and attaching it are separate.
+  // Step 4: checklist. A ticked document is one the user will attach.
+  check(`${label}: checklist asks what will be attached`, (await page.textContent("#h-checklist")) === "Which documents will you attach?");
   check(`${label}: no separate attach checkbox`, !(await page.$("#at-records")));
   await page.check("#cl-records");
   await page.check("#cl-notice");
@@ -89,6 +127,7 @@ async function run(label, contextOpts) {
   const kept = await page.inputValue("#letter-review");
   check(`${label}: placeholders kept after leaving for later`, kept.includes("[ADD: your full name]") && kept.includes("[ADD: your clinician's explanation"));
   await page.screenshot({ path: path.join(outDir, `${label}-review.png`), fullPage: true });
+  await contrastCheck(page, label, "review page");
   await page.click("#to-download");
 
   // Step 7: download
@@ -107,6 +146,7 @@ async function run(label, contextOpts) {
   const txt = fs.readFileSync(await dlt.path(), "utf8");
   check(`${label}: txt opens and matches the reviewed letter`, txt.endsWith(finalLetter) && txt.startsWith("DRAFT FOR HUMAN REVIEW"));
   await page.screenshot({ path: path.join(outDir, `${label}-download.png`), fullPage: true });
+  await contrastCheck(page, label, "download page");
 
   // Save and resume
   await page.reload();
@@ -142,12 +182,20 @@ async function runUpload() {
   check("plan: fills plan name on notice step", (await page.inputValue("#planName")) === "Healthfirst Silver Leaf Plan");
 
   // Download an example notice file, then upload it.
-  await page.click("details.example summary");
+  await page.click("#upload-tile summary");
   const [dl] = await Promise.all([page.waitForEvent("download"), page.click("#dl-sample")]);
   const noticePath = await dl.path();
   const noticeText = fs.readFileSync(noticePath, "utf8");
   check("upload: example file is marked as an example", noticeText.includes("EXAMPLE NOTICE. NOT A REAL LETTER."));
   await page.setInputFiles("#notice-file", { name: "notice.txt", mimeType: "text/plain", buffer: Buffer.from(noticeText) });
+  check("upload: synthetic data popup shows before reading", (await page.isVisible("#synthetic-confirm")) &&
+    (await page.textContent("#synthetic-text")) === "We do not accept real notices or medical records. Confirm that this is synthetic data." &&
+    (await page.isHidden("#file-row")) && (await page.isDisabled("#read-notice")));
+  await page.click("#synthetic-cancel");
+  check("upload: cancel drops the file", (await page.isHidden("#file-row")) && (await page.isDisabled("#read-notice")) &&
+    (await page.$eval("#notice-file", (i) => i.files.length)) === 0 && (await page.textContent("#read-status")).includes("File not used"));
+  await page.setInputFiles("#notice-file", { name: "notice.txt", mimeType: "text/plain", buffer: Buffer.from(noticeText) });
+  await page.click("#synthetic-ok");
   await page.click("#read-notice");
   await page.waitForFunction(() => document.querySelectorAll(".filled").length > 0);
   check("upload: all 5 fields filled", (await page.$$(".filled")).length === 5);
@@ -155,6 +203,7 @@ async function runUpload() {
   await page.screenshot({ path: path.join(outDir, "upload-notice.png"), fullPage: true });
 
   await page.setInputFiles("#notice-file", path.join(__dirname, "fixtures", "notice-word.docx"));
+  await page.click("#synthetic-ok");
   await page.click("#read-notice");
   await page.waitForFunction(() => document.querySelector("#planName").value === "Sample Riverside Health Plan (synthetic)");
   check("upload: Word .docx fills all 5 fields", (await page.$$(".filled")).length === 5);
@@ -166,14 +215,16 @@ async function runUpload() {
     (await page.$eval("#notice-file", (i) => i.files.length)) === 0);
   // Put the text example back so later checks match it.
   await page.setInputFiles("#notice-file", { name: "notice.txt", mimeType: "text/plain", buffer: Buffer.from(noticeText) });
+  await page.click("#synthetic-ok");
   await page.click("#read-notice");
   await page.waitForFunction((r) => document.querySelector("#reason").value === r, reason);
   await page.setInputFiles("#notice-file", { name: "photo.png", mimeType: "image/png", buffer: Buffer.from([137, 80, 78, 71]) });
+  await page.click("#synthetic-ok");
   await page.click("#read-notice");
   await page.waitForFunction(() => document.querySelector("#read-status").textContent.includes("Photos"));
   check("upload: photo gets a clear message", true);
 
-  check("upload: hint says example only and not sent", (await page.textContent("#upload-hint")).includes("not a real one") && (await page.textContent("#upload-hint")).includes("not sent anywhere"));
+  check("upload: hint says example only and not sent", (await page.textContent("#upload-hint")).includes("never a real notice") && (await page.textContent("#upload-hint")).includes("not sent anywhere"));
   await page.click("section[data-step='2'] [data-next]");
 
   // Step 3: verified Silver Leaf rules for a planned admission
@@ -184,6 +235,8 @@ async function runUpload() {
   check("guide: short confirm note, no verification talk", guide.includes("Confirm every deadline on your denial notice.") && !/Claude|not yet confirmed|Not fully verified/.test(guide));
   check("guide: contacts and missing address", guide.includes("888-250-2220") && guide.includes("877-779-2959") && guide.includes("does not list a mailing address"));
   check("guide: earliest deadline from notice date", guide.includes("January 28, 2027"));
+  check("guide: written notice inside the 30 day limit", guide.includes("always inside that 30 day limit"));
+  check("guide: external appeal counts from final denial or waiver", guide.includes("written waiver of the internal appeal") && guide.includes("or the date you receive a waiver of the internal appeal"));
   const plain = await page.textContent("#guide-reason");
   check("guide: plain explanation for planned admission", plain.includes("The disagreement is about the need for inpatient admission.") && plain.includes("whether the surgery is covered"));
   await page.screenshot({ path: path.join(outDir, "guide-silver-leaf.png"), fullPage: true });
@@ -223,13 +276,16 @@ async function runUpload() {
   // Step 6: review
   const warn = await page.textContent("#review-warnings");
   check("letter: no unsupported numbers flagged", warn.trim() === "", warn);
-  const nameRow = page.locator(".review-item", { hasText: "[ADD: your full name]" });
-  await nameRow.locator("label.ph").click();
-  check("review: clicking a gap focuses its fill box", await nameRow.locator("input").evaluate((i) => i === document.activeElement));
-  await nameRow.locator("input").fill("Test Person");
-  await nameRow.locator("button:has-text('Fill in')").click();
-  check("review: personal gaps can be filled here", (await page.inputValue("#letter-review")).includes("Name: Test Person"));
+  const privateRows = ["your full name", "your mailing address", "your phone number", "member ID from your insurance card", "reference number from your notice", "your signature and printed name"];
+  let privateOk = true;
+  for (const p of privateRows) {
+    const row = page.locator(".review-item", { hasText: `[ADD: ${p}]` });
+    privateOk = privateOk && (await row.count()) === 1 && (await row.locator("input").count()) === 0 && (await row.textContent()).includes("Add this privately after you download");
+  }
+  check("review: no fill boxes for personal details, kept for after download", privateOk);
   const addrRow = page.locator(".review-item", { hasText: "[ADD: appeals address from your notice]" });
+  await addrRow.locator("label.ph").click();
+  check("review: clicking a gap focuses its fill box", await addrRow.locator("input").evaluate((i) => i === document.activeElement));
   await addrRow.locator("input").fill("[PO Box 1, New York NY]");
   await addrRow.locator("button:has-text('Fill in')").click();
   const afterFill = await page.inputValue("#letter-review");
@@ -270,7 +326,9 @@ async function runUpload() {
 (async () => {
   fs.mkdirSync(outDir, { recursive: true });
   await run("desktop", { viewport: { width: 1280, height: 900 } });
+  await run("desktop-dark", { viewport: { width: 1280, height: 900 }, colorScheme: "dark" });
   await run("mobile", { ...devices["Pixel 5"] });
+  await run("mobile-dark", { ...devices["Pixel 5"], colorScheme: "dark" });
   await runUpload();
   let failed = 0;
   for (const r of results) {

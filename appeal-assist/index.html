@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
   <title>Appeal Assist</title>
   <meta name="description" content="Appeal Assist helps patients understand insurance denials and prepare an appeal letter.">
   <link rel="stylesheet" href="styles.css">
@@ -36,7 +37,7 @@
           <div class="tile">
             <h2>What it does</h2>
             <ul class="ticks">
-              <li>Reads the details from an example notice file, or lets you type them.</li>
+              <li>Starts with a fictional example notice, so you never need to enter real information.</li>
               <li>Shows appeal rules only when they have been checked against an official source, with the source and date checked.</li>
               <li>Lists information that is commonly requested.</li>
               <li>Writes a draft letter for you, using only what you confirmed. Anything missing stays marked for you to add.</li>
@@ -48,6 +49,7 @@
               <li>Give legal or medical advice.</li>
               <li>Decide whether you are covered.</li>
               <li>Create medical facts or evidence.</li>
+              <li>Accept real notices or medical records.</li>
               <li>Ask for your name, address, phone or member ID. You add those privately after you download the draft.</li>
               <li>Submit anything. You send your appeal yourself.</li>
               <li>Promise an outcome. We are not responsible for whether your appeal is approved or denied.</li>
@@ -96,11 +98,25 @@
     <section class="step wrap" data-step="2" aria-labelledby="h-notice" hidden>
       <p class="eyebrow">Your notice</p>
       <h1 id="h-notice">What does your denial notice say?</h1>
-      <p class="lede">Upload an example notice and the guide will pull out the details, or type them yourself. Either way, you check every field.</p>
+      <p class="lede">Start with a fictional example notice. It shows how the guide works without any real information. You can also type the details yourself. Either way, you check every field.</p>
 
-      <div class="tile upload" id="upload-tile">
-        <h2>Upload an example notice</h2>
-        <p class="hint" id="upload-hint">Use an example notice, not a real one. Word (.docx), PDF or text file. The file is read in this browser and is not sent anywhere.</p>
+      <div class="tile start-example" id="example-tile">
+        <h2>Start with a fictional example</h2>
+        <p class="hint" id="example-hint">Made up notices for practice. They are not real letters and name no real person.</p>
+        <label for="sample" class="visually-hidden">Example notice</label>
+        <select id="sample" aria-describedby="example-hint"></select>
+        <div class="actions tight">
+          <button type="button" class="primary" id="load-sample">Use this example</button>
+        </div>
+      </div>
+
+      <details class="example upload" id="upload-tile">
+        <summary>Optional: test reading an example notice file</summary>
+        <p class="hint" id="upload-hint">For testing only. Use an example notice file, never a real notice or medical record. Word (.docx), PDF or text file. The file is read in this browser and is not sent anywhere.</p>
+        <div class="inline">
+          <button type="button" class="secondary" id="dl-sample-docx">Download example as Word file</button>
+          <button type="button" class="secondary" id="dl-sample">Download example as text file</button>
+        </div>
         <div class="dropzone" id="dropzone">
           <input type="file" id="notice-file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.doc,application/msword,application/pdf,.pdf,text/plain,.txt" aria-describedby="upload-hint">
           <label for="notice-file" class="dropzone-label">
@@ -116,20 +132,20 @@
           <button type="button" class="primary" id="read-notice" disabled>Read my notice</button>
         </div>
         <p id="read-status" class="read-status" role="status"></p>
-      </div>
-
-      <details class="example">
-        <summary>No notice to upload? Update manually.</summary>
-        <p class="hint">Type the details from your notice in the fields below, or fill them from an example notice to see how it works.</p>
-        <div class="inline">
-          <label for="sample" class="visually-hidden">Example notice</label>
-          <select id="sample"></select>
-          <button type="button" class="secondary" id="load-sample">Fill the form</button>
-          <button type="button" class="secondary" id="dl-sample-docx">Download as Word file</button>
-          <button type="button" class="secondary" id="dl-sample">Download as text file</button>
-        </div>
       </details>
 
+      <dialog id="synthetic-confirm" aria-labelledby="synthetic-title" aria-describedby="synthetic-text">
+        <h2 id="synthetic-title">Example files only</h2>
+        <p id="synthetic-text">We do not accept real notices or medical records. Confirm that this is synthetic data.</p>
+        <p class="file-name" id="synthetic-file"></p>
+        <div class="actions tight">
+          <button type="button" class="primary" id="synthetic-ok">Confirm</button>
+          <button type="button" class="secondary" id="synthetic-cancel">Cancel</button>
+        </div>
+      </dialog>
+
+      <h2 class="section-title">Notice details</h2>
+      <p class="hint">Filled from the example, or typed by you. Check each one.</p>
       <div class="field">
         <label for="planName">Plan name</label>
         <input id="planName" type="text" autocomplete="off" aria-describedby="planName-hint">
@@ -178,10 +194,10 @@
     <!-- Step 4: Checklist (US-05) -->
     <section class="step wrap" data-step="4" aria-labelledby="h-checklist" hidden>
       <p class="eyebrow">Supporting information</p>
-      <h1 id="h-checklist">What do you already have?</h1>
-      <p class="lede">These items are commonly requested for this kind of denial. Not every appeal needs every item. Tick what you will attach to your letter.</p>
+      <h1 id="h-checklist">Which documents will you attach?</h1>
+      <p class="lede">These items are commonly requested for this kind of denial. Not every appeal needs every item. Tick only what you will attach to your letter.</p>
       <fieldset class="field">
-        <legend class="visually-hidden">Items you already have</legend>
+        <legend class="visually-hidden">Documents you will attach</legend>
         <div id="checklist" class="check-list"></div>
       </fieldset>
       <div class="tile soft">
@@ -211,7 +227,7 @@
           <div class="field wide"><label for="s-appealsAddress">Appeals address</label><input id="s-appealsAddress" type="text" autocomplete="off" aria-describedby="s-appealsAddress-hint"><p class="hint" id="s-appealsAddress-hint">Where your notice says to send the appeal.</p></div>
           <div class="field"><label for="s-date">Date of letter</label><input id="s-date" type="date"></div>
         </div>
-        <p class="hint" id="private-note">Your name, address, phone, member ID and reference number stay marked in the letter. Fill them in on the next step, or after you download it.</p>
+        <p class="hint" id="private-note">This guide never asks for your name, address, phone, member ID, reference number or signature. They stay marked in the letter, and you add them privately after you download it.</p>
       </fieldset>
 
       <fieldset class="field">
@@ -242,7 +258,7 @@
     <section class="step wrap" data-step="6" aria-labelledby="h-review" hidden>
       <p class="eyebrow">Review</p>
       <h1 id="h-review">Check it before you download</h1>
-      <p class="lede">Fill in each gap, or leave it for later. Gaps left for later stay marked in the downloaded draft, and the draft is not ready to send until you complete them.</p>
+      <p class="lede">Fill in each gap, or leave it for later. Your personal details are not asked for here. They stay marked and you add them privately after download. Anything still marked stays in the downloaded draft, and the draft is not ready to send until you complete it.</p>
       <div id="review-list"></div>
       <div id="review-warnings"></div>
       <div class="field">

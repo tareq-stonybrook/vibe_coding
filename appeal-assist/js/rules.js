@@ -65,9 +65,12 @@
   }
   function entry(fields, where) {
     var c = cite(where);
-    Object.keys(c).forEach(function (k) { fields[k] = c[k]; });
+    Object.keys(c).forEach(function (k) { if (!(k in fields)) fields[k] = c[k]; });
     return fields;
   }
+  // Wording changed from the Product Owner's reading of pages 80 to 85
+  // (issue #15, October 28, 2026). Team to recheck against the PDF.
+  var PO_REVIEW = "Product Owner review of the published contract, issue #15";
 
   var NY_ACA = {
     teamConfirmed: false,
@@ -86,9 +89,10 @@
       entry({
         who: "you",
         label: "Ask for an external appeal",
-        rule: "Within 4 months after you receive the plan's final denial of your internal appeal. The plan has no authority to extend this deadline.",
+        rule: "Within 4 months after you receive the plan's final denial of your internal appeal, or within 4 months after you receive the plan's written waiver of the internal appeal (its agreement that you can skip it). The plan has no authority to extend this deadline.",
         days: null,
-        countFrom: "the date you receive the final denial"
+        countFrom: "the date you receive the final denial, or the date you receive a waiver of the internal appeal",
+        verifiedBy: PO_REVIEW
       }, "Section XXI, External Appeal, G and H (pages 84 to 86)"),
       entry({
         who: "plan",
@@ -98,7 +102,8 @@
       entry({
         who: "plan",
         label: "Decide a standard appeal",
-        rule: "Within 30 calendar days after it receives your appeal. Written notice follows within 2 business days of the decision."
+        rule: "Decide and send you written notice within 30 calendar days after it receives your appeal. The written notice comes within 2 business days of the decision, and always inside that 30 day limit.",
+        verifiedBy: PO_REVIEW
       }, "Section XX, Utilization Review, I.1 (page 81)"),
       entry({
         who: "plan",

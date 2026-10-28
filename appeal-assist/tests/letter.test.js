@@ -278,6 +278,11 @@ test("Silver Leaf rules show with source and date checked, split by who acts", (
   const plan = r.deadlines.filter((d) => d.who === "plan").map((d) => d.rule).join(" ");
   assert.ok(you.includes("180 calendar days") && you.includes("4 months"));
   assert.ok(plan.includes("30 calendar days") && plan.includes("72 hours"));
+  const standard = r.deadlines.find((d) => d.label === "Decide a standard appeal").rule;
+  assert.ok(standard.includes("2 business days") && standard.includes("inside that 30 day limit"));
+  const external = r.deadlines.find((d) => d.label === "Ask for an external appeal");
+  assert.ok(external.rule.includes("final denial") && external.rule.includes("waiver of the internal appeal"));
+  assert.ok(external.countFrom.includes("waiver"));
   assert.ok(r.contacts.some((c) => c.rule === "888-250-2220") && r.contacts.some((c) => c.rule === "877-779-2959"));
   assert.ok(r.missing.join(" ").includes("does not list a mailing address"));
   assert.equal(Rules.PLANS.aca[0].scenario, "planned");

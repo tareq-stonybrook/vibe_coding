@@ -135,10 +135,15 @@
   function haveLabels() {
     return S.checklist.filter(function (c) { return c.have; }).map(function (c) { return checklistLabel(c.id); });
   }
-  // Gaps still waiting on the user: not filled and not left for later.
+  // Personal details are never typed into the app. Their gaps stay in the
+  // letter and the user adds them privately after download.
+  function isPrivate(g) {
+    return Composer.PRIVATE_GAPS.indexOf(g) !== -1;
+  }
+  // Gaps still waiting on the user: not filled, not left for later, not private.
   function openGaps() {
     return Letter.findPlaceholders(S.letter).filter(function (g) {
-      return S.deferred.indexOf(g) === -1;
+      return S.deferred.indexOf(g) === -1 && !isPrivate(g);
     });
   }
   function showError(section, msg) {
@@ -545,7 +550,7 @@
       var later = gaps.length - open.length;
       card.appendChild(el("h2", {}, open.length
         ? open.length + (open.length === 1 ? " gap needs" : " gaps need") + " your choice"
-        : "All gaps are filled in or left for later"));
+        : "Nothing else needs your choice here"));
       if (later) {
         card.appendChild(el("p", {}, later + (later === 1 ? " item is" : " items are") +
           " still missing and stay marked in the downloaded draft. The draft is not ready to send until you complete " +
@@ -553,6 +558,12 @@
       }
       gaps.forEach(function (g) {
         var row = el("div", { "class": "review-item" });
+        if (isPrivate(g)) {
+          row.appendChild(el("span", { "class": "ph" }, g));
+          row.appendChild(el("p", { "class": "hint deferred" }, "Add this privately after you download the draft."));
+          card.appendChild(row);
+          return;
+        }
         var fid = "fill-" + Math.random().toString(36).slice(2, 8);
         // Clicking the gap moves to its fill box.
         row.appendChild(el("label", { "class": "ph", "for": fid }, g));
@@ -654,6 +665,32 @@
     $("#file-name").textContent = file ? "Selected: " + file.name : "";
     $("#read-notice").disabled = !file;
     setStatus("#read-status", "");
+  }
+
+  // A chosen file is not read until the user confirms it is an example.
+  var pendingFile = null;
+  function askSynthetic(file) {
+    if (!file) { pickFile(null); return; }
+    pendingFile = file;
+    var d = $("#synthetic-confirm");
+    $("#synthetic-file").textContent = "File: " + file.name;
+    if (typeof d.showModal === "function") d.showModal(); else d.setAttribute("open", "");
+    $("#synthetic-ok").focus();
+  }
+  function closeSynthetic(ok) {
+    var d = $("#synthetic-confirm");
+    if (typeof d.close === "function" && d.open) d.close(); else d.removeAttribute("open");
+    var file = pendingFile;
+    pendingFile = null;
+    if (ok) {
+      pickFile(file);
+      $("#read-notice").focus();
+    } else {
+      $("#notice-file").value = "";
+      pickFile(noticeFile);
+      $("#notice-file").focus();
+      setStatus("#read-status", "File not used. Only example notice files can be read.");
+    }
   }
 
   // Drop the chosen file and any field values read from it that the user has not edited.
@@ -763,7 +800,10 @@
     });
 
     var dz = $("#dropzone");
-    $("#notice-file").addEventListener("change", function (e) { pickFile(e.target.files && e.target.files[0]); });
+    $("#notice-file").addEventListener("change", function (e) { askSynthetic(e.target.files && e.target.files[0]); });
+    $("#synthetic-ok").addEventListener("click", function () { closeSynthetic(true); });
+    $("#synthetic-cancel").addEventListener("click", function () { closeSynthetic(false); });
+    $("#synthetic-confirm").addEventListener("cancel", function (e) { e.preventDefault(); closeSynthetic(false); });
     ["dragenter", "dragover"].forEach(function (t) {
       dz.addEventListener(t, function () { dz.classList.add("drag"); });
     });

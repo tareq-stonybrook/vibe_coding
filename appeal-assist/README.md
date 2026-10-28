@@ -20,11 +20,11 @@ Publish a new version: `python3 build.py out.html` inlines everything into one f
 | --- | --- | --- |
 | 1 | Purpose and limits, acknowledgement, official help link | US-01 |
 | 2 | State and insurance type, with card hints. ACA marketplace shows a plan picker with one plan, set in `js/rules.js` PLANS | US-03 |
-| 3 | Upload an example notice (Word .docx, PDF with text, or .txt) and the app fills the fields by finding labels and headings, or type them. The upload says example notices only. A wrong file can be removed. Example notices can fill the form or download as a file to test upload | US-02 |
+| 3 | Fictional example notice is the primary start ("Use this example"). Typing the details also works. Reading an example notice file (Word .docx, PDF with text, or .txt) sits in a collapsed optional panel for testing. Each chosen file shows a popup: "We do not accept real notices or medical records. Confirm that this is synthetic data." Nothing is read until the user confirms. A wrong file can be removed | US-01, US-02, US-07 |
 | 4 | Stated reason with a plain language explanation that never says who is right. Appeal options, the patient's deadlines and the plan's response times shown separately, each with its source and date checked. Contacts, and a note when the notice points to details not shown. Unverified combinations show the fallback | US-04 |
-| 5 | Supporting information checklist. Ticked items are listed as enclosed | US-05 |
+| 5 | "Which documents will you attach?" Ticked items are listed as enclosed. The user attaches them outside the app | US-04, US-05 |
 | 6 | Only appeals address and letter date are asked. Name, address, phone, member ID and reference number stay as `[ADD: ...]` to add privately after download. Asks "What explanation has your clinician provided for why inpatient care is needed?" with an "I'm not sure" option. The letter claims medical necessity only when that explanation is given, and never says what a document shows. Always formal. Gaps shown as `[ADD: ...]` | US-06 |
-| 7 | Review gate: each gap has a fill box or "Leave for later". Left for later gaps stay in the letter, are never shown as done, and can be undone. Leftover square brackets get flagged with a one click fix. Flags numbers not found in anything the user entered, and a missing denial reason | US-07 |
+| 7 | Review gate: name, address, phone, member ID, reference number and signature have no fill box. They stay marked to add privately after download. Every other gap has a fill box or "Leave for later". Left for later gaps stay in the letter, are never shown as done, and can be undone. Leftover square brackets get flagged with a one click fix. Flags numbers not found in anything the user entered, and a missing denial reason | US-07 |
 | 8 | Download Word `.docx` or `.txt`, copy letter, submission instructions. An incomplete draft is flagged on screen and at the top of the file as not ready to send. A failed save names the error and keeps the draft | US-08 |
 | all | Labeled fields, keyboard use, focus moves to each heading, mobile layout | US-9 |
 | all | Autosave in browser, save or load progress file | US-10 |
@@ -36,10 +36,11 @@ Reminder text (no legal or medical advice, nothing submitted) shows on screen 1,
 * State: New York only.
 * Insurance type: ACA marketplace only, with one plan, Healthfirst Silver Leaf Plan.
 * Photos and scanned PDFs cannot be read without OCR or AI. The app says so and the user types the details.
-* Notice upload changes charter scope: the charter lists "Uploading and reading a real denial letter automatically" as out of scope. The app still says synthetic notices only.
+* Notice upload and charter scope: the charter lists "Uploading and reading a real denial letter automatically" as out of scope. The fictional example is the main route. File reading stays as an optional test of example files only, behind a synthetic data confirmation (team request in issue #7).
 * The review check flags any number in the letter the user did not enter, and a missing denial reason. Useful once the user edits the letter by hand.
 * Scenario: ACA (Healthfirst Silver Leaf) examples are planned inpatient admissions denied before the stay, so the guide, checklist and letter look ahead.
 * Rules and deadlines: **Healthfirst Silver Leaf only**, from the 2026 contract copy the team supplied (Sections II, XX and XXI), checked on October 28, 2026. Each rule links to the published certificate of coverage on assets.healthfirst.org. Step 4 tells the user to confirm every deadline on their denial notice. Every other combination shows the fallback message.
+* Theme: follows the device light or dark setting. White background in light mode, black in dark mode. Both modes are checked for text contrast of at least 4.5:1 in `tests/e2e.js`.
 * Privacy: no personal identifiers are asked for. Upload files are read in the browser and not sent. Typed details are saved in this browser (localStorage) until cleared, and in any progress file the user saves. Reading a PDF downloads the pdf.js library from cdnjs. No AI is used.
 * Publishing: declare the `downloads` capability so the claude.ai save dialog works. Without it the page falls back to a plain browser download, which an embedded page may block.
 * Help links point to official site home pages. Team should replace them with exact pages after checking.
