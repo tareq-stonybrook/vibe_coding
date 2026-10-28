@@ -11,10 +11,19 @@
   var PLACEHOLDER_RE = /\[ADD: [^\]]+\]/g;
 
   var REMINDER =
-    "REMINDER (delete this note before sending): This draft was organized by Appeal Assist. " +
+    "DRAFT FOR HUMAN REVIEW (delete this note before sending): This draft was organized by Appeal Assist. " +
     "It gives no legal or medical advice and did not submit anything. " +
     "Check every detail against your notice, fill any gaps, and attach your supporting information. " +
     "You send the appeal yourself.";
+
+  // The reminder for a given letter. Says plainly when gaps remain, so an
+  // incomplete draft is never presented as ready to send.
+  function reminderFor(text) {
+    var n = findPlaceholders(text).length;
+    if (!n) return REMINDER;
+    return REMINDER + " NOT READY TO SEND: " + n + (n === 1 ? " item is" : " items are") +
+      " still marked [ADD: ...]. Complete " + (n === 1 ? "it" : "them") + " privately before you send this letter.";
+  }
 
   function clean(value) {
     return typeof value === "string" ? value.trim() : "";
@@ -105,7 +114,7 @@
   }
 
   function withReminder(text) {
-    return REMINDER + "\n\n" + "-".repeat(40) + "\n\n" + text;
+    return reminderFor(text) + "\n\n" + "-".repeat(40) + "\n\n" + text;
   }
 
   function rtfEscape(text) {
@@ -170,7 +179,7 @@
 
   function toDocx(text) {
     var Docx = root.AppealDocx || (typeof require === "function" ? require("./docx.js") : null);
-    return Docx.build((text || "").split("\n"), REMINDER);
+    return Docx.build((text || "").split("\n"), reminderFor(text));
   }
 
   var api = {
@@ -180,6 +189,7 @@
     findUnsupported: findUnsupported,
     containsReason: containsReason,
     REMINDER: REMINDER,
+    reminderFor: reminderFor,
     buildLetter: buildLetter,
     findPlaceholders: findPlaceholders,
     removePlaceholder: removePlaceholder,

@@ -11,15 +11,19 @@
   var STEP_NAMES = ["Start", "Your plan", "Notice", "Options", "Checklist", "Draft", "Review", "Download"];
   var CHECKLIST = [
     { id: "notice", label: "A copy of the denial notice" },
-    { id: "records", label: "Records from the hospital stay, such as admission notes, progress notes and the discharge summary" },
-    { id: "doctor", label: "A statement from your treating doctor about why hospital care was needed" },
+    { id: "records", label: "Records from the hospital stay, such as admission notes, progress notes and the discharge summary",
+      planned: "Existing records that support the planned admission, such as your clinician's notes and test results" },
+    { id: "doctor", label: "A statement from your treating doctor about why hospital care was needed",
+      planned: "A letter from your clinician explaining why inpatient rather than outpatient care is needed" },
     { id: "planDocs", label: "The documents and criteria the plan used to make its decision (you can ask the plan for these)" },
     { id: "coverage", label: "Your plan's coverage document, such as the member handbook or evidence of coverage" },
     { id: "log", label: "Your own notes: dates, calls, and names of people you spoke with" }
   ];
   var DETAIL_FIELDS = ["planName", "service", "noticeDate", "reason", "instructions"];
 
-  var SENDER_FIELDS = ["name", "phone", "address", "memberId", "refNumber", "appealsAddress", "date"];
+  // Personal identifiers are never collected. The letter keeps
+  // placeholders for them, added privately after download.
+  var SENDER_FIELDS = ["appealsAddress", "date"];
   function todayIso() {
     var d = new Date();
     return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
@@ -33,14 +37,15 @@
       planType: "",
       plan: "",
       details: { planName: "", service: "", noticeDate: "", reason: "", instructions: "" },
-      checklist: CHECKLIST.map(function (c) { return { id: c.id, label: c.label, have: false }; }),
-      ownWords: "",
-      sender: { name: "", phone: "", address: "", memberId: "", refNumber: "", appealsAddress: "", date: todayIso() },
+      checklist: CHECKLIST.map(function (c) { return { id: c.id, have: false, attach: false }; }),
+      clinician: { text: "", unsure: false },
+      sender: { appealsAddress: "", date: todayIso() },
       letter: "",
       letterSource: "",
       letterEdited: false,
       reviewed: false,
-      fills: []
+      fills: [],
+      deferred: []
     };
   }
 
@@ -64,18 +69,27 @@
     var base = freshState();
     if (!obj || typeof obj !== "object") return base;
     Object.keys(base).forEach(function (k) {
-      if (k in obj && k !== "details" && k !== "checklist" && k !== "sender" && k !== "fills") base[k] = obj[k];
+      if (k in obj && ["details", "checklist", "sender", "fills", "deferred", "clinician"].indexOf(k) === -1) base[k] = obj[k];
     });
-    if (Array.isArray(obj.fills)) base.fills = obj.fills.filter(function (x) { return typeof x === "string"; });
+    ["fills", "deferred"].forEach(function (k) {
+      if (Array.isArray(obj[k])) base[k] = obj[k].filter(function (x) { return typeof x === "string"; });
+    });
+    if (obj.clinician && typeof obj.clinician === "object") {
+      base.clinician.text = typeof obj.clinician.text === "string" ? obj.clinician.text : "";
+      base.clinician.unsure = Boolean(obj.clinician.unsure);
+    }
     SENDER_FIELDS.forEach(function (f) {
       if (obj.sender && typeof obj.sender[f] === "string") base.sender[f] = obj.sender[f];
     });
     DETAIL_FIELDS.forEach(function (f) {
       if (obj.details && typeof obj.details[f] === "string") base.details[f] = obj.details[f];
     });
-    var have = {};
-    (obj.checklist || []).forEach(function (c) { have[c.id] = Boolean(c.have); });
-    base.checklist.forEach(function (c) { c.have = Boolean(have[c.id]); });
+    var prev = {};
+    (obj.checklist || []).forEach(function (c) { if (c && c.id) prev[c.id] = c; });
+    base.checklist.forEach(function (c) {
+      c.have = Boolean(prev[c.id] && prev[c.id].have);
+      c.attach = c.have && Boolean(prev[c.id].attach);
+    });
     return base;
   }
 
@@ -106,8 +120,24 @@
     var s = Rules.STATES.filter(function (x) { return x.id === id; })[0];
     return s ? s.label : "";
   }
+  // Planned admission scenario: the plan denied care before the stay.
+  function isPlanned() {
+    var p = plansFor(S.planType).filter(function (x) { return x.id === S.plan; })[0];
+    return Boolean(p && p.scenario === "planned");
+  }
+  function checklistLabel(id) {
+    var c = CHECKLIST.filter(function (x) { return x.id === id; })[0];
+    return c ? (isPlanned() && c.planned) || c.label : "";
+  }
   function haveLabels() {
-    return S.checklist.filter(function (c) { return c.have; }).map(function (c) { return c.label; });
+    return S.checklist.filter(function (c) { return c.have; }).map(function (c) { return checklistLabel(c.id); });
+  }
+  // Gaps still waiting on the user: not personal (added after download)
+  // and not left for later.
+  function openGaps() {
+    return Letter.findPlaceholders(S.letter).filter(function (g) {
+      return Composer.PRIVATE_GAPS.indexOf(g) === -1 && S.deferred.indexOf(g) === -1;
+    });
   }
   function showError(section, msg) {
     var box = section.querySelector(".error");
@@ -159,13 +189,23 @@
         return dl.save({ filename: filename, data: new Blob([content], { type: type }) }).then(
           function () { return "Saved " + filename + "."; },
           function (e) {
-            if (e && e.code === "unavailable") return blobDownload(filename, content, type);
-            return "Download cancelled.";
+            var code = e && e.code;
+            if (code === "declined") return "Download cancelled. Your draft is still here.";
+            if (code === "rate_limited") return "A save prompt is already open. Finish it, then try again.";
+            if (code === "unavailable" || code === "not_granted" || code === "capability_disabled" || code === "capability_removed" || !code) {
+              return blobDownload(filename, content, type);
+            }
+            return failed(filename, code + (e.message ? ": " + e.message : ""));
           }
         );
       }
       return blobDownload(filename, content, type);
-    });
+    }).catch(function (e) { return failed(filename, e && e.message); });
+  }
+  // Nothing is lost on failure: the draft stays saved in the page.
+  function failed(filename, detail) {
+    return "Could not save " + filename + (detail ? " (" + detail + ")" : "") +
+      ". Your draft is still saved here. Try the other format, or use Copy letter.";
   }
   function blobDownload(filename, content, type) {
     var url = URL.createObjectURL(new Blob([content], { type: type }));
@@ -184,7 +224,7 @@
     if (step === 1 && !S.planType) return "Choose your insurance type.";
     if (step === 1 && plansFor(S.planType).length && !S.plan) return "Choose your plan.";
     if (step === 5 && !S.letter.trim()) return "Press Write my letter first.";
-    if (step === 6 && Letter.findPlaceholders(S.letter).length) return "Fill in or dismiss every gap before download.";
+    if (step === 6 && openGaps().length) return "Fill in each gap or leave it for later before download.";
     if (step === 6 && !S.reviewed) return "Confirm you read the whole letter.";
     return "";
   }
@@ -299,12 +339,25 @@
     reasonBox.appendChild(el("h3", {}, "Reason for denial, as stated by your plan"));
     if (S.details.reason.trim()) reasonBox.appendChild(el("blockquote", {}, S.details.reason.trim()));
     else reasonBox.appendChild(el("p", {}, "You have not entered the denial reason yet. Go back to add it, or fill it in later in the letter."));
+    var plain = Composer.explainDenial(S.details.reason, S.details.service, isPlanned());
+    if (plain.length) {
+      reasonBox.appendChild(el("h3", {}, "What this means, in plain words"));
+      plain.forEach(function (t) { reasonBox.appendChild(el("p", {}, t)); });
+    }
 
     var box = $("#guide-rules");
     box.innerHTML = "";
     var card = el("div", { "class": "tile" });
     card.appendChild(el("h2", {}, "Appeal paths and deadlines"));
 
+    if (rules.deadlines.length && !rules.teamConfirmed) {
+      var pending = el("div", { "class": "warn", role: "note" });
+      pending.appendChild(el("p", {}, "Not fully verified yet. These rules come from the plan contract, " + rules.sourceTitle +
+        (rules.checkedBy ? ", checked by " + rules.checkedBy : "") +
+        ". Our team has not yet confirmed them against the official published document, and we have no public link to it yet."));
+      pending.appendChild(el("p", { style: "margin:0" }, "Confirm every deadline on your denial notice. If anything differs, follow your notice and call the plan."));
+      card.appendChild(pending);
+    }
     if (!rules.deadlines.length && !rules.paths.length) {
       var note = el("div", { "class": "warn", role: "note" });
       note.appendChild(el("p", {}, "We have not yet checked appeal rules or deadlines for " +
@@ -313,8 +366,28 @@
       note.appendChild(el("p", { style: "margin:0" }, "Check your denial notice and plan documents for the appeal steps and deadline. If anything is unclear, call the number on your notice or insurance card."));
       card.appendChild(note);
     } else {
-      rules.paths.forEach(function (p) { card.appendChild(renderRule(p)); });
-      rules.deadlines.forEach(function (d) { card.appendChild(renderRule(d)); });
+      if (isPlanned()) card.appendChild(el("p", {}, "These rules are for a planned inpatient admission the plan denied before your stay."));
+      if (rules.paths.length) {
+        card.appendChild(el("h3", {}, "Your appeal options"));
+        rules.paths.forEach(function (p) { card.appendChild(renderRule(p)); });
+      }
+      var yours = rules.deadlines.filter(function (d) { return d.who !== "plan"; });
+      var theirs = rules.deadlines.filter(function (d) { return d.who === "plan"; });
+      if (yours.length) {
+        card.appendChild(el("h3", {}, "Your deadlines to ask for an appeal"));
+        yours.forEach(function (d) { card.appendChild(renderRule(d)); });
+      }
+      if (theirs.length) {
+        card.appendChild(el("h3", {}, "How long the plan has to respond"));
+        theirs.forEach(function (d) { card.appendChild(renderRule(d)); });
+      }
+    }
+    if (rules.contacts.length || rules.missing.length) {
+      card.appendChild(el("h3", {}, "Who to contact"));
+      rules.contacts.forEach(function (c) { card.appendChild(renderRule(c)); });
+      rules.missing.forEach(function (m) { card.appendChild(el("p", { "class": "missing" }, m)); });
+    } else if (rules.deadlines.length || rules.paths.length) {
+      card.appendChild(el("p", {}, "We have no checked contact details for this plan. Use the phone number and address on your notice."));
     }
 
     var help = Rules.HELP_LINKS[S.planType] || Rules.HELP_LINKS.general;
@@ -326,8 +399,14 @@
     var instr = $("#guide-instructions");
     instr.innerHTML = "";
     instr.appendChild(el("h2", {}, "Appeal instructions from your notice"));
-    if (S.details.instructions.trim()) instr.appendChild(el("blockquote", {}, S.details.instructions.trim()));
-    else instr.appendChild(el("p", {}, "You did not enter appeal instructions. Look on your notice for a section like \"Your right to appeal\"."));
+    if (S.details.instructions.trim()) {
+      instr.appendChild(el("blockquote", {}, S.details.instructions.trim()));
+      // The notice may point to details printed elsewhere on it. Say so
+      // instead of leaving the user looking for something not shown here.
+      if (/below|above|last page|back of|next page|page \d|enclosed|attached|printed on|on this notice/i.test(S.details.instructions)) {
+        instr.appendChild(el("p", { "class": "missing" }, "Your notice refers to details printed elsewhere on it, such as an address. This guide does not have them. Copy them from your notice and confirm them before you send anything."));
+      }
+    } else instr.appendChild(el("p", {}, "You did not enter appeal instructions. Look on your notice for a section like \"Your right to appeal\"."));
   }
 
   function renderRule(r) {
@@ -338,16 +417,20 @@
     }
     row(r.label, r.rule);
     if (r.countFrom) row("Counted from", r.countFrom);
-    if (typeof r.days === "number" && r.countFrom === "notice date" && S.details.noticeDate) {
+    if (typeof r.days === "number" && r.estimateFromNotice && S.details.noticeDate) {
       var d = new Date(S.details.noticeDate + "T00:00:00Z");
       d.setUTCDate(d.getUTCDate() + r.days);
-      row("Estimated date, based on the notice date you entered", Letter.formatDate(d.toISOString().slice(0, 10)) + ". Confirm this on your notice.");
+      row("Earliest possible deadline", Letter.formatDate(d.toISOString().slice(0, 10)) +
+        ". This counts from the date on your notice. Your real deadline counts from the day you received it, so it may be later. Confirm it on your notice.");
     }
-    wrap.appendChild(el("dt", {}, "Source"));
-    var dd = el("dd", {});
-    dd.appendChild(el("a", { href: r.sourceUrl, target: "_blank", rel: "noopener" }, r.citation));
-    wrap.appendChild(dd);
-    row("Last verified", Letter.formatDate(r.verifiedOn));
+    // Source and date checked beside every rule, on one line.
+    var src = el("dd", { "class": "source" });
+    src.appendChild(document.createTextNode("Source: "));
+    var name = r.where ? "plan contract, " + r.where : r.citation;
+    if (r.sourceUrl) src.appendChild(el("a", { href: r.sourceUrl, target: "_blank", rel: "noopener" }, name));
+    else src.appendChild(document.createTextNode(name));
+    src.appendChild(document.createTextNode(". Date checked: " + Letter.formatDate(r.verifiedOn) + "."));
+    wrap.appendChild(src);
     return wrap;
   }
 
@@ -355,22 +438,45 @@
     var box = $("#checklist");
     box.innerHTML = "";
     S.checklist.forEach(function (c) {
+      var item = el("div", { "class": "check-item" });
       var row = el("div", { "class": "check" });
       var input = el("input", { type: "checkbox", id: "cl-" + c.id });
       input.checked = c.have;
+      row.appendChild(input);
+      row.appendChild(el("label", { "for": "cl-" + c.id }, checklistLabel(c.id)));
+      item.appendChild(row);
+      // Having a document is not the same as sending it. Ask separately.
+      var sub = el("div", { "class": "check sub" });
+      var attach = el("input", { type: "checkbox", id: "at-" + c.id });
+      attach.checked = c.attach;
+      sub.appendChild(attach);
+      sub.appendChild(el("label", { "for": "at-" + c.id }, "I plan to attach this to my letter"));
+      sub.hidden = !c.have;
+      item.appendChild(sub);
       input.addEventListener("change", function () {
         c.have = input.checked;
+        if (!c.have) { c.attach = false; attach.checked = false; }
+        sub.hidden = !c.have;
         save();
       });
-      row.appendChild(input);
-      row.appendChild(el("label", { "for": "cl-" + c.id }, c.label));
-      box.appendChild(row);
+      attach.addEventListener("change", function () {
+        c.attach = attach.checked;
+        save();
+      });
+      box.appendChild(item);
     });
+    $("#missing-help").textContent = isPlanned()
+      ? "Ask your clinician's office for records that support the planned admission, and for a letter explaining why inpatient rather than outpatient care is needed. You can also ask your plan for the documents it used to decide. Do not guess at medical details in your letter."
+      : "Ask your care team or the hospital's medical records office for records from your stay. You can also ask your plan for the documents it used to decide. Do not guess at medical details in your letter.";
   }
 
   function renderDraft() {
     SENDER_FIELDS.forEach(function (f) { $("#s-" + f).value = S.sender[f] || ""; });
-    $("#ownWords").value = S.ownWords;
+    $("#clinician-legend").textContent = "What explanation has your clinician provided for why inpatient care " +
+      (isPlanned() ? "is" : "was") + " needed?";
+    $("#clinician").value = S.clinician.text;
+    $("#clinician-unsure").checked = S.clinician.unsure;
+    $("#clinician").disabled = S.clinician.unsure;
     if (!S.letter || !S.letterEdited) writeLetter();
     $("#letter").value = S.letter;
   }
@@ -379,9 +485,11 @@
     S.letter = Composer.compose({
       details: S.details,
       checklist: S.checklist,
-      ownWords: S.ownWords,
+      clinician: S.clinician,
       sender: S.sender,
+      planned: isPlanned()
     });
+    S.deferred = [];
     S.letterSource = "composer";
     S.letterEdited = false;
     S.reviewed = false;
@@ -400,7 +508,7 @@
     box.innerHTML = "";
     var sources = DETAIL_FIELDS.map(function (f) { return S.details[f]; })
       .concat(SENDER_FIELDS.map(function (f) { return S.sender[f]; }))
-      .concat(S.fills).concat([S.ownWords]).concat(haveLabels());
+      .concat(S.fills).concat([S.clinician.text]).concat(haveLabels());
     var extra = Letter.findUnsupported(S.letter, sources);
     var reasonOk = Letter.containsReason(S.letter, S.details.reason);
     var stray = Letter.findStrayBrackets(S.letter);
@@ -435,15 +543,45 @@
   function renderReviewList() {
     var list = $("#review-list");
     var gaps = Letter.findPlaceholders(S.letter);
+    S.deferred = S.deferred.filter(function (g) { return gaps.indexOf(g) !== -1; });
+    var open = openGaps();
     list.innerHTML = "";
     var card = el("div", { "class": "tile" });
     if (!gaps.length) {
-      card.appendChild(el("p", { style: "margin:0" }, "No gaps remain."));
+      card.appendChild(el("p", { style: "margin:0" }, "Every gap is filled in."));
     } else {
-      card.appendChild(el("h2", {}, gaps.length + (gaps.length === 1 ? " gap remains" : " gaps remain")));
+      var later = gaps.length - open.length;
+      card.appendChild(el("h2", {}, open.length
+        ? open.length + (open.length === 1 ? " gap needs" : " gaps need") + " your choice"
+        : "All gaps are filled in or left for later"));
+      if (later) {
+        card.appendChild(el("p", {}, later + (later === 1 ? " item is" : " items are") +
+          " still missing and stay marked in the downloaded draft. The draft is not ready to send until you complete " +
+          (later === 1 ? "it." : "them.")));
+      }
       gaps.forEach(function (g) {
         var row = el("div", { "class": "review-item" });
         row.appendChild(el("span", { "class": "ph" }, g));
+        if (Composer.PRIVATE_GAPS.indexOf(g) !== -1) {
+          row.appendChild(el("p", { "class": "hint deferred" }, "Personal detail. Add it privately after you download the draft, outside this app."));
+          card.appendChild(row);
+          return;
+        }
+        if (S.deferred.indexOf(g) !== -1) {
+          var back = el("div", { "class": "fill-row" });
+          back.appendChild(el("p", { "class": "hint deferred" }, "Left for later. It stays marked in the downloaded draft."));
+          var undo = el("button", { type: "button", "class": "secondary small" }, "Fill in now");
+          undo.setAttribute("aria-label", "Fill in " + g + " now");
+          undo.addEventListener("click", function () {
+            S.deferred = S.deferred.filter(function (x) { return x !== g; });
+            renderReviewList();
+            save();
+          });
+          back.appendChild(undo);
+          row.appendChild(back);
+          card.appendChild(row);
+          return;
+        }
         var fillRow = el("div", { "class": "fill-row" });
         var fid = "fill-" + Math.random().toString(36).slice(2, 8);
         var input = el("input", { type: "text", id: fid, autocomplete: "off" });
@@ -464,29 +602,42 @@
         }
         fill.addEventListener("click", doFill);
         input.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); doFill(); } });
-        var dismiss = el("button", { type: "button", "class": "secondary small" }, "Dismiss");
-        dismiss.setAttribute("aria-label", "Dismiss " + g + " and remove it from the letter");
-        dismiss.addEventListener("click", function () {
-          S.letter = Letter.removePlaceholder(S.letter, g);
-          S.letterEdited = true;
-          $("#letter-review").value = S.letter;
+        // Leaving a gap for later keeps it in the letter. Nothing is
+        // removed, so a missing item never looks complete.
+        var defer = el("button", { type: "button", "class": "secondary small" }, "Leave for later");
+        defer.setAttribute("aria-label", "Leave " + g + " for later. It stays in the letter");
+        defer.addEventListener("click", function () {
+          S.deferred.push(g);
           renderReviewList();
           save();
-          announce("Removed " + g);
+          announce("Left for later. It stays marked in the letter.");
         });
         fillRow.appendChild(input);
         fillRow.appendChild(fill);
-        fillRow.appendChild(dismiss);
+        fillRow.appendChild(defer);
         row.appendChild(fillRow);
         card.appendChild(row);
       });
     }
     list.appendChild(card);
     renderWarnings();
-    $("#to-download").disabled = Boolean(gaps.length) || !S.reviewed;
+    $("#to-download").disabled = Boolean(open.length) || !S.reviewed;
   }
 
   function renderDownload() {
+    var gaps = Letter.findPlaceholders(S.letter);
+    var box = $("#incomplete");
+    box.hidden = !gaps.length;
+    box.innerHTML = "";
+    if (gaps.length) {
+      box.appendChild(el("h2", {}, "This draft is not ready to send"));
+      box.appendChild(el("p", {}, gaps.length + (gaps.length === 1 ? " item is" : " items are") +
+        " still marked [ADD: ...]. The downloaded file keeps " + (gaps.length === 1 ? "it" : "them") +
+        " and says so at the top. Complete " + (gaps.length === 1 ? "it" : "them") + " privately before you send the letter."));
+      var ul = el("ul");
+      gaps.forEach(function (g) { ul.appendChild(el("li", {}, g)); });
+      box.appendChild(ul);
+    }
     var text = S.details.instructions.trim();
     $("#submit-instructions").textContent = text || "You did not enter appeal instructions. Check your notice for where and how to send your appeal.";
   }
@@ -667,8 +818,13 @@
         if (!S.letterEdited) writeLetter(); else save();
       });
     });
-    $("#ownWords").addEventListener("input", function (e) {
-      S.ownWords = e.target.value;
+    $("#clinician").addEventListener("input", function (e) {
+      S.clinician.text = e.target.value;
+      if (!S.letterEdited) writeLetter(); else save();
+    });
+    $("#clinician-unsure").addEventListener("change", function (e) {
+      S.clinician.unsure = e.target.checked;
+      $("#clinician").disabled = S.clinician.unsure;
       if (!S.letterEdited) writeLetter(); else save();
     });
     $("#write-letter").addEventListener("click", function () {

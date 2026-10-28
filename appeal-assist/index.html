@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Appeal Assist</title>
-  <meta name="description" content="Appeal Assist helps patients overturn insurance denials with a guided appeal letter.">
+  <meta name="description" content="Appeal Assist helps patients understand insurance denials and prepare an appeal letter.">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -28,7 +28,7 @@
     <section class="step" data-step="0" aria-labelledby="h-intro">
       <div class="hero wrap">
         <h1 id="h-intro" class="brand-title">Appeal Assist</h1>
-        <p class="tagline">Helping patients overturn denials.</p>
+        <p class="tagline">Helping patients understand denials and prepare an appeal.</p>
       </div>
       <div class="wrap">
         <p class="intro">Break down your denial notice, be informed on requested documents, and receive a drafted appeal letter to review and submit.</p>
@@ -36,10 +36,10 @@
           <div class="tile">
             <h2>What it does</h2>
             <ul class="ticks">
-              <li>Reads the details from your notice file, or lets you type them.</li>
-              <li>Shows appeal rules only when our team has checked them against an official source.</li>
+              <li>Reads the details from an example notice file, or lets you type them.</li>
+              <li>Shows appeal rules only when they have been checked against an official source, with the source and date checked.</li>
               <li>Lists information that is commonly requested.</li>
-              <li>Writes a draft letter for you, using only what you confirmed.</li>
+              <li>Writes a draft letter for you, using only what you confirmed. Anything missing stays marked for you to add.</li>
             </ul>
           </div>
           <div class="tile">
@@ -48,6 +48,7 @@
               <li>Give legal or medical advice.</li>
               <li>Decide whether you are covered.</li>
               <li>Create medical facts or evidence.</li>
+              <li>Ask for your name, address, phone or member ID. You add those privately after you download the draft.</li>
               <li>Submit anything. You send your appeal yourself.</li>
               <li>Promise an outcome. We are not responsible for whether your appeal is approved or denied.</li>
             </ul>
@@ -95,11 +96,11 @@
     <section class="step wrap" data-step="2" aria-labelledby="h-notice" hidden>
       <p class="eyebrow">Your notice</p>
       <h1 id="h-notice">What does your denial notice say?</h1>
-      <p class="lede">Upload the notice and the guide will pull out the details, or type them yourself. Either way, you check every field.</p>
+      <p class="lede">Upload an example notice and the guide will pull out the details, or type them yourself. Either way, you check every field.</p>
 
       <div class="tile upload" id="upload-tile">
-        <h2>Upload your notice</h2>
-        <p class="hint" id="upload-hint">Word (.docx), PDF or text file. Everything stays on your device.</p>
+        <h2>Upload an example notice</h2>
+        <p class="hint" id="upload-hint">Use an example notice, not a real one. Word (.docx), PDF or text file. The file is read in this browser and is not sent anywhere.</p>
         <div class="dropzone" id="dropzone">
           <input type="file" id="notice-file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.doc,application/msword,application/pdf,.pdf,text/plain,.txt" aria-describedby="upload-hint">
           <label for="notice-file" class="dropzone-label">
@@ -178,14 +179,18 @@
     <section class="step wrap" data-step="4" aria-labelledby="h-checklist" hidden>
       <p class="eyebrow">Supporting information</p>
       <h1 id="h-checklist">What do you already have?</h1>
-      <p class="lede">These items are commonly requested for this kind of denial. Not every appeal needs every item.</p>
+      <p class="lede">These items are commonly requested for this kind of denial. Not every appeal needs every item. Tick what you have, then tick what you plan to attach.</p>
       <fieldset class="field">
         <legend class="visually-hidden">Items you already have</legend>
         <div id="checklist" class="check-list"></div>
       </fieldset>
       <div class="tile soft">
+        <h2>About attachments</h2>
+        <p>Only items you plan to attach are listed as enclosed in your letter. You attach them yourself when you send it. This guide does not attach, read or check any document.</p>
+      </div>
+      <div class="tile soft">
         <h2>Missing something?</h2>
-        <p>Ask your care team or the hospital's medical records office for records from your stay. You can also ask your plan for the documents it used to decide. Do not guess at medical details in your letter.</p>
+        <p id="missing-help"></p>
       </div>
       <div class="actions">
         <button type="button" class="secondary" data-back>Back</button>
@@ -200,24 +205,24 @@
       <div class="banner" role="note">This guide gives no legal or medical advice and submits nothing. The letter may only use details you entered. Gaps show as <span class="ph">[ADD: ...]</span>.</div>
 
       <fieldset class="field tile sender">
-        <legend>Your details for the letter</legend>
+        <legend>Letter details</legend>
         <p class="hint">Type plain text only, no brackets. Leave anything blank to fill in later.</p>
         <div class="sender-grid">
-          <div class="field"><label for="s-name">Full name</label><input id="s-name" type="text" autocomplete="off"></div>
-          <div class="field"><label for="s-phone">Phone</label><input id="s-phone" type="text" autocomplete="off" inputmode="tel"></div>
-          <div class="field wide"><label for="s-address">Mailing address</label><input id="s-address" type="text" autocomplete="off"></div>
-          <div class="field"><label for="s-memberId">Member ID</label><input id="s-memberId" type="text" autocomplete="off" aria-describedby="s-memberId-hint"><p class="hint" id="s-memberId-hint">On your insurance card.</p></div>
-          <div class="field"><label for="s-refNumber">Claim or reference number</label><input id="s-refNumber" type="text" autocomplete="off" aria-describedby="s-refNumber-hint"><p class="hint" id="s-refNumber-hint">On your notice.</p></div>
           <div class="field wide"><label for="s-appealsAddress">Appeals address</label><input id="s-appealsAddress" type="text" autocomplete="off" aria-describedby="s-appealsAddress-hint"><p class="hint" id="s-appealsAddress-hint">Where your notice says to send the appeal.</p></div>
           <div class="field"><label for="s-date">Date of letter</label><input id="s-date" type="date"></div>
         </div>
+        <p class="hint" id="private-note">Your name, address, phone, member ID and reference number are not asked for here. They stay marked in the letter so you can add them privately after you download it.</p>
       </fieldset>
 
-      <div class="field">
-        <label for="ownWords">In your own words, why do you think the stay was necessary? (optional)</label>
-        <textarea id="ownWords" rows="4" aria-describedby="ownWords-hint"></textarea>
-        <p class="hint" id="ownWords-hint">Plain words are fine. The guide puts them in the letter as you wrote them, with small spelling and capital letter fixes. If you leave this blank, the letter keeps a gap for it.</p>
-      </div>
+      <fieldset class="field">
+        <legend id="clinician-legend">What explanation has your clinician provided for why inpatient care is needed?</legend>
+        <textarea id="clinician" rows="4" aria-labelledby="clinician-legend" aria-describedby="clinician-hint"></textarea>
+        <p class="hint" id="clinician-hint">Use only what your clinician told you or wrote. Do not guess at medical details. If you leave this blank, the letter keeps a gap for it.</p>
+        <div class="check">
+          <input type="checkbox" id="clinician-unsure">
+          <label for="clinician-unsure">I'm not sure. I need to ask my clinician.</label>
+        </div>
+      </fieldset>
       <div class="actions tight">
         <button type="button" class="primary" id="write-letter">Write my letter</button>
       </div>
@@ -237,7 +242,7 @@
     <section class="step wrap" data-step="6" aria-labelledby="h-review" hidden>
       <p class="eyebrow">Review</p>
       <h1 id="h-review">Check it before you download</h1>
-      <p class="lede">Fill in each gap, or dismiss it if you will handle it later. Download unlocks when no gaps remain.</p>
+      <p class="lede">Fill in each gap, or leave it for later. Gaps left for later stay marked in the downloaded draft, and the draft is not ready to send until you complete them.</p>
       <div id="review-list"></div>
       <div id="review-warnings"></div>
       <div class="field">
@@ -259,6 +264,7 @@
       <p class="eyebrow">Send</p>
       <h1 id="h-download">Download and send your letter</h1>
       <div class="banner" role="note">Check all details and attach your supporting information. This guide gives no legal or medical advice and does not submit your appeal. You send it yourself.</div>
+      <div id="incomplete" class="warn" role="note" hidden></div>
       <div class="actions">
         <button type="button" class="primary" id="dl-docx">Download Word document (.docx)</button>
         <button type="button" class="secondary" id="dl-txt">Download text (.txt)</button>
@@ -267,7 +273,7 @@
       <p id="dl-status" class="read-status" role="status"></p>
       <div class="tile">
         <h2>How to send it</h2>
-        <p>Follow the appeal instructions on your notice. You entered:</p>
+        <p>Add your real details privately, in the downloaded file, outside this app. Then follow the appeal instructions on your notice. You entered:</p>
         <blockquote id="submit-instructions"></blockquote>
         <ul class="ticks">
           <li>Keep a copy of everything you send.</li>
@@ -284,7 +290,7 @@
 
   <footer class="site-footer">
     <div class="wrap footer-row">
-      <p>Progress saves in this browser.</p>
+      <p>Progress saves in this browser until you clear it. Progress files hold what you typed.</p>
       <div class="inline">
         <button type="button" class="link" id="save-file">Save progress to file</button>
         <label class="link" for="load-file">Load progress file</label>

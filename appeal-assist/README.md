@@ -20,12 +20,12 @@ Publish a new version: `python3 build.py out.html` inlines everything into one f
 | --- | --- | --- |
 | 1 | Purpose and limits, acknowledgement, official help link | US-01 |
 | 2 | State and insurance type, with card hints. ACA marketplace shows a plan picker with one plan, set in `js/rules.js` PLANS | US-03 |
-| 3 | Upload notice (Word .docx, PDF with text, or .txt) and the app fills the fields by finding labels and headings, or type them. Example notices can fill the form or download as a file to test upload | US-02 |
-| 4 | Stated reason, appeal paths and deadlines (verified only), notice instructions | US-04 |
-| 5 | Supporting information checklist, records prompt | US-05 |
-| 6 | "Your details" fields (name, address, phone, member ID, reference number, appeals address, date) print as labeled lines like `Name: ...`. App writes the letter from confirmed details, the user's own words and checked documents. Paragraphs change with the kind of denial reason (care setting, length of stay, records, criteria). Always formal. Closing paragraph sums up the patient's own reasons and the enclosed doctor statement or records, then asks the plan to reverse the decision. Gaps shown as `[ADD: ...]` | US-06 |
-| 7 | Review gate: each gap has its own fill box, or dismiss it. Leftover square brackets get flagged with a one click fix. Confirm review. Flags numbers not found in anything the user entered, and a missing denial reason | US-07 |
-| 8 | Download Word `.docx` or `.txt`, copy letter, submission instructions | US-08 |
+| 3 | Upload an example notice (Word .docx, PDF with text, or .txt) and the app fills the fields by finding labels and headings, or type them. The upload says example notices only. A wrong file can be removed. Example notices can fill the form or download as a file to test upload | US-02 |
+| 4 | Stated reason with a plain language explanation that never says who is right. Appeal options, the patient's deadlines and the plan's response times shown separately, each with its source and date checked. Contacts, and a note when the notice points to details not shown. Unverified combinations show the fallback | US-04 |
+| 5 | Supporting information checklist. "I have it" and "I plan to attach it" are separate. Only attached items are listed as enclosed | US-05 |
+| 6 | Only appeals address and letter date are asked. Name, address, phone, member ID and reference number stay as `[ADD: ...]` to add privately after download. Asks "What explanation has your clinician provided for why inpatient care is needed?" with an "I'm not sure" option. The letter claims medical necessity only when that explanation is given, and never says what a document shows. Always formal. Gaps shown as `[ADD: ...]` | US-06 |
+| 7 | Review gate: each gap has a fill box or "Leave for later". Left for later gaps stay in the letter, are never shown as done, and can be undone. Personal gaps have no fill box. Leftover square brackets get flagged with a one click fix. Flags numbers not found in anything the user entered, and a missing denial reason | US-07 |
+| 8 | Download Word `.docx` or `.txt`, copy letter, submission instructions. An incomplete draft is flagged on screen and at the top of the file as not ready to send. A failed save names the error and keeps the draft | US-08 |
 | all | Labeled fields, keyboard use, focus moves to each heading, mobile layout | US-9 |
 | all | Autosave in browser, save or load progress file | US-10 |
 
@@ -38,12 +38,15 @@ Reminder text (no legal or medical advice, nothing submitted) shows on screen 1,
 * Photos and scanned PDFs cannot be read without OCR or AI. The app says so and the user types the details.
 * Notice upload changes charter scope: the charter lists "Uploading and reading a real denial letter automatically" as out of scope. The app still says synthetic notices only.
 * The review check flags any number in the letter the user did not enter, and a missing denial reason. Useful once the user edits the letter by hand.
-* Rules and deadlines: **none verified yet.** Every combination shows the fallback message telling the user to check the notice and plan documents.
+* Scenario: ACA (Healthfirst Silver Leaf) examples are planned inpatient admissions denied before the stay, so the guide, checklist and letter look ahead. Medicare, Medicaid and employer examples are stays that already happened.
+* Rules and deadlines: **Healthfirst Silver Leaf only**, from the 2026 contract copy the team supplied (Sections II, XX and XXI), checked on October 28, 2026. They still show a "not fully verified" warning until the team confirms them against the official published contract and adds its link (`sourceUrl`, `teamConfirmed: true` in `js/rules.js`). Every other combination shows the fallback message.
+* Privacy: no personal identifiers are asked for. Upload files are read in the browser and not sent. Typed details are saved in this browser (localStorage) until cleared, and in any progress file the user saves. Reading a PDF downloads the pdf.js library from cdnjs. No AI is used.
+* Publishing: declare the `downloads` capability so the claude.ai save dialog works. Without it the page falls back to a plain browser download, which an embedded page may block.
 * Help links point to official site home pages. Team should replace them with exact pages after checking.
 
 ## Adding a verified rule
 
-Edit `js/rules.js`. Add an entry to the matching `COMBINATIONS` key with `citation`, `sourceUrl` and `verifiedOn`. Entries missing any of these never display. Format is documented at the top of the file.
+Edit `js/rules.js`. Add an entry to the matching `COMBINATIONS` key with `citation` and `verifiedOn` (and `sourceUrl` once known). Entries missing citation or date never display. Format is documented at the top of the file.
 
 ## Files
 
@@ -61,4 +64,5 @@ Edit `js/rules.js`. Add an entry to the matching `COMBINATIONS` key with `citati
 
 * Formal WCAG 2.1 AA audit (screen reader pass, contrast measurement tool). Automated flow checks keyboard selection, layout width and page errors only.
 * Translation.
-* Verified rules, deadlines and citations.
+* Team confirmation of the Silver Leaf rules against the official published contract, and its link.
+* Verified rules for Medicare, Medicaid and employer plans.

@@ -159,8 +159,10 @@ textarea.letter { font-family: var(--mono); font-size: 0.9rem; line-height: 1.55
 .choice input:focus-visible + label { outline: 3px solid var(--focus); outline-offset: 2px; }
 
 .check-list { display: grid; gap: 4px; background: var(--bg-alt); border-radius: 18px; padding: 8px 20px; }
-.check-list .check { padding: 12px 0; border-bottom: 1px solid var(--line); }
-.check-list .check:last-child { border-bottom: 0; }
+.check-list .check-item { padding: 12px 0; border-bottom: 1px solid var(--line); }
+.check-list .check-item:last-child { border-bottom: 0; }
+.check.sub { margin: 10px 0 0 32px; font-size: 0.95rem; }
+.check.sub[hidden] { display: none; }
 
 .sender { margin: 24px 0; }
 .sender legend { float: left; width: 100%; font-size: 1.25rem; margin-bottom: 4px; }
@@ -224,10 +226,13 @@ h3 { font-size: 1rem; font-weight: 600; margin: 16px 0 4px; }
 .facts { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 8px 0 0; }
 .facts dt { color: var(--muted); }
 .facts dd { margin: 0; font-weight: 500; min-width: 0; overflow-wrap: anywhere; }
+p.missing { color: var(--muted); font-style: italic; }
+.deferred { margin: 6px 0 0; }
 .facts dd.missing { color: var(--muted); font-weight: 400; font-style: italic; }
 .deadline { border-left: 3px solid var(--btn); padding-left: 14px; margin: 14px 0; }
 .deadline dt { font-weight: 600; }
 .deadline dd { margin: 0 0 6px; }
+.deadline dd.source { color: var(--muted); font-size: 0.85rem; }
 
 /* Footer */
 .site-footer { border-top: 1px solid var(--line); background: var(--bg-alt); font-size: 0.875rem; color: var(--muted); }

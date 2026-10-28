@@ -7,9 +7,10 @@
  */
 (function (root) {
   var SAMPLES = [
-    // Inpatient stays denied as not medically necessary. The first example
-    // for each insurance type is a stay after surgery (the team's main
-    // scenario). The others cover other common inpatient denials.
+    // Inpatient care denied as not medically necessary. The first example
+    // for each insurance type involves surgery. Medicare, Medicaid and
+    // employer examples are stays that already happened. The ACA examples
+    // are planned admissions (the team's main scenario).
     // Medicare
     {
       id: "ny-medicare-1", state: "NY", planType: "medicare",
@@ -60,29 +61,30 @@
       reason: "Admission criteria were not met.",
       instructions: ""
     },
-    // ACA marketplace: the team's scenario plan
+    // ACA marketplace: the team's scenario plan. Planned admissions denied
+    // before the stay (Preauthorization), so the wording looks ahead.
     {
       id: "ny-aca-1", state: "NY", planType: "aca",
       planName: "Healthfirst Silver Leaf Plan",
-      service: "Inpatient hospital stay after surgery, 3 days",
+      service: "Planned inpatient admission for surgery",
       noticeDate: "2026-08-01",
-      reason: "The inpatient stay after your surgery was denied as not medically necessary under the plan's clinical review criteria. Your post operative care could have been provided in an outpatient setting.",
-      instructions: "You may file an internal appeal by writing to the Grievance and Appeals Department listed below."
+      reason: "Your request for a planned inpatient admission for surgery is denied as not medically necessary under the plan's clinical review criteria. The plan believes your care can be provided in an outpatient setting.",
+      instructions: "You may ask for an internal appeal by phone, in person or in writing. Call Appeals at 888-250-2220. If waiting could seriously harm your health, ask for an expedited appeal at 877-779-2959."
     },
     {
       id: "ny-aca-2", state: "NY", planType: "aca",
       planName: "Healthfirst Silver Leaf Plan",
-      service: "Inpatient hospital stay for pneumonia, 4 days",
+      service: "Planned inpatient admission for chemotherapy",
       noticeDate: "2026-09-12",
-      reason: "Inpatient care after day 2 did not meet medical necessity criteria. You were stable for discharge.",
-      instructions: "Send your appeal and any supporting documents to the address on the last page."
+      reason: "The information submitted does not show that inpatient care is needed. Your treatment can be given in an outpatient infusion setting.",
+      instructions: "Send your written appeal and any supporting documents to the Appeals Department at the address printed on this notice."
     },
     {
       id: "ny-aca-3", state: "NY", planType: "aca",
       planName: "Healthfirst Silver Leaf Plan",
-      service: "Inpatient admission for observation of chest pain",
+      service: "Planned inpatient rehabilitation admission after hip replacement",
       noticeDate: "2026-07-18",
-      reason: "The information submitted did not support an inpatient level of care. Observation status was appropriate.",
+      reason: "Admission criteria for inpatient rehabilitation are not met. Home health care is appropriate.",
       instructions: ""
     },
     // Employer plan

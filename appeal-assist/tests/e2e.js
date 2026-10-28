@@ -21,7 +21,7 @@ async function run(label, contextOpts) {
   await page.goto(url);
 
   // Step 0: gate on acknowledgement
-  check(`${label}: hero shows name and tagline only`, (await page.textContent("#h-intro")) === "Appeal Assist" && (await page.textContent(".tagline")) === "Helping patients overturn denials.");
+  check(`${label}: hero shows name and tagline only`, (await page.textContent("#h-intro")) === "Appeal Assist" && (await page.textContent(".tagline")) === "Helping patients understand denials and prepare an appeal.");
   check(`${label}: no prototype or synthetic wording`, !/prototype|synthetic/i.test(await page.innerText("body")));
   check(`${label}: outcome disclaimer on first page`, (await page.textContent("ul.crosses")).includes("We are not responsible for whether your appeal is approved or denied."));
   check(`${label}: new example panel heading`, (await page.textContent("details.example summary")) === "No notice to upload? Update manually.");
@@ -55,11 +55,15 @@ async function run(label, contextOpts) {
   check(`${label}: options page shows plan, date and plan's reason`, denial.includes("Denied by") && denial.includes("Date of notice") && denial.includes("as stated by your plan") && denial.includes(reason));
   const guide = await page.textContent("#guide-rules");
   check(`${label}: unverified fallback shown`, guide.includes("have not yet checked"));
+  check(`${label}: plain explanation of the denial`, denial.includes("What this means, in plain words") && denial.includes("does not decide who is correct"));
   await page.screenshot({ path: path.join(outDir, `${label}-guide.png`), fullPage: true });
   await page.click("section[data-step='3'] [data-next]");
 
-  // Step 4: checklist
+  // Step 4: checklist. Having a document and attaching it are separate.
+  check(`${label}: attach choice hidden until item ticked`, !(await page.isVisible("#at-records")));
   await page.check("#cl-records");
+  await page.check("#at-records");
+  await page.check("#cl-notice");
   await page.click("section[data-step='4'] [data-next]");
 
   // Step 5: draft (no Claude here, so template fills in)
@@ -67,6 +71,8 @@ async function run(label, contextOpts) {
   const letter = await page.inputValue("#letter");
   check(`${label}: letter repeats reason`, letter.includes(reason));
   check(`${label}: letter has placeholders`, letter.includes("[ADD:"));
+  check(`${label}: only attached items enclosed`, letter.includes("* Records from my hospital stay") && !letter.includes("* A copy of the denial notice"));
+  check(`${label}: no personal detail fields`, !(await page.$("#s-name")) && !(await page.$("#s-phone")) && !(await page.$("#s-memberId")) && !(await page.$("#s-address")));
   await page.click("section[data-step='5'] [data-next]");
 
   // Step 6: review gate
@@ -74,10 +80,14 @@ async function run(label, contextOpts) {
   await page.check("#reviewed");
   check(`${label}: still locked after tick`, await page.isDisabled("#to-download"));
   let guard = 0;
-  while ((await page.$$("#review-list .review-item")).length && guard++ < 30) {
-    await page.click("#review-list .review-item button:has-text('Dismiss')");
+  while ((await page.$$("#review-list button:has-text('Leave for later')")).length && guard++ < 30) {
+    await page.click("#review-list button:has-text('Leave for later')");
   }
-  check(`${label}: unlocked after all gaps dismissed`, await page.isEnabled("#to-download"));
+  check(`${label}: unlocked after gaps left for later`, await page.isEnabled("#to-download"));
+  const reviewText = await page.textContent("#review-list");
+  check(`${label}: left for later is not shown as done`, !reviewText.includes("Every gap is filled") && reviewText.includes("not ready to send"));
+  const kept = await page.inputValue("#letter-review");
+  check(`${label}: placeholders kept after leaving for later`, kept.includes("[ADD: your full name]") && kept.includes("[ADD: your clinician's explanation"));
   await page.screenshot({ path: path.join(outDir, `${label}-review.png`), fullPage: true });
   await page.click("#to-download");
 
@@ -89,7 +99,13 @@ async function run(label, contextOpts) {
   const text = require("child_process").execFileSync("python3", ["-c",
     "import docx,sys; print('\\n'.join(p.text for p in docx.Document(sys.argv[1]).paragraphs))", docxPath]).toString();
   check(`${label}: docx opens and has reminder and reason`, text.includes("no legal or medical advice") && text.includes(reason));
+  check(`${label}: docx says not ready and keeps gaps`, text.includes("NOT READY TO SEND") && text.includes("[ADD: your full name]"));
   check(`${label}: docx file name`, dl.suggestedFilename() === "appeal-letter-draft.docx");
+  check(`${label}: download page flags incomplete draft`, await page.isVisible("#incomplete"));
+  const finalLetter = await page.evaluate(() => JSON.parse(localStorage.getItem("appealAssist.v2")).letter);
+  const [dlt] = await Promise.all([page.waitForEvent("download"), page.click("#dl-txt")]);
+  const txt = fs.readFileSync(await dlt.path(), "utf8");
+  check(`${label}: txt opens and matches the reviewed letter`, txt.endsWith(finalLetter) && txt.startsWith("DRAFT FOR HUMAN REVIEW"));
   await page.screenshot({ path: path.join(outDir, `${label}-download.png`), fullPage: true });
 
   // Save and resume
@@ -157,39 +173,88 @@ async function runUpload() {
   await page.waitForFunction(() => document.querySelector("#read-status").textContent.includes("Photos"));
   check("upload: photo gets a clear message", true);
 
+  check("upload: hint says example only and not sent", (await page.textContent("#upload-hint")).includes("not a real one") && (await page.textContent("#upload-hint")).includes("not sent anywhere"));
   await page.click("section[data-step='2'] [data-next]");
+
+  // Step 3: verified Silver Leaf rules for a planned admission
+  const guide = await page.textContent("#guide-rules");
+  check("guide: Silver Leaf rules shown with source and date checked", guide.includes("180 calendar days") && guide.includes("Source: plan contract, Section XX") && guide.includes("Date checked: October 28, 2026."));
+  check("guide: deadlines split by who acts", guide.includes("Your deadlines to ask for an appeal") && guide.includes("How long the plan has to respond"));
+  check("guide: pending warning kept", guide.includes("Not fully verified yet"));
+  check("guide: contacts and missing address", guide.includes("888-250-2220") && guide.includes("877-779-2959") && guide.includes("does not list a mailing address"));
+  check("guide: earliest deadline from notice date", guide.includes("January 28, 2027"));
+  const plain = await page.textContent("#guide-reason");
+  check("guide: plain explanation for planned admission", plain.includes("The disagreement is about the need for inpatient admission.") && plain.includes("whether the surgery is covered"));
+  await page.screenshot({ path: path.join(outDir, "guide-silver-leaf.png"), fullPage: true });
+  await page.click("section[data-step='3'] [data-back]");
+  await page.fill("#instructions", "Write to the Grievance and Appeals Department listed below.");
+  await page.click("section[data-step='2'] [data-next]");
+  check("guide: notice pointing elsewhere is flagged", (await page.textContent("#guide-instructions")).includes("This guide does not have them"));
   await page.click("section[data-step='3'] [data-next]");
+
+  // Step 4: planned admission checklist
+  check("checklist: planned admission wording", (await page.textContent("#checklist")).includes("support the planned admission") && !(await page.textContent("#checklist")).includes("discharge summary"));
   await page.check("#cl-doctor");
+  await page.check("#at-doctor");
+  await page.check("#cl-records");
   await page.click("section[data-step='4'] [data-next]");
+
+  // Step 5: letter
   const v0 = await page.inputValue("#letter");
-  check("letter: written without AI, uses reason and doctor statement", v0.includes(reason) && /statement from (my treating doctor|a doctor)|doctor who treated me/.test(v0));
-  await page.fill("#s-name", "Test Person");
-  await page.fill("#s-address", "[1 Example Street]");
-  const header = await page.inputValue("#letter");
-  check("letter: labeled header lines", header.includes("Name: Test Person") && header.includes("Address: 1 Example Street") && header.includes("Phone: [ADD: your phone number]"));
-  check("letter: brackets stripped from typed details", !header.includes("[1 Example"));
-  await page.fill("#ownWords", "i could not breathe at home");
+  check("letter: written without AI, quotes reason, lists only attached items", v0.includes(reason) && v0.includes("* A letter from my clinician") && !v0.includes("* Records about"));
+  check("letter: personal details stay placeholders", v0.includes("Name: [ADD: your full name]") && v0.includes("Member ID: [ADD: member ID from your insurance card]"));
+  check("letter: no necessity claim without clinician explanation", !v0.includes("medically necessary. I therefore") && v0.includes("[ADD: your clinician's explanation of why inpatient care is needed"));
+  check("letter: question asks for clinician's explanation", (await page.textContent("#clinician-legend")).includes("What explanation has your clinician provided for why inpatient care is needed?"));
+  await page.check("#clinician-unsure");
+  check("letter: not sure keeps the gap", (await page.inputValue("#letter")).includes("[ADD: your clinician's explanation") && await page.isDisabled("#clinician"));
+  await page.uncheck("#clinician-unsure");
+  await page.fill("#clinician", "i need monitoring after surgery because of my heart condition");
   const v1 = await page.inputValue("#letter");
-  check("letter: own words tidied and inserted", v1.includes("I could not breathe at home."));
+  check("letter: clinician explanation tidied and inserted", v1.includes("I need monitoring after surgery because of my heart condition."));
   check("letter: formal wording", /respectfully/i.test(v1));
   check("letter: no tone picker or version button", !(await page.$("#tone")) && !(await page.$("#another")));
-  check("letter: closing summary uses own words", v1.includes("Based on the aforementioned clinical information, I believe the") && v1.includes("was medically necessary based on the following: I could not breathe at home"));
+  check("letter: closing uses team wording, future tense", v1.includes("Based on the aforementioned clinical information, I believe the planned inpatient admission for surgery is medically necessary."));
+  check("letter: no past stay wording", !/hospital stay|my stay|was needed|discharge/i.test(v1));
   check("letter: opening names plan and notice date", v1.includes("denial issued by Healthfirst Silver Leaf Plan in its notice dated"));
   check("letter: copies request removed", !v1.includes("send me copies") && !v1.includes("send me a copy"));
   await page.screenshot({ path: path.join(outDir, "upload-draft.png"), fullPage: true });
   await page.click("section[data-step='5'] [data-next]");
+
+  // Step 6: review
   const warn = await page.textContent("#review-warnings");
   check("letter: no unsupported numbers flagged", warn.trim() === "", warn);
-  const phoneRow = page.locator(".review-item", { hasText: "[ADD: your phone number]" });
-  await phoneRow.locator("input").fill("[555 0100]");
-  await phoneRow.locator("button:has-text('Fill in')").click();
+  check("review: personal gaps have no fill box", (await page.locator(".review-item", { hasText: "[ADD: your full name]" }).locator("input").count()) === 0);
+  const addrRow = page.locator(".review-item", { hasText: "[ADD: appeals address from your notice]" });
+  await addrRow.locator("input").fill("[PO Box 1, New York NY]");
+  await addrRow.locator("button:has-text('Fill in')").click();
   const afterFill = await page.inputValue("#letter-review");
-  check("review: fill box replaces whole placeholder", afterFill.includes("Phone: 555 0100") && !afterFill.includes("[555"));
-  await page.fill("#letter-review", afterFill.replace("Name: Test Person", "Name: [Tareq]"));
+  check("review: fill box replaces whole placeholder", afterFill.includes("Appeals address: PO Box 1, New York NY") && !afterFill.includes("[PO Box"));
+  await page.fill("#letter-review", afterFill.replace("Appeals address: PO Box 1, New York NY", "Appeals address: [PO Box 1]"));
   await page.waitForSelector("text=Remove leftover brackets");
   await page.click("text=Remove the brackets for me");
-  check("review: stray brackets removed", (await page.inputValue("#letter-review")).includes("Name: Tareq"));
+  check("review: stray brackets removed", (await page.inputValue("#letter-review")).includes("Appeals address: PO Box 1"));
   await page.screenshot({ path: path.join(outDir, "review-fill.png"), fullPage: true });
+  await page.fill("#letter-review", (await page.inputValue("#letter-review")) + "\n[ADD: test gap]");
+  await page.check("#reviewed");
+  check("review: locked until each gap is filled or left for later", await page.isDisabled("#to-download"));
+  await page.locator(".review-item", { hasText: "[ADD: test gap]" }).locator("button:has-text('Leave for later')").click();
+  check("review: left for later can be undone", await page.isVisible("#review-list button:has-text('Fill in now')"));
+  check("review: personal gaps do not block download", await page.isEnabled("#to-download"));
+  await page.click("#to-download");
+  check("download: incomplete draft flagged", (await page.textContent("#incomplete")).includes("not ready to send"));
+
+  // A failed save keeps the draft and says what failed.
+  const page2 = await ctx.newPage();
+  await page2.addInitScript(() => {
+    window.claude = { use: () => Promise.resolve({ save: () => Promise.reject({ code: "bad_request", message: "test failure" }) }) };
+  });
+  await page2.goto(url);
+  await page2.click("#resume");
+  await page2.click("#dl-txt");
+  await page2.waitForFunction(() => document.querySelector("#dl-status").textContent.length > 0);
+  const failMsg = await page2.textContent("#dl-status");
+  check("download: failure message names the error and keeps the draft", failMsg.includes("bad_request: test failure") && failMsg.includes("draft is still saved"), failMsg);
+  await page2.close();
   check("upload: no page errors", errors.length === 0, errors.join("; "));
   await browser.close();
 }
