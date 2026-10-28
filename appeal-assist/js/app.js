@@ -91,7 +91,7 @@
     (obj.checklist || []).forEach(function (c) { if (c && c.id) prev[c.id] = c; });
     base.checklist.forEach(function (c) {
       c.have = Boolean(prev[c.id] && prev[c.id].have);
-      c.attach = c.have && Boolean(prev[c.id].attach);
+      c.attach = c.have;
     });
     return base;
   }
@@ -135,11 +135,10 @@
   function haveLabels() {
     return S.checklist.filter(function (c) { return c.have; }).map(function (c) { return checklistLabel(c.id); });
   }
-  // Gaps still waiting on the user: not personal (added after download)
-  // and not left for later.
+  // Gaps still waiting on the user: not filled and not left for later.
   function openGaps() {
     return Letter.findPlaceholders(S.letter).filter(function (g) {
-      return Composer.PRIVATE_GAPS.indexOf(g) === -1 && S.deferred.indexOf(g) === -1;
+      return S.deferred.indexOf(g) === -1;
     });
   }
   function showError(section, msg) {
@@ -356,6 +355,12 @@
     card.appendChild(el("h2", {}, "Appeal paths and deadlines"));
 
     if (rules.deadlines.length) {
+      if (rules.sourceUrl) {
+        var src = el("p", {}, "Source: ");
+        src.appendChild(el("a", { href: rules.sourceUrl, target: "_blank", rel: "noopener" }, "Healthfirst Silver Leaf 2026 Certificate of Coverage"));
+        src.appendChild(el("span", { "class": "visually-hidden" }, " (opens in new tab)"));
+        card.appendChild(src);
+      }
       card.appendChild(el("p", { "class": "warn", role: "note" }, "Confirm every deadline on your denial notice."));
     }
     if (!rules.deadlines.length && !rules.paths.length) {
@@ -445,22 +450,9 @@
       row.appendChild(input);
       row.appendChild(el("label", { "for": "cl-" + c.id }, checklistLabel(c.id)));
       item.appendChild(row);
-      // Having a document is not the same as sending it. Ask separately.
-      var sub = el("div", { "class": "check sub" });
-      var attach = el("input", { type: "checkbox", id: "at-" + c.id });
-      attach.checked = c.attach;
-      sub.appendChild(attach);
-      sub.appendChild(el("label", { "for": "at-" + c.id }, "I plan to attach this to my letter"));
-      sub.hidden = !c.have;
-      item.appendChild(sub);
+      // A ticked item is listed as enclosed in the letter.
       input.addEventListener("change", function () {
-        c.have = input.checked;
-        if (!c.have) { c.attach = false; attach.checked = false; }
-        sub.hidden = !c.have;
-        save();
-      });
-      attach.addEventListener("change", function () {
-        c.attach = attach.checked;
+        c.have = c.attach = input.checked;
         save();
       });
       box.appendChild(item);
@@ -561,12 +553,9 @@
       }
       gaps.forEach(function (g) {
         var row = el("div", { "class": "review-item" });
-        row.appendChild(el("span", { "class": "ph" }, g));
-        if (Composer.PRIVATE_GAPS.indexOf(g) !== -1) {
-          row.appendChild(el("p", { "class": "hint deferred" }, "Personal detail. Add it privately after you download the draft, outside this app."));
-          card.appendChild(row);
-          return;
-        }
+        var fid = "fill-" + Math.random().toString(36).slice(2, 8);
+        // Clicking the gap moves to its fill box.
+        row.appendChild(el("label", { "class": "ph", "for": fid }, g));
         if (S.deferred.indexOf(g) !== -1) {
           var back = el("div", { "class": "fill-row" });
           back.appendChild(el("p", { "class": "hint deferred" }, "Left for later. It stays marked in the downloaded draft."));
@@ -583,7 +572,6 @@
           return;
         }
         var fillRow = el("div", { "class": "fill-row" });
-        var fid = "fill-" + Math.random().toString(36).slice(2, 8);
         var input = el("input", { type: "text", id: fid, autocomplete: "off" });
         input.setAttribute("aria-label", "Text to replace " + g);
         input.setAttribute("placeholder", "Type it here, no brackets");

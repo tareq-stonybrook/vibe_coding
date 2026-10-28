@@ -61,9 +61,8 @@ async function run(label, contextOpts) {
   await page.click("section[data-step='3'] [data-next]");
 
   // Step 4: checklist. Having a document and attaching it are separate.
-  check(`${label}: attach choice hidden until item ticked`, !(await page.isVisible("#at-records")));
+  check(`${label}: no separate attach checkbox`, !(await page.$("#at-records")));
   await page.check("#cl-records");
-  await page.check("#at-records");
   await page.check("#cl-notice");
   await page.click("section[data-step='4'] [data-next]");
 
@@ -72,7 +71,7 @@ async function run(label, contextOpts) {
   const letter = await page.inputValue("#letter");
   check(`${label}: letter repeats reason`, letter.includes(reason));
   check(`${label}: letter has placeholders`, letter.includes("[ADD:"));
-  check(`${label}: only attached items enclosed`, letter.includes("* Records about my condition and the planned admission") && !letter.includes("* A copy of the denial notice"));
+  check(`${label}: only attached items enclosed`, letter.includes("* Records about my condition and the planned admission") && letter.includes("* A copy of the denial notice") && !letter.includes("* My plan's coverage document"));
   check(`${label}: no personal detail fields`, !(await page.$("#s-name")) && !(await page.$("#s-phone")) && !(await page.$("#s-memberId")) && !(await page.$("#s-address")));
   await page.click("section[data-step='5'] [data-next]");
 
@@ -181,6 +180,7 @@ async function runUpload() {
   const guide = await page.textContent("#guide-rules");
   check("guide: Silver Leaf rules shown with source and date checked", guide.includes("180 calendar days") && guide.includes("plan contract, Section XX") && guide.includes("Date checked: October 28, 2026."));
   check("guide: deadlines split by who acts", guide.includes("Your deadlines to ask for an appeal") && guide.includes("How long the plan has to respond"));
+  check("guide: official source link shown", (await page.getAttribute("#guide-rules a:has-text('Certificate of Coverage')", "href")).includes("assets.healthfirst.org"));
   check("guide: short confirm note, no verification talk", guide.includes("Confirm every deadline on your denial notice.") && !/Claude|not yet confirmed|Not fully verified/.test(guide));
   check("guide: contacts and missing address", guide.includes("888-250-2220") && guide.includes("877-779-2959") && guide.includes("does not list a mailing address"));
   check("guide: earliest deadline from notice date", guide.includes("January 28, 2027"));
@@ -196,13 +196,12 @@ async function runUpload() {
   // Step 4: planned admission checklist
   check("checklist: planned admission wording", (await page.textContent("#checklist")).includes("support the planned admission") && !(await page.textContent("#checklist")).includes("discharge summary"));
   await page.check("#cl-doctor");
-  await page.check("#at-doctor");
   await page.check("#cl-records");
   await page.click("section[data-step='4'] [data-next]");
 
   // Step 5: letter
   const v0 = await page.inputValue("#letter");
-  check("letter: written without AI, quotes reason, lists only attached items", v0.includes(reason) && v0.includes("* A letter from my clinician") && !v0.includes("* Records about"));
+  check("letter: written without AI, quotes reason, lists only attached items", v0.includes(reason) && v0.includes("* A letter from my clinician") && v0.includes("* Records about") && !v0.includes("* My plan's coverage document"));
   check("letter: personal details stay placeholders", v0.includes("Name: [ADD: your full name]") && v0.includes("Member ID: [ADD: member ID from your insurance card]"));
   check("letter: no necessity claim without clinician explanation", !v0.includes("medically necessary. I therefore") && v0.includes("[ADD: your clinician's explanation of why inpatient care is needed"));
   check("letter: question asks for clinician's explanation", (await page.textContent("#clinician-legend")).includes("What explanation has your clinician provided for why inpatient care is needed?"));
@@ -224,7 +223,12 @@ async function runUpload() {
   // Step 6: review
   const warn = await page.textContent("#review-warnings");
   check("letter: no unsupported numbers flagged", warn.trim() === "", warn);
-  check("review: personal gaps have no fill box", (await page.locator(".review-item", { hasText: "[ADD: your full name]" }).locator("input").count()) === 0);
+  const nameRow = page.locator(".review-item", { hasText: "[ADD: your full name]" });
+  await nameRow.locator("label.ph").click();
+  check("review: clicking a gap focuses its fill box", await nameRow.locator("input").evaluate((i) => i === document.activeElement));
+  await nameRow.locator("input").fill("Test Person");
+  await nameRow.locator("button:has-text('Fill in')").click();
+  check("review: personal gaps can be filled here", (await page.inputValue("#letter-review")).includes("Name: Test Person"));
   const addrRow = page.locator(".review-item", { hasText: "[ADD: appeals address from your notice]" });
   await addrRow.locator("input").fill("[PO Box 1, New York NY]");
   await addrRow.locator("button:has-text('Fill in')").click();
@@ -240,7 +244,10 @@ async function runUpload() {
   check("review: locked until each gap is filled or left for later", await page.isDisabled("#to-download"));
   await page.locator(".review-item", { hasText: "[ADD: test gap]" }).locator("button:has-text('Leave for later')").click();
   check("review: left for later can be undone", await page.isVisible("#review-list button:has-text('Fill in now')"));
-  check("review: personal gaps do not block download", await page.isEnabled("#to-download"));
+  while (await page.locator("#review-list button:has-text('Leave for later')").count()) {
+    await page.locator("#review-list button:has-text('Leave for later')").first().click();
+  }
+  check("review: unlocked once every gap is filled or left for later", await page.isEnabled("#to-download"));
   await page.click("#to-download");
   check("download: incomplete draft flagged", (await page.textContent("#incomplete")).includes("not ready to send"));
 
