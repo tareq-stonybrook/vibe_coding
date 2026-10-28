@@ -511,18 +511,40 @@
   // ---------- notice upload ----------
   function pickFile(file) {
     noticeFile = file || null;
-    var name = $("#file-name");
-    name.hidden = !file;
-    name.textContent = file ? "Selected: " + file.name : "";
+    $("#file-row").hidden = !file;
+    $("#file-name").textContent = file ? "Selected: " + file.name : "";
     $("#read-notice").disabled = !file;
     setStatus("#read-status", "");
   }
 
+  // Drop the chosen file and any field values read from it that the user has not edited.
+  function removeFile() {
+    var cleared = 0;
+    DETAIL_FIELDS.forEach(function (f) {
+      var input = $("#" + f);
+      if (input.classList.contains("filled")) {
+        input.classList.remove("filled");
+        input.value = "";
+        S.details[f] = "";
+        cleared++;
+      }
+    });
+    if (cleared) save();
+    $("#notice-file").value = "";
+    pickFile(null);
+    setStatus("#read-status", cleared
+      ? "File removed. Cleared the details read from it. Upload the right notice or type them below."
+      : "File removed. Upload the right notice or type the details below.");
+    $("#notice-file").focus();
+  }
+
   function readNotice() {
-    if (!noticeFile) return;
+    var file = noticeFile;
+    if (!file) return;
     $("#read-notice").disabled = true;
     setStatus("#read-status", "Reading your notice.");
-    Reader.readFile(noticeFile).then(function (out) {
+    Reader.readFile(file).then(function (out) {
+      if (file !== noticeFile) return; // removed or replaced while reading
       var filled = [];
       DETAIL_FIELDS.forEach(function (f) {
         var input = $("#" + f);
@@ -540,6 +562,7 @@
           (filled.length < 5 ? " Type anything still blank." : "")
         : "Could not find the details in that file. Type them below.", !filled.length);
     }, function (e) {
+      if (file !== noticeFile) return;
       setStatus("#read-status", Reader.errorMessage(e), true);
     }).then(function () {
       $("#read-notice").disabled = !noticeFile;
@@ -609,6 +632,7 @@
       dz.addEventListener(t, function () { dz.classList.remove("drag"); });
     });
     $("#read-notice").addEventListener("click", readNotice);
+    $("#remove-file").addEventListener("click", removeFile);
     $("#dl-sample-docx").addEventListener("click", function () {
       var id = $("#sample").value;
       var s = Samples.filter(function (x) { return x.id === id; })[0];

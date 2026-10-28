@@ -143,6 +143,11 @@ async function runUpload() {
   await page.waitForFunction(() => document.querySelector("#planName").value === "Sample Riverside Health Plan (synthetic)");
   check("upload: Word .docx fills all 5 fields", (await page.$$(".filled")).length === 5);
   await page.screenshot({ path: path.join(outDir, "upload-docx.png"), fullPage: true });
+  await page.click("#remove-file");
+  check("upload: remove clears the file and the fields read from it",
+    (await page.isHidden("#file-row")) && (await page.$$(".filled")).length === 0 &&
+    (await page.inputValue("#planName")) === "" && (await page.isDisabled("#read-notice")) &&
+    (await page.$eval("#notice-file", (i) => i.files.length)) === 0);
   // Put the text example back so later checks match it.
   await page.setInputFiles("#notice-file", { name: "notice.txt", mimeType: "text/plain", buffer: Buffer.from(noticeText) });
   await page.click("#read-notice");

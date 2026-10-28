@@ -183,7 +183,9 @@ textarea.letter { font-family: var(--mono); font-size: 0.9rem; line-height: 1.55
 .dropzone.drag .dropzone-label, .dropzone:focus-within .dropzone-label { border-color: var(--btn); }
 .dz-title { color: var(--link); font-weight: 600; }
 .dz-sub { color: var(--muted); font-size: 0.9rem; }
-.file-name { margin: 10px 0 0; font-size: 0.95rem; overflow-wrap: anywhere; }
+.file-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 10px 0 0; }
+.file-row[hidden] { display: none; }
+.file-name { margin: 0; font-size: 0.95rem; overflow-wrap: anywhere; min-width: 0; }
 .read-status { min-height: 1.5em; color: var(--muted); font-size: 0.95rem; margin: 8px 0 0; }
 .read-status.err { color: var(--error); }
 
