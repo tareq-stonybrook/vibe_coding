@@ -272,6 +272,7 @@ test("Silver Leaf rules show with source and date checked, split by who acts", (
     assert.ok(Rules.isVerified(e));
     assert.match(e.citation, /Silver Leaf 2026.*page/);
     assert.equal(e.verifiedOn, "2026-10-28");
+    assert.match(e.sourceUrl, /^https:\/\/assets\.healthfirst\.org\/.*silver-leaf-certificate-of-coverage/);
   }
   const you = r.deadlines.filter((d) => d.who === "you").map((d) => d.rule).join(" ");
   const plan = r.deadlines.filter((d) => d.who === "plan").map((d) => d.rule).join(" ");

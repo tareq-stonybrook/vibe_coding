@@ -179,7 +179,7 @@ async function runUpload() {
 
   // Step 3: verified Silver Leaf rules for a planned admission
   const guide = await page.textContent("#guide-rules");
-  check("guide: Silver Leaf rules shown with source and date checked", guide.includes("180 calendar days") && guide.includes("Source: plan contract, Section XX") && guide.includes("Date checked: October 28, 2026."));
+  check("guide: Silver Leaf rules shown with source and date checked", guide.includes("180 calendar days") && guide.includes("plan contract, Section XX") && guide.includes("Date checked: October 28, 2026."));
   check("guide: deadlines split by who acts", guide.includes("Your deadlines to ask for an appeal") && guide.includes("How long the plan has to respond"));
   check("guide: pending warning kept", guide.includes("Not fully verified yet"));
   check("guide: contacts and missing address", guide.includes("888-250-2220") && guide.includes("877-779-2959") && guide.includes("does not list a mailing address"));

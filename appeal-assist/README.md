@@ -39,7 +39,7 @@ Reminder text (no legal or medical advice, nothing submitted) shows on screen 1,
 * Notice upload changes charter scope: the charter lists "Uploading and reading a real denial letter automatically" as out of scope. The app still says synthetic notices only.
 * The review check flags any number in the letter the user did not enter, and a missing denial reason. Useful once the user edits the letter by hand.
 * Scenario: ACA (Healthfirst Silver Leaf) examples are planned inpatient admissions denied before the stay, so the guide, checklist and letter look ahead.
-* Rules and deadlines: **Healthfirst Silver Leaf only**, from the 2026 contract copy the team supplied (Sections II, XX and XXI), checked on October 28, 2026. They still show a "not fully verified" warning until the team confirms them against the official published contract and adds its link (`sourceUrl`, `teamConfirmed: true` in `js/rules.js`). Every other combination shows the fallback message.
+* Rules and deadlines: **Healthfirst Silver Leaf only**, from the 2026 contract copy the team supplied (Sections II, XX and XXI), checked on October 28, 2026. Each rule links to the published certificate of coverage on assets.healthfirst.org. They still show a "not fully verified" warning until the team confirms the copy matches that document (`teamConfirmed: true` in `js/rules.js`). Every other combination shows the fallback message.
 * Privacy: no personal identifiers are asked for. Upload files are read in the browser and not sent. Typed details are saved in this browser (localStorage) until cleared, and in any progress file the user saves. Reading a PDF downloads the pdf.js library from cdnjs. No AI is used.
 * Publishing: declare the `downloads` capability so the claude.ai save dialog works. Without it the page falls back to a plain browser download, which an embedded page may block.
 * Help links point to official site home pages. Team should replace them with exact pages after checking.
@@ -64,5 +64,5 @@ Edit `js/rules.js`. Add an entry to the matching `COMBINATIONS` key with `citati
 
 * Formal WCAG 2.1 AA audit (screen reader pass, contrast measurement tool). Automated flow checks keyboard selection, layout width and page errors only.
 * Translation.
-* Team confirmation of the Silver Leaf rules against the official published contract, and its link.
+* Team confirmation that the Silver Leaf rules match the published certificate of coverage.
 * Other insurance types (removed for now, ACA marketplace only).

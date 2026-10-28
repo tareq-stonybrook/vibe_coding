@@ -357,9 +357,12 @@
 
     if (rules.deadlines.length && !rules.teamConfirmed) {
       var pending = el("div", { "class": "warn", role: "note" });
-      pending.appendChild(el("p", {}, "Not fully verified yet. These rules come from the plan contract, " + rules.sourceTitle +
-        (rules.checkedBy ? ", checked by " + rules.checkedBy : "") +
-        ". Our team has not yet confirmed them against the official published document, and we have no public link to it yet."));
+      var first = el("p", {}, "Not fully verified yet. These rules come from the plan contract, ");
+      if (rules.sourceUrl) first.appendChild(el("a", { href: rules.sourceUrl, target: "_blank", rel: "noopener" }, rules.sourceTitle));
+      else first.appendChild(document.createTextNode(rules.sourceTitle));
+      first.appendChild(document.createTextNode((rules.checkedBy ? ", checked by " + rules.checkedBy : "") +
+        ". Our team has not yet confirmed them against the official published " + (rules.sourceUrl ? "contract at that link." : "document, and we have no public link to it yet.")));
+      pending.appendChild(first);
       pending.appendChild(el("p", { style: "margin:0" }, "Confirm every deadline on your denial notice. If anything differs, follow your notice and call the plan."));
       card.appendChild(pending);
     }

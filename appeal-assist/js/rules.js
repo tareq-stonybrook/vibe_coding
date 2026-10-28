@@ -54,11 +54,14 @@
 
   // Healthfirst Silver Leaf, planned inpatient admission denied before
   // the stay (a Preauthorization denial). Checked against the copy of the
-  // 2026 contract the team supplied. No public link for it yet.
+  // 2026 contract the team supplied. SOURCE_URL is the team's link to the
+  // published certificate of coverage. Team still to confirm the copy
+  // matches it.
   var SILVER_LEAF = "Healthfirst PHSP HMO Contract, Silver Leaf 2026 (HF-STDIND-26)";
+  var SOURCE_URL = "https://assets.healthfirst.org/pdf_nbw02xNkbSCn/2026-silver-leaf-certificate-of-coverage-english";
   var CHECKED = { verifiedOn: "2026-10-28", verifiedBy: "Claude (AI), from the contract copy the team supplied" };
   function cite(where) {
-    return { citation: SILVER_LEAF + ", " + where, where: where, verifiedOn: CHECKED.verifiedOn, verifiedBy: CHECKED.verifiedBy };
+    return { citation: SILVER_LEAF + ", " + where, where: where, sourceUrl: SOURCE_URL, verifiedOn: CHECKED.verifiedOn, verifiedBy: CHECKED.verifiedBy };
   }
   function entry(fields, where) {
     var c = cite(where);
@@ -69,6 +72,7 @@
   var NY_ACA = {
     teamConfirmed: false,
     sourceTitle: SILVER_LEAF,
+    sourceUrl: SOURCE_URL,
     checkedBy: CHECKED.verifiedBy,
     deadlines: [
       entry({
@@ -157,6 +161,7 @@
       covered: true,
       teamConfirmed: combo.teamConfirmed !== false,
       sourceTitle: combo.sourceTitle || "",
+      sourceUrl: combo.sourceUrl || "",
       checkedBy: combo.checkedBy || "",
       deadlines: combo.deadlines.filter(isVerified),
       paths: combo.paths.filter(isVerified),
