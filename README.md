@@ -38,9 +38,10 @@ Progress saves automatically in the browser and can be saved to or loaded from a
 
 * State: New York only.
 * Insurance type: ACA marketplace only, with one plan, Healthfirst Silver Leaf Plan.
-* Appeal rules and deadlines: none checked yet, so the app tells users to follow their notice and plan documents.
+* Appeal rules and deadlines: Healthfirst Silver Leaf only, checked October 28, 2026 against the plan contract. Every other combination tells users to follow their notice and plan documents.
 * Files: photos and scanned PDFs cannot be read without AI, and old .doc files need saving as .docx first.
-* Charter note: the charter lists automatic reading of a denial letter as out of scope. The fictional example is the main route. Reading an example file stays as an optional test, at the team's request.
+* Uploads: fictional notices only. The fictional example is the main route. An optional panel reads an example notice file (Word, PDF or text) for testing, after the user confirms it is synthetic data. Real notices and medical records stay out of scope. The charter and user stories record this scope change (issues #1 and #7).
+* Privacy: an uploaded file is read inside the browser and never sent. The file itself is not kept. The five details read from it save in this browser until the user clears saved progress. Reading a PDF downloads the pdf.js reader from cdnjs, but sends nothing. Checked October 30, 2026 with a browser network capture.
 * Theme: follows the device light or dark mode setting, so the background can be white on one device and black on another.
 
 ## Project files
@@ -53,7 +54,7 @@ Progress saves automatically in the browser and can be saved to or loaded from a
 | `appeal-assist/js/docx.js` | Builds the Word file |
 | `appeal-assist/js/letter.js` | Gap markers, checks, text export |
 | `appeal-assist/js/rules.js` | States, insurance types, checked rules, help links |
-| `appeal-assist/js/samples.js` | 12 made up example notices |
+| `appeal-assist/js/samples.js` | 3 made up example notices |
 | `appeal-assist/tests/` | Unit tests and browser tests |
 | `appeal-assist/docs/project-charter.xlsx` | Project charter and user stories |
 

@@ -36,12 +36,12 @@ Reminder text (no legal or medical advice, nothing submitted) shows on screen 1,
 * State: New York only.
 * Insurance type: ACA marketplace only, with one plan, Healthfirst Silver Leaf Plan.
 * Photos and scanned PDFs cannot be read without OCR or AI. The app says so and the user types the details.
-* Notice upload and charter scope: the charter lists "Uploading and reading a real denial letter automatically" as out of scope. The fictional example is the main route. File reading stays as an optional test of example files only, behind a synthetic data confirmation (team request in issue #7).
+* Notice upload and charter scope: the charter keeps "Uploading or reading a real denial letter or medical record" out of scope, and lists optional upload of fictional example notices as in scope for testing (US-02 and US-07 updated October 30, 2026). The fictional example is the main route. File reading sits behind a synthetic data confirmation (team request in issue #7).
 * The review check flags any number in the letter the user did not enter, and a missing denial reason. Useful once the user edits the letter by hand.
 * Scenario: ACA (Healthfirst Silver Leaf) examples are planned inpatient admissions denied before the stay, so the guide, checklist and letter look ahead.
 * Rules and deadlines: **Healthfirst Silver Leaf only**, from the 2026 contract copy the team supplied (Sections II, XX and XXI), checked on October 28, 2026. Each rule links to the published certificate of coverage on assets.healthfirst.org. Step 4 tells the user to confirm every deadline on their denial notice. Every other combination shows the fallback message.
 * Theme: follows the device light or dark setting. White background in light mode, black in dark mode. Both modes are checked for text contrast of at least 4.5:1 in `tests/e2e.js`.
-* Privacy: no personal identifiers are asked for. Upload files are read in the browser and not sent. Typed details are saved in this browser (localStorage) until cleared, and in any progress file the user saves. Reading a PDF downloads the pdf.js library from cdnjs. No AI is used.
+* Privacy: no personal identifiers are asked for. Upload files are read in the browser and not sent. The file itself is not kept. The five details read from it, and typed details, are saved in this browser (localStorage) until cleared, and in any progress file the user saves. Removing the file clears the details read from it. Reading a PDF downloads the pdf.js library from cdnjs, and the request carries no file content. No AI is used. Verified October 30, 2026 with a Playwright network capture of .txt, .docx and .pdf uploads (results in issue #7).
 * Publishing: declare the `downloads` capability so the claude.ai save dialog works. Without it the page falls back to a plain browser download, which an embedded page may block.
 * Help links point to official site home pages. Team should replace them with exact pages after checking.
 
