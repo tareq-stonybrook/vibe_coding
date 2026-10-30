@@ -6,13 +6,15 @@ Prototype. Synthetic notices only. No real patient information.
 
 ## Run
 
-Shared link: https://claude.ai/artifact/VR9AuDDJbbA6e795AfNhYW
+App link: https://tareq-stonybrook.github.io/vibe_coding/appeal-assist/
+
+Backup link on claude.ai: https://claude.ai/artifact/VR9AuDDJbbA6e795AfNhYW
 
 Local: open `index.html` in a browser.
 
 No AI and no account needed. The app reads notices and writes letters itself, in the browser. Only reading a PDF needs an internet connection, to load the PDF reader from cdnjs.
 
-Publish a new version: `python3 build.py out.html` inlines everything into one file for the artifact.
+Publish a new version: GitHub Pages serves this folder from branch `claude/laughing-fermat-bj7i2b`. Merge changes into that branch. For the backup link, `python3 build.py out.html` inlines everything into one file for the artifact.
 
 ## Flow and user stories
 

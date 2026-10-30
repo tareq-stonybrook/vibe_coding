@@ -8,7 +8,9 @@ Appeal Assist helps a patient or caregiver answer an insurance denial for a hosp
 
 ## Try it
 
-Open the app: https://claude.ai/artifact/VR9AuDDJbbA6e795AfNhYW
+Open the app: https://tareq-stonybrook.github.io/vibe_coding/appeal-assist/
+
+Backup link on claude.ai: https://claude.ai/artifact/VR9AuDDJbbA6e795AfNhYW
 
 No account, no AI and no install needed. Everything runs in the browser and stays on your device. Only reading a PDF needs an internet connection, to load the PDF reader.
 
@@ -64,7 +66,9 @@ Progress saves automatically in the browser and can be saved to or loaded from a
 
 **Add a checked rule or deadline:** edit `appeal-assist/js/rules.js`. Each entry needs a citation, a source link and the date it was checked, or it will not display. The format is explained at the top of the file.
 
-**Update the shared link:** run `python3 build.py out.html` inside `appeal-assist` to make one combined file, then publish it.
+**Update the app link:** GitHub Pages publishes branch `claude/laughing-fermat-bj7i2b`. Merge changes into that branch and the link updates within a few minutes.
+
+**Update the backup link:** run `python3 build.py out.html` inside `appeal-assist` to make one combined file, then publish it to the claude.ai artifact.
 
 ## Still to do
 
