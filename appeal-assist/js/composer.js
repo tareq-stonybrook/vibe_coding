@@ -132,6 +132,7 @@
       notice: "A copy of the denial notice",
       records: planned ? "Records about my condition and the planned admission" : "Records from my hospital stay",
       doctor: planned ? "A letter from my clinician" : "A statement from my treating doctor",
+      requested: "The additional information you asked for",
       planDocs: "The documents and criteria used in your decision",
       coverage: "My plan's coverage document",
       log: "My notes of dates, calls and people I spoke with"

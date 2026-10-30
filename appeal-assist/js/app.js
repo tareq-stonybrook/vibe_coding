@@ -9,12 +9,17 @@
 
   var STORAGE_KEY = "appealAssist.v2";
   var STEP_NAMES = ["Start", "Your plan", "Notice", "Options", "Checklist", "Draft", "Review", "Download"];
+  // Suggested, not required. The 2026 Silver Leaf contract has no fixed
+  // list of documents for a medical necessity appeal. Healthfirst names
+  // anything else it needs when it confirms the appeal (Section XX,
+  // pages 80 to 81, per the team's US-04 research).
   var CHECKLIST = [
     { id: "notice", label: "A copy of the denial notice" },
-    { id: "records", label: "Records from the hospital stay, such as admission notes, progress notes and the discharge summary",
-      planned: "Existing records that support the planned admission, such as your clinician's notes and test results" },
     { id: "doctor", label: "A statement from your treating doctor about why hospital care was needed",
-      planned: "A letter from your clinician explaining why inpatient rather than outpatient care is needed" },
+      planned: "A statement from your physician explaining why inpatient admission is medically necessary" },
+    { id: "records", label: "Records from the hospital stay, such as admission notes, progress notes and the discharge summary",
+      planned: "Relevant medical records, clinical evaluations or treatment plans that support the planned admission" },
+    { id: "requested", label: "Any additional information your plan asks for" },
     { id: "planDocs", label: "The documents and criteria the plan used to make its decision (you can ask the plan for these)" },
     { id: "coverage", label: "Your plan's coverage document, such as the member handbook or evidence of coverage" },
     { id: "log", label: "Your own notes: dates, calls, and names of people you spoke with" }
@@ -130,8 +135,10 @@
   }
   function checklistLabel(id) {
     var c = CHECKLIST.filter(function (x) { return x.id === id; })[0];
+    if (id === "requested" && isSilverLeaf()) return "Any additional information requested by Healthfirst";
     return c ? (isPlanned() && c.planned) || c.label : "";
   }
+  function isSilverLeaf() { return S.plan === "healthfirst-silver-leaf"; }
   function haveLabels() {
     return S.checklist.filter(function (c) { return c.have; }).map(function (c) { return checklistLabel(c.id); });
   }
@@ -462,6 +469,8 @@
       });
       box.appendChild(item);
     });
+    $("#docs-reminder").textContent = "Not every appeal requires the same documents. Check your denial notice and contact " +
+      (isSilverLeaf() ? "Healthfirst" : "your plan") + " to confirm what information is needed for your specific appeal.";
     $("#missing-help").textContent = isPlanned()
       ? "Ask your clinician's office for records that support the planned admission, and for a letter explaining why inpatient rather than outpatient care is needed. You can also ask your plan for the documents it used to decide. Do not guess at medical details in your letter."
       : "Ask your care team or the hospital's medical records office for records from your stay. You can also ask your plan for the documents it used to decide. Do not guess at medical details in your letter.";

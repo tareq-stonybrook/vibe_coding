@@ -98,7 +98,11 @@ async function run(label, contextOpts) {
   await page.click("section[data-step='3'] [data-next]");
 
   // Step 4: checklist. A ticked document is one the user will attach.
-  check(`${label}: checklist asks what will be attached`, (await page.textContent("#h-checklist")) === "Which documents will you attach?");
+  check(`${label}: checklist titled suggested, not required`, (await page.textContent("#h-checklist")) === "Suggested supporting documents");
+  const docs = await page.textContent("#checklist");
+  check(`${label}: US-04 documents offered`, docs.includes("A copy of the denial notice") && docs.includes("explaining why inpatient admission is medically necessary") && docs.includes("clinical evaluations or treatment plans") && docs.includes("Any additional information requested by Healthfirst"));
+  check(`${label}: reminder to confirm documents`, (await page.textContent("#docs-reminder")) === "Not every appeal requires the same documents. Check your denial notice and contact Healthfirst to confirm what information is needed for your specific appeal.");
+  check(`${label}: no upload on checklist`, !(await page.$("section[data-step='4'] input[type='file']")));
   check(`${label}: no separate attach checkbox`, !(await page.$("#at-records")));
   await page.check("#cl-records");
   await page.check("#cl-notice");
