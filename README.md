@@ -31,7 +31,8 @@ Progress saves automatically in the browser and can be saved to or loaded from a
 
 ## Safety rules built in
 
-* The letter uses only details the user entered. It never adds diagnoses, dates, codes, laws or citations.
+* The letter uses only details the user entered. It never adds diagnoses, dates or codes.
+* Laws come only from a checked list for the chosen plan. The letter gets one legal basis paragraph and a numbered References list with links after the signature. No case law or journal articles.
 * The denial reason is quoted exactly as entered.
 * A reminder (no legal or medical advice, nothing submitted) appears on screen and at the top of every download.
 * No deadline is shown unless it has an official source and a date it was checked.
@@ -41,6 +42,7 @@ Progress saves automatically in the browser and can be saved to or loaded from a
 * State: New York only.
 * Insurance type: ACA marketplace only, with one plan, Healthfirst Silver Leaf Plan.
 * Appeal rules and deadlines: Healthfirst Silver Leaf only, checked October 28, 2026 against the plan contract. Every other combination tells users to follow their notice and plan documents.
+* Laws cited in the letter: plan contract Sections XX and XXI, New York Public Health Law sections 4904 and 4910, and 45 CFR 147.136. Section numbers and titles confirmed from web search results on November 2, 2026. The official law sites were blocked in that session, so the team must open each link and confirm the text. Public Health Law (not Insurance Law) chosen because Healthfirst PHSP is an HMO. Team to confirm.
 * Files: photos and scanned PDFs cannot be read without AI, and old .doc files need saving as .docx first.
 * Uploads: fictional notices only. The fictional example is the main route. An optional panel reads an example notice file (Word, PDF or text) for testing, after the user confirms it is synthetic data. Real notices and medical records stay out of scope. The charter and user stories record this scope change (issues #1 and #7).
 * Privacy: an uploaded file is read inside the browser and never sent. The file itself is not kept. The five details read from it save in this browser until the user clears saved progress. Reading a PDF downloads the pdf.js reader from cdnjs, but sends nothing. Checked October 30, 2026 with a browser network capture.

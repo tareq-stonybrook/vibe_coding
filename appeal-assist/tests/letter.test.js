@@ -310,3 +310,19 @@ test("examples: one stay after surgery per insurance type, others varied, Silver
   }
   for (const s of SAMPLES.filter((x) => x.planType === "aca")) assert.equal(s.planName, "Healthfirst Silver Leaf Plan");
 });
+
+test("composer: legal basis only from the checked list, with reference links", () => {
+  const legal = Rules.getRules("NY", "aca").legal;
+  assert.ok(legal && Rules.isVerified(legal));
+  const s = SAMPLES[0];
+  const t = Composer.compose({ details: s, planned: true, legal });
+  assert.ok(t.includes(legal.paragraph));
+  assert.ok(t.includes("References:\n1. Healthfirst Silver Leaf 2026 Certificate of Coverage"));
+  assert.ok(t.includes("https://www.nysenate.gov/legislation/laws/PBH/4904"));
+  assert.ok(t.includes("45 CFR 147.136"));
+  assert.ok(t.indexOf("References:") > t.indexOf("[ADD: your signature"), "references after the signature");
+  assert.deepEqual(Letter.findUnsupported(t, [s.noticeDate, s.reason, s.service, s.planName, s.instructions, Composer.legalText(legal)]), []);
+  // No legal block for a combination without a checked list, and none unless passed.
+  assert.equal(Rules.getRules("XX", "aca").legal, null);
+  assert.doesNotMatch(Composer.compose({ details: s }), /References:|CFR|Public Health Law/);
+});

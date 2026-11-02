@@ -6,8 +6,10 @@
  * explanation the user typed.
  *
  * Same rules as the charter: only confirmed facts, the denial reason quoted
- * exactly, gaps as [ADD: ...], and no medical claims, dates, numbers, laws
- * or citations of its own. A checked document is never described as
+ * exactly, gaps as [ADD: ...], and no medical claims, dates or numbers of
+ * its own. Laws appear only when the caller passes `legal` (the checked
+ * paragraph and references from rules.js), never made up here. A
+ * checked document is never described as
  * saying anything: the letter only lists it as enclosed.
  *
  * Two scenarios. "planned": the plan denied a planned admission before the
@@ -189,6 +191,12 @@
       L.push(p);
       L.push("");
     });
+    // Legal basis, only from the checked list for this plan.
+    var legal = input.legal;
+    if (legal && legal.paragraph) {
+      L.push(legal.paragraph);
+      L.push("");
+    }
     L.push("I am enclosing:");
     if (attached.length) attached.forEach(function (c) { L.push("  * " + (enclosure(c.id, planned) || c.label)); });
     else L.push("  * " + gap("documents you will attach, or delete this list"));
@@ -208,11 +216,24 @@
     L.push("Sincerely,");
     L.push("");
     L.push(gap(PRIVATE.signature));
+    if (legal && legal.references && legal.references.length) {
+      L.push("");
+      L.push("References:");
+      legal.references.forEach(function (r, i) { L.push((i + 1) + ". " + r.label + ". " + r.url); });
+    }
     return L.join("\n");
+  }
+
+  // Text of the legal block, so the review check does not flag its
+  // section numbers as numbers the user never entered.
+  function legalText(legal) {
+    if (!legal) return "";
+    return [legal.paragraph || ""].concat((legal.references || []).map(function (r) { return r.label + " " + r.url; })).join(" \n ");
   }
 
   var api = {
     compose: compose,
+    legalText: legalText,
     reasonKinds: reasonKinds,
     tidy: tidy,
     explainDenial: explainDenial,

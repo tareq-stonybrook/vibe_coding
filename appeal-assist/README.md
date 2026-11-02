@@ -63,7 +63,13 @@ Edit `js/rules.js`. Add an entry to the matching `COMBINATIONS` key with `citati
 * `tests/letter.test.js`: unit tests (`npm test`)
 * `tests/e2e.js`: browser flow on desktop and mobile (`npm run e2e`, needs Playwright)
 
+## Laws in the letter
+
+For Healthfirst Silver Leaf the letter adds one legal basis paragraph (plan contract Sections XX and XXI, New York Public Health Law sections 4904 and 4910, 45 CFR 147.136) and a References list with links after the signature. The list lives in `js/rules.js` under `legal`. Only a checked list is used, never made up text. Confirmed from web search results on November 2, 2026, because the official law sites were blocked in that session. Team to open each link and confirm.
+
 ## Not yet done
+
+* Team check of the four law references against the official text.
 
 * Formal WCAG 2.1 AA audit (screen reader pass, contrast measurement tool). Automated flow checks keyboard selection, layout width and page errors only.
 * Translation.

@@ -552,7 +552,8 @@
       checklist: S.checklist,
       clinician: S.clinician,
       sender: S.sender,
-      planned: isPlanned()
+      planned: isPlanned(),
+      legal: Rules.getRules(S.state, S.planType).legal
     });
     S.deferred = [];
     S.letterSource = "composer";
@@ -573,7 +574,8 @@
     box.innerHTML = "";
     var sources = DETAIL_FIELDS.map(function (f) { return S.details[f]; })
       .concat(SENDER_FIELDS.map(function (f) { return S.sender[f]; }))
-      .concat(S.fills).concat([S.clinician.text]).concat(haveLabels());
+      .concat(S.fills).concat([S.clinician.text]).concat(haveLabels())
+      .concat([Composer.legalText(Rules.getRules(S.state, S.planType).legal)]);
     var extra = Letter.findUnsupported(S.letter, sources);
     var reasonOk = Letter.containsReason(S.letter, S.details.reason);
     var stray = Letter.findStrayBrackets(S.letter);

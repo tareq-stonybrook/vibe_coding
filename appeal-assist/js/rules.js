@@ -154,7 +154,29 @@
       entry({ id: "help", short: "for free help", label: "Free help filing an appeal (Community Health Advocates)", rule: "1-888-614-5400" }, "Section XX, K (page 82)")
     ],
     // What the contract does not list, so the app says so instead of guessing.
-    missing: ["The contract does not list a mailing address for appeals. Use the address printed on your notice."]
+    missing: ["The contract does not list a mailing address for appeals. Use the address printed on your notice."],
+    // Legal basis paragraph and references for the letter (team choice,
+    // November 2, 2026: option 2, laws only, no case law or articles).
+    // Section numbers and titles confirmed from web search results.
+    // Official text sites (ecfr.gov, nysenate.gov) were blocked in that
+    // session, so the team must open each link and confirm before use.
+    // Healthfirst PHSP is an HMO, so New York Public Health Law Article 49
+    // applies rather than Insurance Law Article 49 (team to confirm).
+    legal: {
+      paragraph: "I make this appeal under my rights to an internal appeal and an external appeal set out in my plan contract " +
+        "(Section XX, Utilization Review, and Section XXI, External Appeal), New York Public Health Law sections 4904 and 4910, " +
+        "and the federal rules for internal claims and appeals and external review at 45 CFR 147.136. " +
+        "I ask that a clinical peer reviewer who was not involved in the first decision review this appeal.",
+      references: [
+        { label: "Healthfirst Silver Leaf 2026 Certificate of Coverage, Section XX (Utilization Review) and Section XXI (External Appeal)", url: SOURCE_URL },
+        { label: "New York Public Health Law section 4904 (appeals of utilization review decisions)", url: "https://www.nysenate.gov/legislation/laws/PBH/4904" },
+        { label: "New York Public Health Law section 4910 (external appeal)", url: "https://www.nysenate.gov/legislation/laws/PBH/4910" },
+        { label: "45 CFR 147.136 (internal claims and appeals and external review processes)", url: "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-147/section-147.136" }
+      ],
+      citation: "Web search results for each section, plus the plan contract",
+      verifiedOn: "2026-11-02",
+      verifiedBy: "Claude (AI), from web search results. Official text not opened. Team to confirm."
+    }
   };
 
   // One entry per state and insurance type combination we cover.
@@ -169,7 +191,7 @@
 
   function getRules(stateId, typeId) {
     var combo = COMBINATIONS[stateId + "|" + typeId];
-    if (!combo) return { covered: false, deadlines: [], paths: [], contacts: [], missing: [] };
+    if (!combo) return { covered: false, deadlines: [], paths: [], contacts: [], missing: [], legal: null };
     return {
       covered: true,
       teamConfirmed: combo.teamConfirmed !== false,
@@ -179,7 +201,8 @@
       deadlines: combo.deadlines.filter(isVerified),
       paths: combo.paths.filter(isVerified),
       contacts: (combo.contacts || []).filter(isVerified),
-      missing: combo.missing || []
+      missing: combo.missing || [],
+      legal: isVerified(combo.legal) ? combo.legal : null
     };
   }
 

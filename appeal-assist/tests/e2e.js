@@ -285,6 +285,7 @@ async function runUpload() {
   check("letter: no past stay wording", !/hospital stay|my stay|was needed|discharge/i.test(v1));
   check("letter: opening names plan and notice date", v1.includes("denial issued by Healthfirst Silver Leaf Plan in its notice dated"));
   check("letter: copies request removed", !v1.includes("send me copies") && !v1.includes("send me a copy"));
+  check("letter: legal basis and reference links", v1.includes("New York Public Health Law sections 4904 and 4910") && v1.includes("45 CFR 147.136") && v1.includes("References:") && v1.includes("https://www.ecfr.gov/"));
   await page.screenshot({ path: path.join(outDir, "upload-draft.png"), fullPage: true });
   await page.click("section[data-step='5'] [data-next]");
 
