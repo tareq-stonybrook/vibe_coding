@@ -95,6 +95,19 @@ async function run(label, contextOpts) {
   check(`${label}: plain explanation of the denial`, denial.includes("What this means, in plain words") && denial.includes("does not decide who is correct"));
   await page.screenshot({ path: path.join(outDir, `${label}-guide.png`), fullPage: true });
   await contrastCheck(page, label, "options page");
+
+  // A notice date long past: the filing deadline is flagged with what to do now.
+  const keepDate = await (async () => { await page.click("section[data-step='3'] [data-back]"); return page.inputValue("#noticeDate"); })();
+  await page.fill("#noticeDate", "2020-08-01");
+  await page.click("section[data-step='2'] [data-next]");
+  const late = await page.textContent("#guide-rules");
+  check(`${label}: past deadline flagged with a plan of action`, (await page.$(".past-alert")) && late.includes("may have passed") && late.includes("What to do now") && (await page.textContent(".deadline.past")).includes("Past deadline"));
+  await page.screenshot({ path: path.join(outDir, `${label}-guide-past.png`), fullPage: true });
+  await contrastCheck(page, label, "options page with past deadline");
+  await page.click("section[data-step='3'] [data-back]");
+  await page.fill("#noticeDate", keepDate);
+  await page.click("section[data-step='2'] [data-next]");
+  check(`${label}: no past flag for a current notice`, !(await page.$(".past-alert")));
   await page.click("section[data-step='3'] [data-next]");
 
   // Step 4: checklist. A ticked document is one the user will attach.
@@ -235,6 +248,8 @@ async function runUpload() {
   check("guide: short confirm note, no verification talk", guide.includes("Confirm every deadline on your denial notice.") && !/Claude|not yet confirmed|Not fully verified/.test(guide));
   check("guide: contacts and missing address", guide.includes("888-250-2220") && guide.includes("877-779-2959") && guide.includes("does not list a mailing address"));
   check("guide: earliest deadline from notice date", guide.includes("January 28, 2027"));
+  check("guide: call links inside the blocks", await page.$$eval("#guide-rules .deadline dd.calls a[href='tel:+18882502220']", (n) => n.length) >= 2 &&
+    (await page.$("#guide-rules .deadline dd.calls a[href='tel:+18777792959']")) && (await page.$("#guide-rules .deadline dd.calls a[href='tel:+18004008882']")));
   check("guide: written notice inside the 30 day limit", guide.includes("always inside that 30 day limit"));
   check("guide: external appeal counts from final denial or waiver", guide.includes("written waiver of the internal appeal") && guide.includes("or the date you receive a waiver of the internal appeal"));
   const plain = await page.textContent("#guide-reason");

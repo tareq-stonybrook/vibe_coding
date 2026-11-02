@@ -379,22 +379,24 @@
       if (isPlanned()) card.appendChild(el("p", {}, "These rules are for a planned inpatient admission the plan denied before your stay."));
       if (rules.paths.length) {
         card.appendChild(el("h3", {}, "Your appeal options"));
-        rules.paths.forEach(function (p) { card.appendChild(renderRule(p)); });
+        rules.paths.forEach(function (p) { card.appendChild(renderRule(p, rules)); });
       }
       var yours = rules.deadlines.filter(function (d) { return d.who !== "plan"; });
       var theirs = rules.deadlines.filter(function (d) { return d.who === "plan"; });
       if (yours.length) {
         card.appendChild(el("h3", {}, "Your deadlines to ask for an appeal"));
-        yours.forEach(function (d) { card.appendChild(renderRule(d)); });
+        var late = yours.filter(function (d) { var st = deadlineStatus(d); return st && st.past; });
+        if (late.length) card.appendChild(renderPastAlert(late[0], rules));
+        yours.forEach(function (d) { card.appendChild(renderRule(d, rules)); });
       }
       if (theirs.length) {
         card.appendChild(el("h3", {}, "How long the plan has to respond"));
-        theirs.forEach(function (d) { card.appendChild(renderRule(d)); });
+        theirs.forEach(function (d) { card.appendChild(renderRule(d, rules)); });
       }
     }
     if (rules.contacts.length || rules.missing.length) {
       card.appendChild(el("h3", {}, "Who to contact"));
-      rules.contacts.forEach(function (c) { card.appendChild(renderRule(c)); });
+      rules.contacts.forEach(function (c) { card.appendChild(renderRule(c, rules)); });
       rules.missing.forEach(function (m) { card.appendChild(el("p", { "class": "missing" }, m)); });
     } else if (rules.deadlines.length || rules.paths.length) {
       card.appendChild(el("p", {}, "We have no checked contact details for this plan. Use the phone number and address on your notice."));
@@ -419,20 +421,86 @@
     } else instr.appendChild(el("p", {}, "You did not enter appeal instructions. Look on your notice for a section like \"Your right to appeal\"."));
   }
 
-  function renderRule(r) {
-    var wrap = el("dl", { "class": "deadline" });
+  // Earliest possible filing deadline (notice date + days) against today.
+  // The real deadline counts from the day the notice arrived, so it can
+  // only be the same or later. Returns null when it cannot be worked out.
+  function deadlineStatus(r) {
+    if (typeof r.days !== "number" || !r.estimateFromNotice || !S.details.noticeDate) return null;
+    var due = new Date(S.details.noticeDate + "T00:00:00Z");
+    if (isNaN(due)) return null;
+    due.setUTCDate(due.getUTCDate() + r.days);
+    var today = new Date(todayIso() + "T00:00:00Z");
+    var left = Math.round((due - today) / 86400000);
+    return { iso: due.toISOString().slice(0, 10), left: left, past: left < 0, soon: left >= 0 && left <= 30 };
+  }
+
+  function telHref(num) { return "tel:+1" + num.replace(/\D/g, "").replace(/^1(?=\d{10}$)/, ""); }
+  function callLink(c) {
+    var a = el("a", { href: telHref(c.rule), "class": "call" }, "Call " + (c.short || c.label) + ": " + c.rule);
+    return a;
+  }
+  function contactById(rules, id) {
+    return (rules.contacts || []).filter(function (c) { return c.id === id; })[0];
+  }
+  function callRow(rules, ids) {
+    var dd = el("dd", { "class": "calls" });
+    (ids || []).forEach(function (id) {
+      var c = contactById(rules, id);
+      if (c) dd.appendChild(callLink(c));
+    });
+    return dd.childNodes.length ? dd : null;
+  }
+
+  // Shown above the deadlines when the filing deadline has passed, so the
+  // user sees what to do next instead of sorting through the list.
+  function renderPastAlert(r, rules) {
+    var st = deadlineStatus(r);
+    var box = el("div", { "class": "past-alert", role: "alert" });
+    box.appendChild(el("p", { "class": "past-title" }, "Your deadline to " + r.label.toLowerCase() + " may have passed"));
+    box.appendChild(el("p", {}, "Based on the date on your notice, the earliest possible deadline was " +
+      Letter.formatDate(st.iso) + ", " + Math.abs(st.left) + (Math.abs(st.left) === 1 ? " day" : " days") +
+      " ago. If your notice arrived later than its date, your real deadline is later too."));
+    box.appendChild(el("p", {}, "What to do now:"));
+    var ol = el("ol", {});
+    var appeals = contactById(rules, "appeals");
+    var help = contactById(rules, "help");
+    var li1 = el("li", {}, "Call the plan today. Ask if your appeal can still be accepted and what date they count from. ");
+    if (appeals) li1.appendChild(callLink(appeals));
+    ol.appendChild(li1);
+    var li2 = el("li", {}, "Ask for free help with a late appeal. ");
+    if (help) li2.appendChild(callLink(help));
+    ol.appendChild(li2);
+    ol.appendChild(el("li", {}, "Write down who you spoke with, the date and what they said."));
+    box.appendChild(ol);
+    return box;
+  }
+
+  function renderRule(r, rules) {
+    var st = deadlineStatus(r);
+    var wrap = el("dl", { "class": "deadline" + (st && st.past ? " past" : st && st.soon ? " soon" : "") });
     function row(k, v) {
       wrap.appendChild(el("dt", {}, k));
       wrap.appendChild(el("dd", {}, v));
     }
-    row(r.label, r.rule);
+    var head = el("dt", {}, r.label);
+    if (st && st.past) head.appendChild(el("span", { "class": "badge past" }, "Past deadline"));
+    else if (st && st.soon) head.appendChild(el("span", { "class": "badge soon" }, st.left === 0 ? "Due today" : st.left + (st.left === 1 ? " day left" : " days left")));
+    wrap.appendChild(head);
+    var body = el("dd", {});
+    // A contact entry: the number itself is a call link.
+    if (r.id && /^[\d-]+$/.test(r.rule)) body.appendChild(el("a", { href: telHref(r.rule), "class": "call" }, "Call " + r.rule));
+    else body.textContent = r.rule;
+    wrap.appendChild(body);
     if (r.countFrom) row("Counted from", r.countFrom);
-    if (typeof r.days === "number" && r.estimateFromNotice && S.details.noticeDate) {
-      var d = new Date(S.details.noticeDate + "T00:00:00Z");
-      d.setUTCDate(d.getUTCDate() + r.days);
-      row("Earliest possible deadline", Letter.formatDate(d.toISOString().slice(0, 10)) +
-        ". This counts from the date on your notice. Your real deadline counts from the day you received it, so it may be later. Confirm it on your notice.");
+    if (st) {
+      var when = Letter.formatDate(st.iso);
+      if (st.past) row("Earliest possible deadline", when + ". Too late if your notice arrived on its date. " +
+        "It passed " + Math.abs(st.left) + (Math.abs(st.left) === 1 ? " day" : " days") + " ago. See what to do now above.");
+      else row("Earliest possible deadline", when + " (" + (st.left === 0 ? "today" : st.left + (st.left === 1 ? " day" : " days") + " from today") +
+        "). This counts from the date on your notice. Your real deadline counts from the day you received it, so it may be later. Confirm it on your notice.");
     }
+    var calls = rules ? callRow(rules, r.call) : null;
+    if (calls) wrap.appendChild(calls);
     // Source and date checked beside every rule, on one line.
     var src = el("dd", { "class": "source" });
     src.appendChild(document.createTextNode("Source: "));

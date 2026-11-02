@@ -233,6 +233,26 @@ p.missing { color: var(--muted); font-style: italic; }
 .deadline dt { font-weight: 600; }
 .deadline dd { margin: 0 0 6px; }
 .deadline dd.source { color: var(--muted); font-size: 0.85rem; }
+.deadline dd.calls { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 8px; }
+a.call {
+  display: inline-flex; align-items: center; min-height: 36px; padding: 6px 14px; border-radius: 980px;
+  border: 1px solid var(--link); color: var(--link); text-decoration: none; font-weight: 500; font-size: 0.9rem;
+}
+a.call::before { content: "\260E"; margin-right: 6px; }
+a.call:hover { background: color-mix(in srgb, var(--link) 8%, transparent); }
+.badge { display: inline-block; margin-left: 8px; padding: 1px 10px; border-radius: 980px; font-size: 0.8rem; font-weight: 600; vertical-align: 1px; }
+.badge.past { background: var(--error); color: var(--bg); }
+.badge.soon { background: var(--warn-bg); color: var(--warn-text); }
+.deadline.past { border-left-color: var(--error); }
+.deadline.past { background: color-mix(in srgb, var(--muted) 10%, transparent); border-radius: 0 10px 10px 0; padding: 8px 12px 4px 14px; }
+.deadline.past dt, .deadline.past dd:not(.calls) { color: var(--muted); }
+.deadline.past dt:first-child { text-decoration: line-through; }
+.deadline.soon { border-left-color: var(--warn-text); }
+.past-alert { border: 2px solid var(--error); border-radius: 14px; padding: 14px 18px; margin: 12px 0 16px; }
+.past-alert p { margin: 0 0 8px; }
+.past-alert .past-title { color: var(--error); font-weight: 700; font-size: 1.05rem; }
+.past-alert ol { margin: 0; padding-left: 1.2rem; display: grid; gap: 8px; }
+.past-alert ol a.call { margin-top: 4px; }
 
 /* Footer */
 .site-footer { border-top: 1px solid var(--line); background: var(--bg-alt); font-size: 0.875rem; color: var(--muted); }

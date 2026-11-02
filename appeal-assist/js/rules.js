@@ -17,8 +17,10 @@
  *     where: "Section, page",          // optional short form when the source is named once
  *     sourceUrl: "https://official.source/page",   // optional until the team adds it
  *     verifiedOn: "YYYY-MM-DD",        // date the source was checked
- *     verifiedBy: "Who checked it"
+ *     verifiedBy: "Who checked it",
+ *     call: ["appeals"]                // optional: contact ids shown as call links inside the block
  *   }
+ * Contacts also carry an `id` so other entries can link to them.
  * Entries missing citation or verifiedOn are ignored by the app.
  *
  * A combination with `teamConfirmed: false` still shows a warning that
@@ -84,7 +86,8 @@
         rule: "Within 180 calendar days after you receive the denial notice. You can appeal by phone, in person or in writing.",
         days: 180,
         countFrom: "the date you receive the denial notice",
-        estimateFromNotice: true
+        estimateFromNotice: true,
+        call: ["appeals", "help"]
       }, "Section XX, Utilization Review, H (page 80)"),
       entry({
         who: "you",
@@ -92,12 +95,14 @@
         rule: "Within 4 months after you receive the plan's final denial of your internal appeal, or within 4 months after you receive the plan's written waiver of the internal appeal (its agreement that you can skip it). The plan has no authority to extend this deadline.",
         days: null,
         countFrom: "the date you receive the final denial, or the date you receive a waiver of the internal appeal",
-        verifiedBy: PO_REVIEW
+        verifiedBy: PO_REVIEW,
+        call: ["external", "help"]
       }, "Section XXI, External Appeal, G and H (pages 84 to 86)"),
       entry({
         who: "plan",
         label: "Confirm it received your appeal",
-        rule: "Within 15 calendar days. The letter names the person handling your appeal. No letter after 15 days? Call the appeals number below."
+        rule: "Within 15 calendar days. The letter names the person handling your appeal. No letter after 15 days? Call the appeals number.",
+        call: ["appeals"]
       }, "Section XX, Utilization Review, H (page 80)"),
       entry({
         who: "plan",
@@ -124,11 +129,13 @@
     paths: [
       entry({
         label: "1. Internal appeal to the plan",
-        rule: "Ask Healthfirst to review its decision. A clinical peer reviewer who did not make the first decision decides the appeal."
+        rule: "Ask Healthfirst to review its decision. A clinical peer reviewer who did not make the first decision decides the appeal.",
+        call: ["appeals"]
       }, "Section XX, Utilization Review, H (page 80)"),
       entry({
         label: "Urgent? Ask for an expedited appeal",
-        rule: "Use this if waiting could harm your health, or if your clinician asks for an immediate review. You can file an expedited external appeal at the same time."
+        rule: "Use this if waiting could harm your health, or if your clinician asks for an immediate review. You can file an expedited external appeal at the same time.",
+        call: ["expedited"]
       }, "Section XX, I.3 (page 81) and Section XXI, A (page 83)"),
       entry({
         label: "Your clinician can ask for a reconsideration",
@@ -136,14 +143,15 @@
       }, "Section XX, Utilization Review, G (page 80)"),
       entry({
         label: "2. External appeal to New York State",
-        rule: "If the plan upholds its denial, you can ask for an independent review through the New York State Department of Financial Services. The plan sends an application with its final denial."
+        rule: "If the plan upholds its denial, you can ask for an independent review through the New York State Department of Financial Services. The plan sends an application with its final denial.",
+        call: ["external"]
       }, "Section XXI, External Appeal, A and G (pages 83 to 85)")
     ],
     contacts: [
-      entry({ label: "Appeals", rule: "888-250-2220" }, "Section II, L (page 13)"),
-      entry({ label: "Expedited (urgent) appeals", rule: "877-779-2959" }, "Section II, L (page 13)"),
-      entry({ label: "External appeal application (NY Department of Financial Services)", rule: "1-800-400-8882" }, "Section XXI, G (page 85)"),
-      entry({ label: "Free help filing an appeal (Community Health Advocates)", rule: "1-888-614-5400" }, "Section XX, K (page 82)")
+      entry({ id: "appeals", short: "Appeals", label: "Appeals", rule: "888-250-2220" }, "Section II, L (page 13)"),
+      entry({ id: "expedited", short: "Urgent appeals", label: "Expedited (urgent) appeals", rule: "877-779-2959" }, "Section II, L (page 13)"),
+      entry({ id: "external", short: "NY State external appeals", label: "External appeal application (NY Department of Financial Services)", rule: "1-800-400-8882" }, "Section XXI, G (page 85)"),
+      entry({ id: "help", short: "for free help", label: "Free help filing an appeal (Community Health Advocates)", rule: "1-888-614-5400" }, "Section XX, K (page 82)")
     ],
     // What the contract does not list, so the app says so instead of guessing.
     missing: ["The contract does not list a mailing address for appeals. Use the address printed on your notice."]
