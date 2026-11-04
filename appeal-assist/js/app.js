@@ -197,6 +197,11 @@
     }
     return downloadsPromise;
   }
+  function knownPlanLabels() {
+    return Object.keys(Rules.PLANS).reduce(function (all, k) {
+      return all.concat(Rules.PLANS[k].map(function (p) { return p.label; }));
+    }, []);
+  }
   function hasRuntime() { return Boolean(window.claude && typeof window.claude.use === "function"); }
   function isIOS() {
     return /iP(hone|od|ad)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -833,7 +838,7 @@
     if (!file) return;
     $("#read-notice").disabled = true;
     setStatus("#read-status", "Reading your notice.");
-    Reader.readFile(file).then(function (out) {
+    Reader.readFile(file, { knownPlans: knownPlanLabels() }).then(function (out) {
       if (file !== noticeFile) return; // removed or replaced while reading
       var filled = [];
       DETAIL_FIELDS.forEach(function (f) {

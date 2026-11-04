@@ -54,7 +54,7 @@ Edit `js/rules.js`. Add an entry to the matching `COMBINATIONS` key with `citati
 ## Files
 
 * `index.html`, `styles.css`, `js/app.js`: UI
-* `js/reader.js`: reads notice files (.docx unzipped with the browser built in decompressor, PDF text via pdf.js from cdnjs, .txt), finds the five fields
+* `js/reader.js`: reads notice files (.docx unzipped with the browser built in decompressor, PDF text via pdf.js from cdnjs, .txt), finds the five fields. Headings are matched by key words (for example any heading with "reason" or "rationale" is the reason, any with "appeal" or "disagree" is the instructions), so many wordings work. PDF lines are rebuilt from text positions, so words split at a "fi" ligature come back whole. A known plan name anywhere in the notice wins over the letterhead
 * `js/composer.js`: writes the letter, no AI
 * `js/docx.js`: builds the Word file, no library
 * `js/letter.js`: letter builder, placeholder detection, RTF and text export

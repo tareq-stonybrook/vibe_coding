@@ -32,7 +32,7 @@
       service: "Planned inpatient rehabilitation admission after hip replacement",
       noticeDate: "2026-07-18",
       reason: "Admission criteria for inpatient rehabilitation are not met. Home health care is appropriate.",
-      instructions: ""
+      instructions: "You or your doctor may ask for an internal appeal by phone, in person or in writing. Call Appeals at 888-250-2220. Your doctor can also ask the reviewer to reconsider."
     }
   ];
 

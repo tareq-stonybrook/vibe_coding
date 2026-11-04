@@ -326,3 +326,61 @@ test("composer: legal basis only from the checked list, with reference links", (
   assert.equal(Rules.getRules("XX", "aca").legal, null);
   assert.doesNotMatch(Composer.compose({ details: s }), /References:|CFR|Public Health Law/);
 });
+
+// Shaped like a team member's synthetic notice (November 4, 2026 report):
+// letterhead first, "Reason for Adverse Determination", capital headings.
+const TEAM_NOTICE = [
+  "HEALTH INSURANCE PLAN, INC. | NY STATE OF HEALTH MARKETPLACE",
+  "NOTICE OF ADVERSE DETERMINATION",
+  "Date of Notice: October 15, 2026",
+  "Member Name: Jane Sample",
+  "Member ID: XX0000000",
+  "Requested Service: Acute care inpatient hospital admission (3 days) after single-level lumbar spine fusion",
+  "Requesting Provider: Dr. A. Example",
+  "",
+  "Reason for Adverse Determination: Your spine surgeon requested prior approval for a 3-",
+  "day acute care inpatient hospital admission following a planned single-level",
+  "lumbar spine fusion (L4-L5). While single-level lumbar fusion is a covered beneﬁt",
+  "under your Healthﬁrst Silver Leaf Plan when criteria are met, our medical reviewer",
+  "determined that an acute care inpatient hospital admission is NOT medically",
+  "necessary.",
+  "",
+  "The surgery can be done with an overnight observation stay.",
+  "",
+  "YOUR RIGHT TO APPEAL",
+  "You or your provider may ask for an internal appeal within 180 calendar days",
+  "of receiving this notice. Call 888-250-2220 or write to the address below.",
+  "Expedited Appeals",
+  "If waiting could seriously harm your health, call 877-779-2959.",
+  "",
+  "Sincerely,",
+  "Utilization Management"
+].join("\n");
+
+test("reader: team style notice fills all five fields", () => {
+  const out = Reader.parseNoticeText(TEAM_NOTICE, { knownPlans: ["Healthfirst Silver Leaf Plan"] });
+  assert.equal(out.planName, "Healthfirst Silver Leaf Plan");
+  assert.equal(out.noticeDate, "2026-10-15");
+  assert.equal(out.service, "Acute care inpatient hospital admission (3 days) after single-level lumbar spine fusion");
+  assert.ok(out.reason.startsWith("Your spine surgeon requested prior approval for a 3-day acute care"), out.reason);
+  assert.ok(out.reason.includes("covered benefit under your Healthfirst Silver Leaf Plan"), out.reason);
+  assert.ok(out.reason.endsWith("overnight observation stay."), out.reason);
+  assert.ok(out.instructions.startsWith("You or your provider may ask for an internal appeal"), out.instructions);
+  assert.ok(out.instructions.includes("Expedited Appeals: If waiting could seriously harm your health"), out.instructions);
+  assert.ok(!/Sincerely|Utilization/.test(out.instructions));
+  // Without a known plan, the letterhead is still used.
+  assert.equal(Reader.parseNoticeText(TEAM_NOTICE).planName, "HEALTH INSURANCE PLAN, INC. | NY STATE OF HEALTH MARKETPLACE");
+});
+
+test("reader: PDF pieces split at a ligature join back into words", () => {
+  const item = (str, x, w, eol) => ({ str, transform: [1, 0, 0, 10, x, 700], width: w, hasEOL: Boolean(eol) });
+  const text = Reader.pageText({ items: [item("covered bene", 0, 60), item("fi", 60, 5), item("t under your", 65, 55), item("Health", 123, 30), item("fi", 153, 5), item("rst Plan", 158, 40, true)] });
+  assert.equal(text, "covered benefit under your Healthfirst Plan\n");
+});
+
+test("reader: other heading wordings", () => {
+  const out = Reader.parseNoticeText("Some Health Plan\nDate: 2026-01-05\nService Requested: Inpatient stay\nClinical Rationale:\nNot needed.\nHow to Appeal This Decision\nWrite to us.\nQuestions? Call us.");
+  assert.equal(out.service, "Inpatient stay");
+  assert.equal(out.reason, "Not needed.");
+  assert.equal(out.instructions, "Write to us.");
+});

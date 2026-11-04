@@ -14,14 +14,8 @@
   var MONTHS = ["january", "february", "march", "april", "may", "june", "july",
     "august", "september", "october", "november", "december"];
 
-  var HEADINGS = {
-    reason: /^(reason(s)? for (the |this |our )?(denial|decision)|why (we|did we) den(y|ied)[^:]*|why your (request|claim|stay) was denied|reason|basis for (our|this|the) decision|our decision)\s*:?\s*/i,
-    instructions: /^(how to (file an |request an |ask for an )?appeal|your (right|rights) to (an )?appeal|appeal rights|what (you can do|to do) if you disagree|if you disagree[^:]*|to appeal)\s*:?\s*/i,
-    planName: /^(plan( name)?|health plan|insurance plan|insurer|from)\s*:\s*/i,
-    service: /^(service(s)?( denied| requested)?|item or service|care denied|denied service|what was denied|re|subject|regarding)\s*:\s*/i,
-    date: /^(date( of (this )?notice)?|notice date|date issued|date mailed)\s*:\s*/i
-  };
-  var ANY_HEADING = /^[A-Z][A-Za-z ,'()\/-]{2,60}:\s*$|^(member|patient|provider|claim|reference|important|questions|contact|sincerely|enclosure)/i;
+  // Lines kept as section stops even though they carry no field.
+  var STOP = /^(sincerely|questions?|contact( us)?|enclosures?|cc|member|patient|provider|claim|reference|notice of|requesting|plan type|important information)\b/i;
 
   function toIso(y, m, d) {
     var yy = parseInt(y, 10), mm = parseInt(m, 10), dd = parseInt(d, 10);
@@ -39,38 +33,101 @@
     return "";
   }
 
-  // Text under a heading: same line after the colon, plus following lines
-  // until a blank line or another heading.
-  function section(lines, i, headingRe) {
-    var first = lines[i].replace(headingRe, "").trim();
-    var out = first ? [first] : [];
-    for (var j = i + 1; j < lines.length; j++) {
-      var l = lines[j].trim();
-      if (!l) { if (out.length) break; else continue; }
-      if (ANY_HEADING.test(l) || matchesHeading(l)) break;
-      out.push(l);
-    }
-    return out.join(" ").replace(/\s+/g, " ").trim();
+  // What a heading label is about. Notices word headings many ways, so
+  // this matches on key words, not exact phrases.
+  function classify(label) {
+    var l = label.toLowerCase().replace(/\s+/g, " ").trim();
+    if (/^(plan|plan name|health plan|health plan name|insurance plan|insurer|issuer|from|plan\/product|product)$/.test(l)) return "planName";
+    if (/\bdate\b/.test(l)) return /service|birth|admission|request|surgery|discharge|stay/.test(l) ? "other" : "date";
+    if (/reason|rationale|\bwhy\b|basis for|explanation of|our decision|clinical (summary|findings)/.test(l)) return "reason";
+    if (/appeal|disagree|what (you can|to) do|next steps|your rights?\b/.test(l)) return "instructions";
+    if (STOP.test(l)) return "stop";
+    if (/^(re|subject|regarding)$|\bservices?\b|procedure|\bitem\b|treatment requested|requested (care|admission|treatment)|care (denied|requested)|what was denied/.test(l) &&
+        !/member services|customer services/.test(l)) return "service";
+    return "other";
   }
 
-  function matchesHeading(line) {
-    return Object.keys(HEADINGS).some(function (k) { return HEADINGS[k].test(line) && /:|^[A-Z][^.]*$/.test(line); });
+  // A heading line: "Label: text" with a short label, or a short line in
+  // capitals or Title Case with no end punctuation.
+  function headingOf(line) {
+    var m = line.match(/^([A-Za-z][A-Za-z ,'()\/&-]{0,60}?)\s*:\s*(.*)$/);
+    if (m && m[1].split(/\s+/).length <= 7) return { label: m[1], rest: m[2].trim() };
+    if (line.length > 70 || /[.,;]$/.test(line) || line.split(/\s+/).length > 9) return null;
+    var letters = line.replace(/[^A-Za-z]/g, "");
+    if (letters.length >= 4 && letters === letters.toUpperCase()) return { label: line, rest: "" };
+    var words = line.split(/\s+/).filter(function (w) { return /^[A-Za-z]{4,}/.test(w); });
+    var caps = words.filter(function (w) { return /^[A-Z]/.test(w); });
+    if (words.length && caps.length / words.length >= 0.6 && classify(line) !== "other") return { label: line, rest: "" };
+    return null;
   }
 
-  function parseNoticeText(text) {
-    var out = { planName: "", service: "", noticeDate: "", reason: "", instructions: "" };
-    var lines = String(text || "").replace(/\r/g, "").split("\n");
-
-    lines.forEach(function (raw, i) {
-      var l = raw.trim();
-      if (!l) return;
-      if (!out.reason && HEADINGS.reason.test(l)) out.reason = section(lines, i, HEADINGS.reason);
-      else if (!out.instructions && HEADINGS.instructions.test(l)) out.instructions = section(lines, i, HEADINGS.instructions);
-      else if (!out.planName && HEADINGS.planName.test(l)) out.planName = l.replace(HEADINGS.planName, "").trim();
-      else if (!out.service && HEADINGS.service.test(l)) out.service = l.replace(HEADINGS.service, "").trim();
-      else if (!out.noticeDate && HEADINGS.date.test(l)) out.noticeDate = findDate(l);
+  // Join wrapped lines into one paragraph. "3-" + "day" stays "3-day".
+  function joinLines(parts) {
+    var out = "";
+    parts.forEach(function (p) {
+      if (!p) return;
+      if (/[A-Za-z0-9]-$/.test(out) && /^[A-Za-z0-9]/.test(p)) out += p;
+      else out += (out ? " " : "") + p;
     });
+    return out.replace(/\s+/g, " ").trim();
+  }
 
+  function squashAll(t) { return t.toLowerCase().replace(/[^a-z0-9]/g, ""); }
+
+  // opts.knownPlans: plan names the app offers. One named anywhere in the
+  // notice wins over a letterhead line.
+  function parseNoticeText(text, opts) {
+    var out = { planName: "", service: "", noticeDate: "", reason: "", instructions: "" };
+    // NFKC turns ligature characters (the single "fi" glyph) back into letters.
+    var src = String(text || "").normalize ? String(text || "").normalize("NFKC") : String(text || "");
+    var lines = src.replace(/\r/g, "").split("\n");
+    var cur = null;
+    var MAX = 1500;
+    function finish() {
+      if (cur && !out[cur.kind]) out[cur.kind] = joinLines(cur.parts).slice(0, MAX).trim();
+      cur = null;
+    }
+
+    lines.forEach(function (raw) {
+      var t = raw.trim();
+      if (!t) { if (cur) cur.blank++; return; }
+      if (t.length < 60 && /^(sincerely|regards|respectfully|best regards|questions\b|if you have (any )?questions)/i.test(t)) { finish(); return; }
+      var h = headingOf(t);
+      var kind = h ? classify(h.label) : null;
+      if (h && kind === "other" && !/:/.test(t)) { h = null; kind = null; }
+      if (h) {
+        if (kind === "reason" || kind === "instructions") {
+          if (cur && cur.kind === kind) {
+            // A sub heading inside the same section, e.g. "Expedited appeals".
+            cur.parts.push(h.label.replace(/[:\s]+$/, "") + ":");
+            if (h.rest) cur.parts.push(h.rest);
+            cur.blank = 0;
+            return;
+          }
+          finish();
+          if (!out[kind]) { cur = { kind: kind, parts: h.rest ? [h.rest] : [], blank: 0 }; }
+          return;
+        }
+        finish();
+        if (kind === "date" && !out.noticeDate) out.noticeDate = findDate(h.rest || t);
+        else if (kind === "planName" && !out.planName && h.rest) out.planName = h.rest;
+        else if (kind === "service" && !out.service && h.rest) out.service = h.rest;
+        return;
+      }
+      if (cur) {
+        if (cur.blank >= 2) { finish(); return; }
+        cur.parts.push(t);
+        cur.blank = 0;
+      }
+    });
+    finish();
+
+    // A plan the app knows, named anywhere in the notice.
+    var known = (opts && opts.knownPlans) || [];
+    var hay = squashAll(src);
+    for (var k = 0; k < known.length; k++) {
+      if (known[k] && hay.indexOf(squashAll(known[k])) !== -1) { out.planName = known[k]; break; }
+    }
     // Plan name fallback: an early line that looks like a plan name.
     if (!out.planName) {
       for (var i = 0; i < Math.min(lines.length, 8); i++) {
@@ -109,6 +166,26 @@
     });
   }
 
+  // Rebuild a page's lines from text pieces and their positions. A space
+  // goes in only where the PDF leaves a gap, so a word split at a
+  // ligature ("bene" + "fi" + "t") comes back whole.
+  function pageText(content) {
+    var out = "", prev = null;
+    content.items.forEach(function (it) {
+      if (typeof it.str !== "string") return;
+      var tr = it.transform || [1, 0, 0, 1, 0, 0];
+      var x = tr[4], y = tr[5], size = Math.abs(tr[3]) || it.height || 10;
+      if (prev && !prev.eol) {
+        if (Math.abs(y - prev.y) > size * 0.5) out += "\n";
+        else if (x - prev.end > size * 0.15 && !/\s$/.test(out) && !/^\s/.test(it.str)) out += " ";
+      }
+      out += it.str;
+      if (it.hasEOL) out += "\n";
+      prev = { y: y, end: x + (it.width || 0), eol: Boolean(it.hasEOL) };
+    });
+    return out;
+  }
+
   function pdfText(file) {
     return loadPdfJs().then(function (lib) {
       return file.arrayBuffer().then(function (buf) { return lib.getDocument({ data: buf }).promise; });
@@ -119,9 +196,7 @@
         return pdf.getPage(n).then(function (p) { return p.getTextContent(); });
       }));
     }).then(function (contents) {
-      return contents.map(function (c) {
-        return c.items.map(function (it) { return it.str + (it.hasEOL ? "\n" : " "); }).join("");
-      }).join("\n\n");
+      return contents.map(pageText).join("\n\n");
     });
   }
 
@@ -204,13 +279,13 @@
   function isText(f) { return f.type === "text/plain" || /\.txt$/i.test(f.name); }
   function isImage(f) { return /^image\//.test(f.type) || /\.(png|jpe?g|gif|webp|heic)$/i.test(f.name); }
 
-  function readFile(file) {
+  function readFile(file, opts) {
     if (isImage(file)) return Promise.reject({ code: "image" });
     if (isOldDoc(file)) return Promise.reject({ code: "old_doc" });
     var get = isDocx(file) ? docxText(file) : isPdf(file) ? pdfText(file) : isText(file) ? file.text() : Promise.reject({ code: "type" });
     return get.then(function (text) {
       if (!text || text.replace(/\s/g, "").length < 20) throw { code: "no_text" };
-      return parseNoticeText(text);
+      return parseNoticeText(text, opts);
     });
   }
 
@@ -259,7 +334,8 @@
     readFile: readFile,
     errorMessage: errorMessage,
     sampleToText: sampleToText,
-    findDate: findDate
+    findDate: findDate,
+    pageText: pageText
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.AppealReader = api;
