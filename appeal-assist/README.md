@@ -6,9 +6,9 @@ Prototype. Synthetic notices only. No real patient information.
 
 ## Run
 
-App link: https://tareq-stonybrook.github.io/vibe_coding/appeal-assist/
+**App link: [https://tareq-stonybrook.github.io/vibe_coding/appeal-assist/](https://tareq-stonybrook.github.io/vibe_coding/appeal-assist/)**. Use this link for testing and downloads.
 
-Backup link on claude.ai: https://claude.ai/artifact/VR9AuDDJbbA6e795AfNhYW
+Backup link on claude.ai (older version, downloads only for organization members): https://claude.ai/artifact/VR9AuDDJbbA6e795AfNhYW
 
 Local: open `index.html` in a browser.
 

@@ -2,15 +2,19 @@
 
 This is a vibe coded app for course HHA 502.
 
+**Open the app: [https://tareq-stonybrook.github.io/vibe_coding/appeal-assist/](https://tareq-stonybrook.github.io/vibe_coding/appeal-assist/)**
+
+Works on computer, Android and iPhone, and downloads the letter as Word or text. No sign in.
+
 Appeal Assist helps a patient or caregiver answer an insurance denial for a hospital stay that the plan says was not medically necessary. It walks through the denial notice, shows what to gather, and writes a draft appeal letter the user reviews, edits and sends themselves.
 
 **Tagline:** Helping patients overturn denials.
 
 ## Try it
 
-Open the app: https://tareq-stonybrook.github.io/vibe_coding/appeal-assist/
+Open the app: [https://tareq-stonybrook.github.io/vibe_coding/appeal-assist/](https://tareq-stonybrook.github.io/vibe_coding/appeal-assist/). Use this link for testing and downloads.
 
-Backup link on claude.ai: https://claude.ai/artifact/VR9AuDDJbbA6e795AfNhYW
+Backup link on claude.ai (older version, downloads only for organization members): https://claude.ai/artifact/VR9AuDDJbbA6e795AfNhYW
 
 On the claude.ai link only members of the owner's organization can download files. Everyone else should use the GitHub Pages link above, or Copy letter.
 
