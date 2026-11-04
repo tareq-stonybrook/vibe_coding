@@ -335,6 +335,22 @@ async function runUpload() {
   const failMsg = await page2.textContent("#dl-status");
   check("download: failure message names the error and keeps the draft", failMsg.includes("bad_request: test failure") && failMsg.includes("draft is still saved"), failMsg);
   await page2.close();
+
+  // iPhone: the save opens the share sheet inside the tap, with the file.
+  const page3 = await ctx.newPage();
+  await page3.addInitScript(() => {
+    Object.defineProperty(navigator, "userAgent", { get: () => "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1" });
+    window.__shared = [];
+    navigator.canShare = (d) => Boolean(d && d.files && d.files.length);
+    navigator.share = (d) => { window.__shared.push({ name: d.files[0].name, size: d.files[0].size, active: navigator.userActivation ? navigator.userActivation.isActive : null }); return Promise.resolve(); };
+  });
+  await page3.goto(url);
+  await page3.click("#resume");
+  await page3.click("#dl-docx");
+  await page3.waitForFunction(() => document.querySelector("#dl-status").textContent.includes("Save to Files"));
+  const shared = await page3.evaluate(() => window.__shared);
+  check("download: iPhone opens share sheet with the Word file inside the tap", shared.length === 1 && shared[0].name === "appeal-letter-draft.docx" && shared[0].size > 1000 && shared[0].active !== false, JSON.stringify(shared));
+  await page3.close();
   check("upload: no page errors", errors.length === 0, errors.join("; "));
   await browser.close();
 }

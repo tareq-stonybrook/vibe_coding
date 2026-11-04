@@ -190,7 +190,17 @@
     }
     return downloadsPromise;
   }
+  function hasRuntime() { return Boolean(window.claude && typeof window.claude.use === "function"); }
+  function isIOS() {
+    return /iP(hone|od|ad)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  }
   function saveFile(filename, content, type) {
+    // Outside claude.ai (GitHub Pages, local file) save inside the tap
+    // itself. iPhone Safari ignores a download started after the tap's turn.
+    if (!hasRuntime()) {
+      try { return Promise.resolve(localSave(filename, content, type)); }
+      catch (e) { return Promise.resolve(failed(filename, e && e.message)); }
+    }
     return getDownloads().then(function (dl) {
       if (dl) {
         return dl.save({ filename: filename, data: new Blob([content], { type: type }) }).then(
@@ -200,27 +210,52 @@
             if (code === "declined") return "Download cancelled. Your draft is still here.";
             if (code === "rate_limited") return "A save prompt is already open. Finish it, then try again.";
             if (code === "unavailable" || code === "not_granted" || code === "capability_disabled" || code === "capability_removed" || !code) {
-              return blobDownload(filename, content, type);
+              return hostBlocked(blobDownload(filename, content, type));
             }
             return failed(filename, code + (e.message ? ": " + e.message : ""));
           }
         );
       }
-      return blobDownload(filename, content, type);
+      return hostBlocked(blobDownload(filename, content, type));
     }).catch(function (e) { return failed(filename, e && e.message); });
+  }
+  // claude.ai lets only members of the owner's organization download from
+  // a shared page. Everyone else is sent to the public app link.
+  var PUBLIC_URL = "https://tareq-stonybrook.github.io/vibe_coding/appeal-assist/";
+  function hostBlocked(msg) {
+    return msg + " On a shared claude.ai link, downloads work only for members of its organization. " +
+      "Use Copy letter and paste it into Word or Notes, or open " + PUBLIC_URL + " to download.";
   }
   // Nothing is lost on failure: the draft stays saved in the page.
   function failed(filename, detail) {
     return "Could not save " + filename + (detail ? " (" + detail + ")" : "") +
       ". Your draft is still saved here. Try the other format, or use Copy letter.";
   }
+  // iPhone and iPad: open the share sheet, which has Save to Files.
+  // Falls back to a normal download where sharing files is not supported.
+  function localSave(filename, content, type) {
+    if (isIOS() && navigator.share && navigator.canShare && typeof File === "function") {
+      var file = new File([content], filename, { type: type });
+      if (navigator.canShare({ files: [file] })) {
+        return navigator.share({ files: [file] }).then(
+          function () { return "Shared " + filename + ". If you chose Save to Files, it is in the Files app. Your draft is still saved here."; },
+          function (e) {
+            if (e && e.name === "AbortError") return "Save cancelled. Your draft is still here. Tap the button again and choose Save to Files.";
+            return blobDownload(filename, content, type);
+          }
+        );
+      }
+    }
+    return blobDownload(filename, content, type);
+  }
   function blobDownload(filename, content, type) {
     var url = URL.createObjectURL(new Blob([content], { type: type }));
-    var a = el("a", { href: url, download: filename });
+    var a = el("a", { href: url, download: filename, hidden: "" });
     document.body.appendChild(a);
     a.click();
-    a.remove();
-    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    // iPhone Safari asks before downloading. Keep the link and its file
+    // alive long enough for that answer, or the download fails.
+    setTimeout(function () { a.remove(); URL.revokeObjectURL(url); }, 60000);
     // The browser or the page host can still block this download without
     // telling the page, so the message does not claim success.
     return "Download of " + filename + " started. If no file appears, use Copy letter. Your draft is still saved here.";

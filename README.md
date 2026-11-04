@@ -12,6 +12,8 @@ Open the app: https://tareq-stonybrook.github.io/vibe_coding/appeal-assist/
 
 Backup link on claude.ai: https://claude.ai/artifact/VR9AuDDJbbA6e795AfNhYW
 
+On the claude.ai link only members of the owner's organization can download files. Everyone else should use the GitHub Pages link above, or Copy letter.
+
 No account, no AI and no install needed. Everything runs in the browser and stays on your device. Only reading a PDF needs an internet connection, to load the PDF reader.
 
 To run it from the code, open `appeal-assist/index.html` in Chrome, Edge, Safari or Firefox.
