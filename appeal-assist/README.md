@@ -14,7 +14,7 @@ Local: open `index.html` in a browser.
 
 No AI and no account needed. The app reads notices and writes letters itself, in the browser. Only reading a PDF needs an internet connection, to load the PDF reader from cdnjs.
 
-Publish a new version: GitHub Pages serves this folder from branch `claude/laughing-fermat-bj7i2b`. Merge changes into that branch. For the backup link, `python3 build.py out.html` inlines everything into one file for the artifact.
+Publish a new version: `claude/laughing-fermat-bj7i2b` is the main branch. Make every change there. GitHub Pages serves this folder from it. For the backup link, `python3 build.py out.html` inlines everything into one file for the artifact.
 
 ## Flow and user stories
 

@@ -70,7 +70,7 @@ Progress saves automatically in the browser and can be saved to or loaded from a
 
 **Add a checked rule or deadline:** edit `appeal-assist/js/rules.js`. Each entry needs a citation, a source link and the date it was checked, or it will not display. The format is explained at the top of the file.
 
-**Update the app link:** GitHub Pages publishes branch `claude/laughing-fermat-bj7i2b`. Merge changes into that branch and the link updates within a few minutes.
+**Main branch:** `claude/laughing-fermat-bj7i2b` is the one working branch. Make every change there. GitHub Pages publishes it, so the app link updates within a few minutes of each push. Other branches are old copies and are not updated.
 
 **Update the backup link:** run `python3 build.py out.html` inside `appeal-assist` to make one combined file, then publish it to the claude.ai artifact.
 
