@@ -43,8 +43,20 @@
     if (/appeal|disagree|what (you can|to) do|next steps|your rights?\b/.test(l)) return "instructions";
     if (STOP.test(l)) return "stop";
     if (/^(re|subject|regarding)$|\bservices?\b|procedure|\bitem\b|treatment requested|requested (care|admission|treatment)|care (denied|requested)|what was denied/.test(l) &&
-        !/member services|customer services/.test(l)) return "service";
+        !CONTACT_LABEL.test(l)) return "service";
     return "other";
+  }
+
+  // Labels that name a phone line or office, not the care that was denied:
+  // "Customer Service", "Member Services", "Service Line", "Services Phone".
+  var CONTACT_LABEL = /\b(members?|customers?|providers?|clients?|patients?|enrollees?|participants?|subscribers?)\s+services?\b|\b(phone|telephone|tel|number|hotline|line|center|centre|fax|e-?mail|website|hours|tty|tdd|call|contact|department|dept|desk|office|representative|rep)\b/;
+
+  // A value that is a phone number, email or web address is never a
+  // service name, whatever label it sits under.
+  function looksLikeService(v) {
+    var s = String(v || "");
+    if (/\(?\b\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}\b|@|https?:|www\./i.test(s)) return false;
+    return /[A-Za-z]{3,}/.test(s);
   }
 
   // A heading line: "Label: text" with a short label, or a short line in
@@ -111,7 +123,7 @@
         finish();
         if (kind === "date" && !out.noticeDate) out.noticeDate = findDate(h.rest || t);
         else if (kind === "planName" && !out.planName && h.rest) out.planName = h.rest;
-        else if (kind === "service" && !out.service && h.rest) out.service = h.rest;
+        else if (kind === "service" && !out.service && looksLikeService(h.rest)) out.service = h.rest;
         return;
       }
       if (cur) {

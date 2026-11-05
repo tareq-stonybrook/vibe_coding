@@ -384,3 +384,14 @@ test("reader: other heading wordings", () => {
   assert.equal(out.reason, "Not needed.");
   assert.equal(out.instructions, "Write to us.");
 });
+
+test("reader: phone lines under a service label never fill the service field", () => {
+  const labels = ["Customer Service", "Member Service", "Service Line", "Services Phone",
+    "Utilization Management Services", "Customer Service Center", "Service Hotline"];
+  labels.forEach((label) => {
+    const out = Reader.parseNoticeText("Some Health Plan\n" + label + ": 1-888-250-2220\nRequested Service: Inpatient admission for surgery");
+    assert.equal(out.service, "Inpatient admission for surgery", label);
+  });
+  const only = Reader.parseNoticeText("Some Health Plan\nService: Call 1-888-250-2220");
+  assert.equal(only.service, "");
+});
