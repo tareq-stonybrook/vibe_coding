@@ -23,53 +23,92 @@
     return yy + "-" + String(mm).padStart(2, "0") + "-" + String(dd).padStart(2, "0");
   }
 
-  function findDate(text) {
-    var m = text.match(/\b(\d{4})-(\d{1,2})-(\d{1,2})\b/);
-    if (m) return toIso(m[1], m[2], m[3]);
-    m = text.match(/\b(\d{1,2})\/(\d{1,2})\/(\d{4})\b/);
-    if (m) return toIso(m[3], m[1], m[2]);
-    m = text.match(/\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2}),?\s+(\d{4})\b/i);
-    if (m) return toIso(m[3], MONTHS.indexOf(m[1].toLowerCase()) + 1, m[2]);
-    return "";
+  var MONTH_RE = "(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)";
+  function monthNum(name) {
+    var k = name.toLowerCase().slice(0, 3);
+    for (var i = 0; i < MONTHS.length; i++) if (MONTHS[i].slice(0, 3) === k) return i + 1;
+    return 0;
   }
 
-  // What a heading label is about. Notices word headings many ways, so
-  // this matches on key words, not exact phrases.
-  function classify(label) {
-    var l = label.toLowerCase().replace(/\s+/g, " ").trim();
-    if (/^(plan|plan name|health plan|health plan name|insurance plan|insurer|issuer|from|plan\/product|product)$/.test(l)) return "planName";
-    if (/\bdate\b/.test(l)) return /service|birth|admission|request|surgery|discharge|stay/.test(l) ? "other" : "date";
-    if (/reason|rationale|\bwhy\b|basis for|explanation of|our decision|clinical (summary|findings)/.test(l)) return "reason";
-    if (/appeal|disagree|what (you can|to) do|next steps|your rights?\b/.test(l)) return "instructions";
-    if (STOP.test(l)) return "stop";
-    if (/^(re|subject|regarding)$|\bservices?\b|procedure|\bitem\b|treatment requested|requested (care|admission|treatment)|care (denied|requested)|what was denied/.test(l) &&
-        !CONTACT_LABEL.test(l)) return "service";
-    return "other";
+  // The date that comes first in the text, whatever way it is written.
+  function findDate(text) {
+    var found = [];
+    function add(m, iso) { if (m && iso) found.push({ at: m.index, iso: iso }); }
+    var m = text.match(/\b(\d{4})-(\d{1,2})-(\d{1,2})\b/);
+    add(m, m && toIso(m[1], m[2], m[3]));
+    m = text.match(/\b(\d{1,2})\/(\d{1,2})\/(\d{4}|\d{2})\b/);
+    add(m, m && toIso(m[3].length === 2 ? "20" + m[3] : m[3], m[1], m[2]));
+    m = text.match(new RegExp("\\b" + MONTH_RE + "\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?,?\\s+(\\d{4})\\b", "i"));
+    add(m, m && toIso(m[3], monthNum(m[1]), m[2]));
+    m = text.match(new RegExp("\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+" + MONTH_RE + "\\.?,?\\s+(\\d{4})\\b", "i"));
+    add(m, m && toIso(m[3], monthNum(m[2]), m[1]));
+    found.sort(function (x, y) { return x.at - y.at; });
+    return found.length ? found[0].iso : "";
   }
+
+  // Dates that are not the date of the notice.
+  var NOT_NOTICE_DATE = /services?|birth|\bdob\b|admi(ssion|t)|request|surgery|procedure|discharge|stay|effective|received|deadline|\bdue\b|appeal|expir/i;
 
   // Labels that name a phone line or office, not the care that was denied:
   // "Customer Service", "Member Services", "Service Line", "Services Phone".
   var CONTACT_LABEL = /\b(members?|customers?|providers?|clients?|patients?|enrollees?|participants?|subscribers?)\s+services?\b|\b(phone|telephone|tel|number|hotline|line|center|centre|fax|e-?mail|website|hours|tty|tdd|call|contact|department|dept|desk|office|representative|rep)\b/;
 
-  // A value that is a phone number, email or web address is never a
-  // service name, whatever label it sits under.
+  // Labels for where the care happens: "Service Setting", "Place of
+  // Service", "Level of Care", "Service Type".
+  var SETTING_LABEL = /setting|place of (service|care)|level of care|type of (service|care|admission|stay)|(service|care|admission|stay) type/;
+
+  // What a heading label is about. Notices word headings many ways, so
+  // this matches on key words, not exact phrases.
+  function classify(label) {
+    var l = label.toLowerCase().replace(/\s+/g, " ").replace(/[?:\s]+$/, "").trim();
+    if (/^(plan|plan name|health plan|health plan name|insurance plan|insurer|issuer|from|plan\/product|product)$/.test(l)) return "planName";
+    if (/\bdates?\b/.test(l)) return NOT_NOTICE_DATE.test(l) ? "other" : "date";
+    if (/reason|rationale|\bwhy\b|basis for|explanation of|our decision|clinical (summary|findings)/.test(l)) return "reason";
+    if (/appeal|disagree|what (you can|can you|to) do|next steps|your rights?\b/.test(l)) return "instructions";
+    if (STOP.test(l)) return "stop";
+    if (CONTACT_LABEL.test(l)) return "other";
+    if (SETTING_LABEL.test(l)) return "setting";
+    if (/^(re|subject|regarding)$|\bservices?\b|procedure|\bitem\b|treatment requested|requested (care|admission|treatment)|(care|admission|treatment) (denied|requested)|what (was|we) denied/.test(l)) return "service";
+    return "other";
+  }
+
+  // A value that is a phone number, email, web address or a notice title
+  // is never a service name, whatever label it sits under.
   function looksLikeService(v) {
-    var s = String(v || "");
+    var s = String(v || "").trim();
     if (/\(?\b\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}\b|@|https?:|www\./i.test(s)) return false;
+    if (/^(denied|denial|not approved|not covered|n\/?a|none|yes|no|see (below|above|attached))\b/i.test(s)) return false;
+    if (/notice of|adverse (benefit )?determination|denial of|your (appeal|rights?)\b/i.test(s)) return false;
     return /[A-Za-z]{3,}/.test(s);
   }
 
-  // A heading line: "Label: text" with a short label, or a short line in
-  // capitals or Title Case with no end punctuation.
-  function headingOf(line) {
+  // Lines that belong to a mailing address, not a heading.
+  var ADDRESS_WORD = /\b(department|dept|unit|office|box|suite|floor|street|avenue|attn|attention)\b/i;
+
+  // A heading line: "Label: text" with a short label, a short question
+  // ("Why did we deny this request?"), or a short line in capitals, Title
+  // Case or plain words that names a field. ctx says what came before it.
+  function headingOf(line, ctx) {
     var m = line.match(/^([A-Za-z][A-Za-z ,'()\/&-]{0,60}?)\s*:\s*(.*)$/);
     if (m && m[1].split(/\s+/).length <= 7) return { label: m[1], rest: m[2].trim() };
-    if (line.length > 70 || /[.,;]$/.test(line) || line.split(/\s+/).length > 9) return null;
+    var count = line.split(/\s+/).length;
+    if (/\?$/.test(line) && count <= 12 && /^(reason|instructions)$/.test(classify(line))) return { label: line, rest: "" };
+    if (line.length > 70 || /[.,;?]$/.test(line) || count > 9) return null;
+    // The line after "mail your appeal to:" is the address, not a heading.
+    if ((ctx && ctx.afterColon) || ADDRESS_WORD.test(line)) return null;
     var letters = line.replace(/[^A-Za-z]/g, "");
     if (letters.length >= 4 && letters === letters.toUpperCase()) return { label: line, rest: "" };
+    var kind = classify(line);
+    if (kind === "other") return null;
     var words = line.split(/\s+/).filter(function (w) { return /^[A-Za-z]{4,}/.test(w); });
     var caps = words.filter(function (w) { return /^[A-Z]/.test(w); });
-    if (words.length && caps.length / words.length >= 0.6 && classify(line) !== "other") return { label: line, rest: "" };
+    if (words.length && caps.length / words.length >= 0.6) return { label: line, rest: "" };
+    // Plain words such as "Why we denied it" or "Date of notice", but only
+    // at the start of a block, so a wrapped line of a paragraph never counts.
+    if (/^[A-Z]/.test(line) && count <= 7 && (!ctx || ctx.fresh)) {
+      if (kind === "service" && !/denied|requested|description|^services?$|^procedure$/i.test(line)) return null;
+      return { label: line, rest: "", plain: true };
+    }
     return null;
   }
 
@@ -86,32 +125,137 @@
 
   function squashAll(t) { return t.toLowerCase().replace(/[^a-z0-9]/g, ""); }
 
+  // ---------- fallbacks for notices written as a plain letter ----------
+  var CARE = /inpatient|hospital|admission|admit|\bstay\b|surg|procedure|therapy|treatment|rehab|\bcare\b|replacement|infusion|ectomy|transplant|delivery|fusion/i;
+  var NOT_CARE = /appeal|review|hearing|information|records|cop(y|ies)|grievance|extension|interpreter|documents?|decision/i;
+  var SVC_END = "(?=\\s+(?:has|have|had|was|is|are|were|cannot|could|will|would|did|does)\\b|\\s+because\\b|\\s+at\\s+[A-Z]|\\s+on\\s+\\d|\\s+on\\s+[A-Z][a-z]+\\s+\\d|\\s+from\\s|\\s+by\\s|\\s+(?:requested|ordered|that|which)\\b|[.,;:]|$)";
+  var SVC_PATTERNS = [
+    "\\brequest(?:ed|ing)?(?:\\s+from\\s+.{1,60}?)?(?:\\s+(?:prior\\s+|pre-?)?(?:authorization|approval|coverage))?\\s+(?:for|of)\\s+(.+?)" + SVC_END,
+    "\\b(?:denied|deny|denying|denial of|not approved?|cannot approve|unable to approve|will not cover|cannot cover)\\s+(?:(?:coverage|payment|authorization|approval|the request|your request)\\s+(?:for|of)\\s+)?(.+?)" + SVC_END,
+    "\\b(?:coverage|authorization|approval|payment)\\s+(?:for|of)\\s+(.+?)" + SVC_END
+  ];
+
+  // The denied care named inside a sentence, such as "your request for
+  // inpatient admission for surgery has been denied". Copied as written.
+  function proseService(flat) {
+    for (var i = 0; i < SVC_PATTERNS.length; i++) {
+      var re = new RegExp(SVC_PATTERNS[i], "gi"), m;
+      while ((m = re.exec(flat))) {
+        var v = m[1].trim();
+        var before;
+        do { before = v; v = v.replace(/^(?:a|an|the|your|his|her|their)\s+/i, ""); } while (v !== before);
+        if (v.length < 4 || v.length > 160) continue;
+        if (/^(this|that|it|these|those|services?|requests?|care)\b/i.test(v) && v.split(/\s+/).length < 3) continue;
+        if (!CARE.test(v) || NOT_CARE.test(v) || !looksLikeService(v)) continue;
+        return v.charAt(0).toUpperCase() + v.slice(1);
+      }
+    }
+    return "";
+  }
+
+  function sentencesOf(t) { return t.split(/(?<=[.!?])\s+(?=[A-Z])/); }
+
+  // A section with no heading. In a letter with blank lines between
+  // paragraphs, the first paragraph that passes the test. Otherwise the
+  // first sentence that passes, plus the ones after it up to a stop.
+  function proseSection(paras, test, stop, skip) {
+    if (paras.length > 2) {
+      for (var i = 0; i < paras.length; i++) {
+        if (paras[i] !== skip && test(paras[i])) {
+          // "mail your appeal to:" carries on into the address block.
+          return /:$/.test(paras[i]) && paras[i + 1] ? paras[i] + " " + paras[i + 1] : paras[i];
+        }
+      }
+      return "";
+    }
+    var all = sentencesOf(paras.join(" ")), out = [];
+    for (var k = 0; k < all.length && out.length < 6; k++) {
+      if (!out.length) { if (test(all[k]) && (!skip || skip.indexOf(all[k]) === -1)) out.push(all[k]); }
+      else if (stop.test(all[k])) break;
+      else out.push(all[k]);
+    }
+    return out.join(" ");
+  }
+  function isReasonText(p) {
+    return !/^dear\b/i.test(p) && /\bbecause\b|not medically necessary|(does|do|did) not (meet|show|support)|(is|are|was|were) not met/i.test(p);
+  }
+  function isAppealText(p) {
+    return /appeal/i.test(p) && /\b(call|write|mail|send|fax|file|ask|request|submit|days)\b/i.test(p);
+  }
+
+  // Where the notice says to send an appeal. Only an address that ends in
+  // a state and ZIP code and follows words like "mail your appeal to".
+  function findAppealsAddress(src) {
+    var zipRe = /\b[A-Z]{2},?\s+\d{5}(?:-\d{4})?\b/g;
+    var cueRe = /\b(?:mail|send|write|submit|return|address(?:ed)?)\b[^.:;]{0,80}?\b(?:to|at)\b\s*:?|\bappeals?\s+(?:mailing\s+)?address\b\s*:?|\bmailing\s+address\b\s*:?/gi;
+    var m;
+    while ((m = zipRe.exec(src))) {
+      var end = m.index + m[0].length;
+      var start = Math.max(0, end - 320);
+      var win = src.slice(start, end);
+      var c, last = null;
+      cueRe.lastIndex = 0;
+      while ((c = cueRe.exec(win))) last = c;
+      if (!last) continue;
+      var addr = win.slice(last.index + last[0].length);
+      var around = src.slice(Math.max(0, start + last.index - 160), end);
+      if (!/appeal|grievance/i.test(around)) continue;
+      // One comma between lines, except where a line was only wrapped.
+      addr = addr.split("\n").map(function (x) { return x.trim(); }).filter(Boolean).reduce(function (all, x) {
+        if (!all) return x;
+        return all + (/,$/.test(all) || /\b(and|of|for|&)$/i.test(all) || /^[a-z]/.test(x) ? " " : ", ") + x;
+      }, "").replace(/\s+/g, " ").replace(/^[\s,:]+/, "")
+        .replace(/^(?:us\s+at|the following address|this address|the address below|the address)\s*:?\s*/i, "")
+        .replace(/^the\s+/i, "").trim();
+      if (addr.length < 10 || addr.length > 200 || /\b(you|your|call|within|appeal this)\b/i.test(addr)) continue;
+      return addr;
+    }
+    return "";
+  }
+
   // opts.knownPlans: plan names the app offers. One named anywhere in the
   // notice wins over a letterhead line.
   function parseNoticeText(text, opts) {
-    var out = { planName: "", service: "", noticeDate: "", reason: "", instructions: "" };
+    var out = { planName: "", service: "", noticeDate: "", reason: "", instructions: "", appealsAddress: "", planGuessed: false };
     // NFKC turns ligature characters (the single "fi" glyph) back into letters.
     var src = String(text || "").normalize ? String(text || "").normalize("NFKC") : String(text || "");
     var lines = src.replace(/\r/g, "").split("\n");
     var cur = null;
     var MAX = 1500;
+    var named = [], subject = [], settings = [];
+    var pending = null;   // a label alone on its line, waiting for its value
+    var last = null;      // the list a service value just went into
+    var ctx = { fresh: true, afterColon: false };
     function finish() {
       if (cur && !out[cur.kind]) out[cur.kind] = joinLines(cur.parts).slice(0, MAX).trim();
       cur = null;
     }
+    function take(kind, label, value) {
+      if (kind === "date") { if (!out.noticeDate) out.noticeDate = findDate(value); return; }
+      if (kind === "planName") { if (!out.planName) out.planName = value; return; }
+      if (!looksLikeService(value)) return;
+      last = kind === "setting" ? settings : /^(re|subject|regarding)$/i.test(label.trim()) ? subject : named;
+      last.push(value);
+    }
 
     lines.forEach(function (raw) {
       var t = raw.trim();
-      if (!t) { if (cur) cur.blank++; return; }
-      if (t.length < 60 && /^(sincerely|regards|respectfully|best regards|questions\b|if you have (any )?questions)/i.test(t)) { finish(); return; }
-      var h = headingOf(t);
+      if (!t) { if (cur) cur.blank++; ctx.fresh = true; ctx.afterColon = false; return; }
+      var here = ctx, wrapped = last;
+      last = null;
+      ctx = { fresh: /[.?!:]$/.test(t), afterColon: /:$/.test(t) };
+      if (t.length < 120 && /^(sincerely|regards|respectfully|best regards|questions\b|if you have (any )?questions)/i.test(t)) { finish(); pending = null; return; }
+      var h = headingOf(t, here);
       var kind = h ? classify(h.label) : null;
       if (h && kind === "other" && !/:/.test(t)) { h = null; kind = null; }
       if (h) {
+        pending = null;
+        ctx.fresh = true;
+        if (h.rest) ctx.afterColon = false;
         if (kind === "reason" || kind === "instructions") {
           if (cur && cur.kind === kind) {
             // A sub heading inside the same section, e.g. "Expedited appeals".
-            cur.parts.push(h.label.replace(/[:\s]+$/, "") + ":");
+            cur.parts.push(h.label.replace(/[:\s]+$/, "") + (/\?$/.test(h.label) ? "" : ":"));
             if (h.rest) cur.parts.push(h.rest);
             cur.blank = 0;
             return;
@@ -121,9 +265,25 @@
           return;
         }
         finish();
-        if (kind === "date" && !out.noticeDate) out.noticeDate = findDate(h.rest || t);
-        else if (kind === "planName" && !out.planName && h.rest) out.planName = h.rest;
-        else if (kind === "service" && !out.service && looksLikeService(h.rest)) out.service = h.rest;
+        if (/^(date|planName|service|setting)$/.test(kind)) {
+          if (h.rest) take(kind, h.label, h.rest);
+          else pending = { kind: kind, label: h.label };
+        }
+        return;
+      }
+      // A service value that wrapped onto the next line.
+      if (wrapped && !pending && !/:/.test(t) && t.length < 80) {
+        var v = wrapped[wrapped.length - 1];
+        if (/^[a-z(]/.test(t) || /(\b(for|of|and|the|a|an|to|with|after|following|at|in)|[-,&])$/i.test(v)) {
+          wrapped[wrapped.length - 1] = joinLines([v, t]);
+          last = wrapped;
+          return;
+        }
+      }
+      if (pending) {
+        take(pending.kind, pending.label, t);
+        pending = null;
+        ctx.fresh = true;
         return;
       }
       if (cur) {
@@ -134,22 +294,56 @@
     });
     finish();
 
+    // Paragraphs of the letter, for anything no heading pointed to.
+    var paras = [], buf = [];
+    lines.forEach(function (raw) {
+      var t = raw.trim();
+      // "Label: value" lines and the greeting are not part of a paragraph.
+      var label = /^[A-Z][A-Za-z \/&'-]{0,40}:\s+\S/.test(t) || /^dear\b.{0,40}[:,]$/i.test(t);
+      if (t && !label) buf.push(t);
+      else if (buf.length) { paras.push(joinLines(buf)); buf = []; }
+    });
+    if (buf.length) paras.push(joinLines(buf));
+    var END = /^(sincerely|regards|respectfully)\b|if you have (any )?questions/i;
+    if (!out.reason) {
+      out.reason = proseSection(paras, isReasonText, /appeal|disagree|\bcall\b|you (can|may|have the right)|^(sincerely|regards)\b|questions/i).slice(0, MAX).trim();
+    }
+    if (!out.instructions) {
+      out.instructions = proseSection(paras, isAppealText, END, out.reason).slice(0, MAX).trim();
+    }
+
+    // The denied care: a named field first, then a sentence in the letter,
+    // then the subject line. The setting is added when the care named does
+    // not already say it, e.g. "Lumbar spinal fusion (Inpatient hospital)".
+    var service = named[0] || proseService(paras.join(" ")) || subject[0] || "";
+    var where = settings.filter(function (v) { return /inpatient|hospital|admission|acute/i.test(v); })[0] || settings[0] || "";
+    if (!service) service = where;
+    else if (where && !/inpatient|hospital|admission|admit/i.test(service)) service += " (" + where + ")";
+    out.service = service;
+
+    out.appealsAddress = findAppealsAddress(lines.map(function (l) { return l.trim(); }).join("\n"));
+
     // A plan the app knows, named anywhere in the notice.
     var known = (opts && opts.knownPlans) || [];
     var hay = squashAll(src);
     for (var k = 0; k < known.length; k++) {
       if (known[k] && hay.indexOf(squashAll(known[k])) !== -1) { out.planName = known[k]; break; }
     }
-    // Plan name fallback: an early line that looks like a plan name.
+    // Plan name fallback: an early line that looks like a plan name. This
+    // is a guess, so the app keeps a plan name the user already has.
     if (!out.planName) {
       for (var i = 0; i < Math.min(lines.length, 8); i++) {
         var l = lines[i].trim();
-        if (l && l.length < 90 && /\b(health|plan|insurance|care|fund|medicare|medicaid|benefits)\b/i.test(l) &&
-            l.indexOf(":") === -1 && !/notice|denial|dear/i.test(l)) { out.planName = l; break; }
+        if (l && l.length < 90 && /\bhealth|\b(plan|insurance|care|fund|medicare|medicaid|benefits)\b/i.test(l) &&
+            l.indexOf(":") === -1 && !/notice|denial|dear|department/i.test(l)) { out.planName = l; out.planGuessed = true; break; }
       }
     }
-    // Date fallback: first date in the first lines of the notice.
-    if (!out.noticeDate) out.noticeDate = findDate(lines.slice(0, 12).join("\n"));
+    // Date fallback: the first date near the top that is not a birth date
+    // or a date of service.
+    if (!out.noticeDate) {
+      var top = lines.slice(0, 15).filter(function (x) { return !NOT_NOTICE_DATE.test(x); });
+      for (var j = 0; j < top.length && !out.noticeDate; j++) out.noticeDate = findDate(top[j]);
+    }
     return out;
   }
 

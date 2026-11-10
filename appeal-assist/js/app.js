@@ -50,7 +50,12 @@
       letterEdited: false,
       reviewed: false,
       fills: [],
-      deferred: []
+      deferred: [],
+      // Appeals address read from a notice file, so it can be marked and
+      // cleared again. Empty once the user types their own.
+      addressFromNotice: "",
+      // Notice details changed after the user edited the letter by hand.
+      letterStale: false
     };
   }
 
@@ -373,6 +378,36 @@
       sel.appendChild(el("option", { value: s.id }, "Example " + (i + 1) + ": " + (s.planName || "notice with missing details")));
     });
     DETAIL_FIELDS.forEach(function (f) { $("#" + f).value = S.details[f] || ""; });
+    checkNoticeDate();
+  }
+
+  // A notice date far in the past or in the future is usually a misread
+  // or a typing slip, and it drives the deadline shown on the next step.
+  function checkNoticeDate() {
+    var box = $("#noticeDate-warn");
+    var v = S.details.noticeDate;
+    var msg = "";
+    if (/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+      var days = Math.round((new Date(todayIso() + "T00:00:00Z") - new Date(v + "T00:00:00Z")) / 86400000);
+      if (days < 0) msg = "This date is in the future. Check it against the date printed on your notice.";
+      else if (days > 365) msg = "This date is more than a year ago. Check it is the date of the notice, not a birth date or a date of service.";
+    }
+    box.textContent = msg;
+    box.hidden = !msg;
+  }
+
+  // A new notice replaces the old one, so a letter written from the old
+  // details is dropped and written again on the letter step.
+  function resetLetter() {
+    var had = Boolean(S.letter && S.letterEdited);
+    S.letter = "";
+    S.letterSource = "";
+    S.letterEdited = false;
+    S.letterStale = false;
+    S.reviewed = false;
+    S.fills = [];
+    S.deferred = [];
+    return had;
   }
 
   function renderGuide() {
@@ -593,6 +628,16 @@
     $("#clinician").disabled = S.clinician.unsure;
     if (!S.letter || !S.letterEdited) writeLetter();
     $("#letter").value = S.letter;
+    markAddress();
+    if (S.letterStale) setStatus("#letter-status", "You changed the notice details after editing this letter. Press Write my letter to use the new details. That replaces your edits.");
+  }
+
+  function markAddress() {
+    var fromNotice = Boolean(S.addressFromNotice && S.sender.appealsAddress === S.addressFromNotice);
+    $("#s-appealsAddress").classList.toggle("filled", fromNotice);
+    $("#s-appealsAddress-hint").textContent = fromNotice
+      ? "Read from your notice file. Check it against the notice."
+      : "Where your notice says to send the appeal.";
   }
 
   function writeLetter() {
@@ -606,6 +651,7 @@
     });
     S.deferred = [];
     S.letterSource = "composer";
+    S.letterStale = false;
     S.letterEdited = false;
     S.reviewed = false;
     $("#letter").value = S.letter;
@@ -824,7 +870,13 @@
         cleared++;
       }
     });
-    if (cleared) save();
+    if (S.addressFromNotice && S.sender.appealsAddress === S.addressFromNotice) {
+      S.sender.appealsAddress = "";
+      cleared++;
+    }
+    S.addressFromNotice = "";
+    if (cleared) { resetLetter(); save(); }
+    checkNoticeDate();
     $("#notice-file").value = "";
     pickFile(null);
     setStatus("#read-status", cleared
@@ -844,6 +896,10 @@
       DETAIL_FIELDS.forEach(function (f) {
         var input = $("#" + f);
         input.classList.remove("filled");
+        // A letterhead guess such as "Healthfirst" never replaces a fuller
+        // plan name already in the field.
+        if (f === "planName" && out.planGuessed && out[f] &&
+            S.details.planName.toLowerCase().indexOf(out[f].toLowerCase()) !== -1) return;
         if (out[f]) {
           S.details[f] = out[f];
           input.value = out[f];
@@ -851,10 +907,19 @@
           filled.push(f);
         }
       });
+      // The appeals address goes to the letter step, unless the user
+      // already typed their own there.
+      var typedOwn = S.sender.appealsAddress && S.sender.appealsAddress !== S.addressFromNotice;
+      var address = typedOwn ? "" : (out.appealsAddress || "").replace(/[\[\]]/g, "");
+      if (!typedOwn) S.sender.appealsAddress = S.addressFromNotice = address;
+      var rewrote = filled.length || address ? resetLetter() : false;
+      checkNoticeDate();
       save();
       setStatus("#read-status", filled.length
         ? "Filled " + filled.length + " of 5 fields, outlined in green. Check each one against your notice." +
-          (filled.length < 5 ? " Type anything still blank." : "")
+          (filled.length < 5 ? " Type anything still blank." : "") +
+          (address ? " Also found the appeals address. It is filled in on the letter step." : "") +
+          (rewrote ? " Your letter will be written again from these details." : "")
         : "Could not find the details in that file. Type them below.", !filled.length);
     }, function (e) {
       if (file !== noticeFile) return;
@@ -914,6 +979,8 @@
       $("#" + f).addEventListener("input", function (e) {
         S.details[f] = e.target.value;
         e.target.classList.remove("filled");
+        if (S.letter && S.letterEdited) S.letterStale = true;
+        if (f === "noticeDate") checkNoticeDate();
         save();
       });
     });
@@ -951,6 +1018,9 @@
       var s = Samples.filter(function (x) { return x.id === id; })[0];
       if (!s) return;
       DETAIL_FIELDS.forEach(function (f) { S.details[f] = s[f] || ""; $("#" + f).classList.remove("filled"); });
+      if (S.addressFromNotice && S.sender.appealsAddress === S.addressFromNotice) S.sender.appealsAddress = "";
+      S.addressFromNotice = "";
+      resetLetter();
       renderNotice();
       $("#sample").value = id;
       save();
@@ -962,6 +1032,7 @@
       $("#s-" + f).addEventListener("input", function (e) {
         S.sender[f] = e.target.value.replace(/[\[\]]/g, "");
         if (e.target.value !== S.sender[f]) e.target.value = S.sender[f];
+        if (f === "appealsAddress") { S.addressFromNotice = ""; markAddress(); }
         if (!S.letterEdited) writeLetter(); else save();
       });
     });

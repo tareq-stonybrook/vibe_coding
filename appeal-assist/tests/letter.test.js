@@ -161,7 +161,7 @@ test("reader: free form notice", () => {
 
 test("reader: nothing found stays blank", () => {
   const out = Reader.parseNoticeText("hello there\nnothing useful");
-  assert.deepEqual(out, { planName: "", service: "", noticeDate: "", reason: "", instructions: "" });
+  assert.deepEqual(out, { planName: "", service: "", noticeDate: "", reason: "", instructions: "", appealsAddress: "", planGuessed: false });
 });
 
 test("composer: personal details are placeholders only", () => {
@@ -394,4 +394,92 @@ test("reader: phone lines under a service label never fill the service field", (
   });
   const only = Reader.parseNoticeText("Some Health Plan\nService: Call 1-888-250-2220");
   assert.equal(only.service, "");
+});
+
+// Fictional notices written the ways testers wrote theirs (November 2026
+// feedback): a plain letter, a table of labels, and labels on their own line.
+const KNOWN = { knownPlans: ["Healthfirst Silver Leaf Plan"] };
+const LETTER_NOTICE = [
+  "Healthfirst", "100 Example Street", "New York, NY 10007", "", "October 20, 2026", "",
+  "Jane Sample", "12 Example Road", "Brooklyn, NY 11201", "",
+  "Member ID: XX0000000", "Date of Birth: 01/01/1970", "Reference Number: 000-EXAMPLE", "",
+  "Dear Jane Sample:", "",
+  "We received a request from Dr. A. Example for a planned inpatient admission for total knee replacement surgery at Example Hospital. After review, we have denied this request because it is not medically necessary.", "",
+  "Why did we deny this request?",
+  "The records do not show that you need to be admitted to the hospital. This surgery can be safely done in an outpatient setting.", "",
+  "What can you do if you disagree?",
+  "You have 180 calendar days to ask for an internal appeal. Call Member Services at 1-888-250-2220, or mail your appeal to:",
+  "Healthfirst Appeals Department", "P.O. Box 0000", "New York, NY 10274", "",
+  "If you have questions, call Member Services at 1-888-250-2220.", "", "Sincerely,", "Medical Management"
+].join("\n");
+
+test("reader: plain letter notice, service named in a sentence", () => {
+  const out = Reader.parseNoticeText(LETTER_NOTICE, KNOWN);
+  assert.equal(out.service, "Planned inpatient admission for total knee replacement surgery");
+  assert.equal(out.noticeDate, "2026-10-20", "not the birth date");
+  assert.ok(out.reason.startsWith("The records do not show") && out.reason.endsWith("outpatient setting."), out.reason);
+  assert.ok(out.instructions.startsWith("You have 180 calendar days") && out.instructions.endsWith("New York, NY 10274"), out.instructions);
+  assert.equal(out.appealsAddress, "Healthfirst Appeals Department, P.O. Box 0000, New York, NY 10274");
+  assert.equal(out.planName, "Healthfirst");
+  assert.equal(out.planGuessed, true, "letterhead plan name is marked as a guess");
+});
+
+test("reader: letter with no headings at all", () => {
+  const out = Reader.parseNoticeText([
+    "Healthfirst Silver Leaf Plan", "Customer Service 1-888-250-2220", "", "Date: November 2, 2026",
+    "Re: Notice of Denial of Medical Coverage", "", "Dear Member,", "",
+    "This letter is to tell you that your request for inpatient hospital admission for chemotherapy has been denied.", "",
+    "We denied this service because the information provided does not show that inpatient care is needed.", "",
+    "You can appeal this decision. To file an appeal, call 1-888-250-2220 or write to Healthfirst Appeals Department, PO Box 0000, New York, NY 10274 within 180 days.", "",
+    "Sincerely,", "Healthfirst"].join("\n"), KNOWN);
+  assert.equal(out.service, "Inpatient hospital admission for chemotherapy", "not the notice title on the Re line");
+  assert.equal(out.reason, "We denied this service because the information provided does not show that inpatient care is needed.");
+  assert.ok(out.instructions.startsWith("You can appeal this decision."), out.instructions);
+  assert.equal(out.appealsAddress, "Healthfirst Appeals Department, PO Box 0000, New York, NY 10274");
+  assert.equal(out.planGuessed, false);
+});
+
+test("reader: service setting labels", () => {
+  const table = Reader.parseNoticeText([
+    "HEALTHFIRST SILVER LEAF PLAN", "INITIAL ADVERSE DETERMINATION", "Notice Date: 10/22/2026", "DOB: 01/01/2019",
+    "Member Services: 1-888-250-2220", "Service Type: Inpatient", "Place of Service: Inpatient Hospital",
+    "Service Description: Elective inpatient admission for", "laparoscopic cholecystectomy",
+    "Dates of Service: 11/15/2026 to 11/17/2026", "Decision: Denied",
+    "Denial Reason: Not medically necessary.", "APPEAL RIGHTS", "Call 1-888-250-2220.",
+    "Mail written appeals to: Healthfirst, Appeals and Grievances, P.O. Box 0000, New York, NY 10274-0000"].join("\n"), KNOWN);
+  assert.equal(table.service, "Elective inpatient admission for laparoscopic cholecystectomy", "wrapped value joined");
+  assert.equal(table.noticeDate, "2026-10-22");
+  assert.equal(table.reason, "Not medically necessary.");
+  assert.equal(table.appealsAddress, "Healthfirst, Appeals and Grievances, P.O. Box 0000, New York, NY 10274-0000");
+  // The procedure does not say where, so the setting is added to it.
+  const proc = Reader.parseNoticeText("Some Health Plan\nDate of Notice: November 1, 2026\nService Setting: Inpatient hospital\nProcedure: Lumbar spinal fusion\nReason for Denial: Not needed.");
+  assert.equal(proc.service, "Lumbar spinal fusion (Inpatient hospital)");
+  // Only a setting is given.
+  assert.equal(Reader.parseNoticeText("Some Health Plan\nLevel of Care: Inpatient admission\nReason: Not needed.").service, "Inpatient admission");
+});
+
+test("reader: label on one line, value on the next", () => {
+  const out = Reader.parseNoticeText([
+    "Healthfirst Silver Leaf Plan", "Notice of Adverse Benefit Determination", "Date of notice", "October 30, 2026",
+    "Inpatient service denied", "Planned inpatient admission for hip replacement surgery",
+    "Why we denied it", "Inpatient care is not medically necessary.", "How to appeal", "Call Appeals at 888-250-2220."].join("\n"), KNOWN);
+  assert.equal(out.noticeDate, "2026-10-30");
+  assert.equal(out.service, "Planned inpatient admission for hip replacement surgery");
+  assert.equal(out.reason, "Inpatient care is not medically necessary.");
+  assert.equal(out.instructions, "Call Appeals at 888-250-2220.");
+  assert.equal(out.appealsAddress, "");
+});
+
+test("reader: phone number under the service label falls back to the sentence", () => {
+  const out = Reader.parseNoticeText("Some Health Plan\nInpatient Service Denied: 1-888-250-2220\nWe have denied coverage for your planned inpatient admission for hysterectomy.\nReason: Not medically necessary.");
+  assert.equal(out.service, "Planned inpatient admission for hysterectomy");
+});
+
+test("reader: dates in other formats, and no address without a ZIP code", () => {
+  assert.equal(Reader.findDate("Oct 5, 2026"), "2026-10-05");
+  assert.equal(Reader.findDate("5 October 2026"), "2026-10-05");
+  assert.equal(Reader.findDate("10/05/26"), "2026-10-05");
+  assert.equal(Reader.findDate("October 5, 2026 and 01/01/1970"), "2026-10-05", "first date wins");
+  assert.equal(Reader.parseNoticeText("Some Health Plan\nHow to appeal:\nWrite to the Appeals Unit, PO Box 100, Albany NY.").appealsAddress, "");
+  assert.equal(Reader.parseNoticeText("Some Health Plan\n\nJane Sample\n1 Example Road\nAlbany, NY 12201\n\nYou may appeal.").appealsAddress, "", "member address is never used");
 });

@@ -355,6 +355,71 @@ async function runUpload() {
   const shared = await page3.evaluate(() => window.__shared);
   check("download: iPhone opens share sheet with the Word file inside the tap", shared.length === 1 && shared[0].name === "appeal-letter-draft.docx" && shared[0].size > 1000 && shared[0].active !== false, JSON.stringify(shared));
   await page3.close();
+
+  // A fictional notice written as a plain letter, the way testers wrote
+  // theirs: service in a sentence, question headings, address block.
+  const page4 = await ctx.newPage();
+  page4.on("pageerror", (e) => errors.push(e.message));
+  await page4.goto(url);
+  await page4.evaluate(() => localStorage.clear());
+  await page4.reload();
+  await page4.check("#ack");
+  await page4.click("section[data-step='0'] [data-next]");
+  await page4.selectOption("#state", "NY");
+  await page4.check("#pt-aca");
+  await page4.selectOption("#plan", "healthfirst-silver-leaf");
+  await page4.click("section[data-step='1'] [data-next]");
+  await page4.click("#upload-tile summary");
+  const letterNotice = [
+    "Healthfirst", "100 Example Street", "New York, NY 10007", "", "October 20, 2026", "",
+    "Jane Sample", "12 Example Road", "Brooklyn, NY 11201", "", "Date of Birth: 01/01/1970", "Customer Service: 1-888-250-2220", "",
+    "Dear Jane Sample:", "",
+    "We received a request from Dr. A. Example for a planned inpatient admission for total knee replacement surgery at Example Hospital. After review, we have denied this request.", "",
+    "Why did we deny this request?", "This surgery can be safely done in an outpatient setting.", "",
+    "What can you do if you disagree?", "Call Member Services at 1-888-250-2220, or mail your appeal to:",
+    "Healthfirst Appeals Department", "P.O. Box 0000", "New York, NY 10274", "", "Sincerely,", "Medical Management"].join("\n");
+  const readLetter = async (text) => {
+    await page4.setInputFiles("#notice-file", { name: "letter.txt", mimeType: "text/plain", buffer: Buffer.from(text) });
+    await page4.click("#synthetic-ok");
+    await page4.click("#read-notice");
+  };
+  await readLetter(letterNotice);
+  await page4.waitForFunction(() => document.querySelector("#read-status").textContent.includes("Filled"));
+  check("letter notice: service read from the sentence, not a phone number",
+    (await page4.inputValue("#service")) === "Planned inpatient admission for total knee replacement surgery");
+  check("letter notice: notice date, not the birth date", (await page4.inputValue("#noticeDate")) === "2026-10-20" && (await page4.isHidden("#noticeDate-warn")));
+  check("letter notice: fuller plan name kept over the letterhead", (await page4.inputValue("#planName")) === "Healthfirst Silver Leaf Plan");
+  check("letter notice: status mentions the appeals address", (await page4.textContent("#read-status")).includes("Also found the appeals address"));
+  await page4.fill("#noticeDate", "2019-01-01");
+  check("letter notice: old date gets a warning", (await page4.textContent("#noticeDate-warn")).includes("more than a year ago"));
+  await page4.fill("#noticeDate", "2026-10-20");
+  for (const st of [2, 3, 4]) await page4.click(`section[data-step='${st}'] [data-next]`);
+  const addr = "Healthfirst Appeals Department, P.O. Box 0000, New York, NY 10274";
+  check("letter notice: appeals address filled in letter details", (await page4.inputValue("#s-appealsAddress")) === addr &&
+    (await page4.textContent("#s-appealsAddress-hint")).includes("Read from your notice file"));
+  const lv = await page4.inputValue("#letter");
+  check("letter notice: letter carries the address, service, date and reason", lv.includes("Appeals address: " + addr) &&
+    lv.includes("Re: Appeal of denial for Planned inpatient admission for total knee replacement surgery") &&
+    lv.includes("Date of denial notice: October 20, 2026") && lv.includes("\"This surgery can be safely done in an outpatient setting.\""));
+  await page4.screenshot({ path: path.join(outDir, "letter-notice-draft.png"), fullPage: true });
+  // Edit the letter by hand, then read a different notice. The letter must follow the new notice.
+  await page4.fill("#letter", lv + "\nmy own edit");
+  for (const st of [5, 4, 3]) await page4.click(`section[data-step='${st}'] [data-back]`);
+  await readLetter(letterNotice.replace("total knee replacement surgery", "hip replacement surgery").replace("P.O. Box 0000", "P.O. Box 1111"));
+  await page4.waitForFunction(() => document.querySelector("#service").value.includes("hip replacement"));
+  check("letter notice: second upload says the letter is rewritten", (await page4.textContent("#read-status")).includes("written again"));
+  for (const st of [2, 3, 4]) await page4.click(`section[data-step='${st}'] [data-next]`);
+  const lv2 = await page4.inputValue("#letter");
+  check("letter notice: letter follows the newly read notice", lv2.includes("hip replacement surgery") && lv2.includes("P.O. Box 1111") &&
+    !lv2.includes("knee") && !lv2.includes("my own edit"));
+  // Typed change after a hand edit: the edit is kept and the user is told.
+  await page4.fill("#letter", lv2 + "\nmy own edit");
+  for (const st of [5, 4, 3]) await page4.click(`section[data-step='${st}'] [data-back]`);
+  await page4.fill("#service", "Planned inpatient admission for spine surgery");
+  for (const st of [2, 3, 4]) await page4.click(`section[data-step='${st}'] [data-next]`);
+  check("letter notice: typed change after an edit keeps the edit and says so", (await page4.inputValue("#letter")).includes("my own edit") &&
+    (await page4.textContent("#letter-status")).includes("changed the notice details"));
+  await page4.close();
   check("upload: no page errors", errors.length === 0, errors.join("; "));
   await browser.close();
 }
