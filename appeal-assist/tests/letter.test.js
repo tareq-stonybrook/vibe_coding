@@ -483,3 +483,44 @@ test("reader: dates in other formats, and no address without a ZIP code", () => 
   assert.equal(Reader.parseNoticeText("Some Health Plan\nHow to appeal:\nWrite to the Appeals Unit, PO Box 100, Albany NY.").appealsAddress, "");
   assert.equal(Reader.parseNoticeText("Some Health Plan\n\nJane Sample\n1 Example Road\nAlbany, NY 12201\n\nYou may appeal.").appealsAddress, "", "member address is never used");
 });
+
+// A tester's fictional PDF notice (November 10, 2026 report): a title line
+// with the word "Services", a body sentence under it, a label inside
+// brackets, and words split at "fi". The service once read "Healthfirst has
+// reviewed the prior authorization request ... Based on (Medically Necessary))".
+const PDF_NOTICE = [
+  "HEALTH INSURANCE PLAN, INC. | NY STATE OF HEALTH MARKETPLACE", "NOTICE OF ADVERSE DETERMINATION",
+  "Date of Notice: October 27, 2026", "Member Name: Jane Sample", "Denial of Inpatient Hospital Services",
+  "Healthfirst has reviewed the prior authorization request submitted by your provider on October 22, 2026. Based on",
+  "the clinical information received, the request below is not approved.",
+  "Determination (Level of Care: Not", "Medically Necessary)",
+  "Reason for Adverse Determination: Your spine surgeon requested prior approval for a 3-",
+  "day acute care inpatient hospital admission following a planned single-level",
+  "lumbar spine fusion (L4-L5). While single-level lumbar fusion is a covered bene fi t",
+  "under your Health fi rst Silver Leaf Plan when criteria are met, the fi rst review found it is NOT medically",
+  "necessary.",
+  "YOUR RIGHT TO APPEAL", "You may ask for an internal appeal within 180 calendar days. Call 888-250-2220 or write to:",
+  "Healthfirst Appeals Department", "P.O. Box 0000", "New York, NY 10274", "Sincerely,", "Utilization Management"];
+
+test("reader: PDF notice with a title line, bracket label and split words", () => {
+  const SERVICE = "3-day acute care inpatient hospital admission following a planned single-level lumbar spine fusion (L4-L5)";
+  // As lines, as one run of text with no line breaks, and part way between.
+  const shapes = { lines: PDF_NOTICE.join("\n"), flat: PDF_NOTICE.join(" "), mixed: PDF_NOTICE.slice(0, 5).join("\n") + "\n" + PDF_NOTICE.slice(5).join(" ") };
+  for (const [name, text] of Object.entries(shapes)) {
+    const out = Reader.parseNoticeText(text, KNOWN);
+    assert.equal(out.service, SERVICE, name);
+    assert.equal(out.noticeDate, "2026-10-27", name);
+    assert.ok(out.reason.startsWith("Your spine surgeon requested prior approval for a 3-day acute care"), name + ": " + out.reason);
+    assert.ok(out.reason.includes("covered benefit under your Healthfirst Silver Leaf Plan"), name + ": split words joined");
+    assert.ok(out.reason.includes("the first review"), name + ": a real space is kept");
+    assert.ok(out.reason.endsWith("necessary."), name + ": " + out.reason);
+    assert.ok(out.instructions.startsWith("You may ask for an internal appeal") && out.instructions.endsWith("NY 10274"), name + ": " + out.instructions);
+    assert.match(out.appealsAddress, /^Healthfirst Appeals Department,? P\.O\. Box 0000,? New York, NY 10274$/, name);
+  }
+});
+
+test("reader: a sentence or a half bracket is never the service", () => {
+  const out = Reader.parseNoticeText("Some Health Plan\nSERVICE DENIED\nWe have reviewed the request sent by your provider. Based on\nReason: Not needed.");
+  assert.equal(out.service, "");
+  assert.equal(Reader.parseNoticeText("Some Health Plan\nDecision (Level of Care: Not\nMedically Necessary)\nReason: Not needed.").service, "");
+});

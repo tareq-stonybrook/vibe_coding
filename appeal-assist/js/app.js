@@ -54,6 +54,9 @@
       // Appeals address read from a notice file, so it can be marked and
       // cleared again. Empty once the user types their own.
       addressFromNotice: "",
+      // Notice details that came from an example or a file, not typed.
+      // A newly read file replaces these, even with a blank.
+      autoDetails: {},
       // Notice details changed after the user edited the letter by hand.
       letterStale: false
     };
@@ -892,7 +895,8 @@
     setStatus("#read-status", "Reading your notice.");
     Reader.readFile(file, { knownPlans: knownPlanLabels() }).then(function (out) {
       if (file !== noticeFile) return; // removed or replaced while reading
-      var filled = [];
+      var filled = [], stale = 0;
+      if (!S.autoDetails || typeof S.autoDetails !== "object") S.autoDetails = {};
       DETAIL_FIELDS.forEach(function (f) {
         var input = $("#" + f);
         input.classList.remove("filled");
@@ -905,6 +909,13 @@
           input.value = out[f];
           input.classList.add("filled");
           filled.push(f);
+          S.autoDetails[f] = out[f];
+        } else if (S.details[f] && S.autoDetails[f] === S.details[f] && f !== "planName") {
+          // Left over from an example or an earlier file. It is not in
+          // this notice, so it must not carry into this letter.
+          S.details[f] = "";
+          input.value = "";
+          stale++;
         }
       });
       // The appeals address goes to the letter step, unless the user
@@ -912,12 +923,13 @@
       var typedOwn = S.sender.appealsAddress && S.sender.appealsAddress !== S.addressFromNotice;
       var address = typedOwn ? "" : (out.appealsAddress || "").replace(/[\[\]]/g, "");
       if (!typedOwn) S.sender.appealsAddress = S.addressFromNotice = address;
-      var rewrote = filled.length || address ? resetLetter() : false;
+      var rewrote = filled.length || address || stale ? resetLetter() : false;
       checkNoticeDate();
       save();
       setStatus("#read-status", filled.length
         ? "Filled " + filled.length + " of 5 fields, outlined in green. Check each one against your notice." +
           (filled.length < 5 ? " Type anything still blank." : "") +
+          (stale ? " Cleared " + stale + (stale === 1 ? " detail" : " details") + " left from the earlier notice." : "") +
           (address ? " Also found the appeals address. It is filled in on the letter step." : "") +
           (rewrote ? " Your letter will be written again from these details." : "")
         : "Could not find the details in that file. Type them below.", !filled.length);
@@ -1017,7 +1029,8 @@
       var id = $("#sample").value;
       var s = Samples.filter(function (x) { return x.id === id; })[0];
       if (!s) return;
-      DETAIL_FIELDS.forEach(function (f) { S.details[f] = s[f] || ""; $("#" + f).classList.remove("filled"); });
+      S.autoDetails = {};
+      DETAIL_FIELDS.forEach(function (f) { S.details[f] = s[f] || ""; S.autoDetails[f] = S.details[f]; $("#" + f).classList.remove("filled"); });
       if (S.addressFromNotice && S.sender.appealsAddress === S.addressFromNotice) S.sender.appealsAddress = "";
       S.addressFromNotice = "";
       resetLetter();

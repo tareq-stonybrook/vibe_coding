@@ -412,8 +412,17 @@ async function runUpload() {
   const lv2 = await page4.inputValue("#letter");
   check("letter notice: letter follows the newly read notice", lv2.includes("hip replacement surgery") && lv2.includes("P.O. Box 1111") &&
     !lv2.includes("knee") && !lv2.includes("my own edit"));
+  // An example, then a file that lacks a field: the example's value must not stay.
+  for (const st of [5, 4, 3]) await page4.click(`section[data-step='${st}'] [data-back]`);
+  await page4.click("#load-sample");
+  const exampleInstr = await page4.inputValue("#instructions");
+  await readLetter("Healthfirst Silver Leaf Plan\nDate of Notice: October 27, 2026\nRequested Service: Planned inpatient admission for hip replacement surgery\nReason for Denial: Not medically necessary.");
+  await page4.waitForFunction(() => document.querySelector("#read-status").textContent.includes("Filled 4 of 5"));
+  check("letter notice: field missing from the file is cleared, not left from the example", exampleInstr.length > 0 &&
+    (await page4.inputValue("#instructions")) === "" && (await page4.textContent("#read-status")).includes("Cleared 1 detail"));
+  for (const st of [2, 3, 4]) await page4.click(`section[data-step='${st}'] [data-next]`);
   // Typed change after a hand edit: the edit is kept and the user is told.
-  await page4.fill("#letter", lv2 + "\nmy own edit");
+  await page4.fill("#letter", (await page4.inputValue("#letter")) + "\nmy own edit");
   for (const st of [5, 4, 3]) await page4.click(`section[data-step='${st}'] [data-back]`);
   await page4.fill("#service", "Planned inpatient admission for spine surgery");
   for (const st of [2, 3, 4]) await page4.click(`section[data-step='${st}'] [data-next]`);

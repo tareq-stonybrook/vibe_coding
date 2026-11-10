@@ -79,6 +79,10 @@
     if (/\(?\b\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}\b|@|https?:|www\./i.test(s)) return false;
     if (/^(denied|denial|not approved|not covered|n\/?a|none|yes|no|see (below|above|attached))\b/i.test(s)) return false;
     if (/notice of|adverse (benefit )?determination|denial of|your (appeal|rights?)\b/i.test(s)) return false;
+    // A sentence from the body of the letter is not a service name.
+    if (s.length > 140 || /[.!?]\s+[A-Z]/.test(s) || /^(we|you|this letter|based on)\b/i.test(s)) return false;
+    if (/\b(has|have|had) (reviewed|received|determined|decided|denied|completed)\b/i.test(s)) return false;
+    if ((s.match(/\(/g) || []).length !== (s.match(/\)/g) || []).length) return false;
     return /[A-Za-z]{3,}/.test(s);
   }
 
@@ -90,23 +94,28 @@
   // Case or plain words that names a field. ctx says what came before it.
   function headingOf(line, ctx) {
     var m = line.match(/^([A-Za-z][A-Za-z ,'()\/&-]{0,60}?)\s*:\s*(.*)$/);
-    if (m && m[1].split(/\s+/).length <= 7) return { label: m[1], rest: m[2].trim() };
+    // "Decision (Level of Care: Not Necessary)" is not a label and a value.
+    var open = m && (m[1].match(/\(/g) || []).length !== (m[1].match(/\)/g) || []).length;
+    if (m && !open && m[1].split(/\s+/).length <= 7) return { label: m[1], rest: m[2].trim() };
     var count = line.split(/\s+/).length;
     if (/\?$/.test(line) && count <= 12 && /^(reason|instructions)$/.test(classify(line))) return { label: line, rest: "" };
     if (line.length > 70 || /[.,;?]$/.test(line) || count > 9) return null;
     // The line after "mail your appeal to:" is the address, not a heading.
     if ((ctx && ctx.afterColon) || ADDRESS_WORD.test(line)) return null;
     var letters = line.replace(/[^A-Za-z]/g, "");
-    if (letters.length >= 4 && letters === letters.toUpperCase()) return { label: line, rest: "" };
     var kind = classify(line);
+    // A title such as "Denial of Inpatient Hospital Services" names no
+    // field. Only a line like "Service Denied" waits for a value below it.
+    var title = (kind === "service" || kind === "setting") && !/denied|requested|description|^services?$|^procedure$|setting|level of care/i.test(line);
+    if (letters.length >= 4 && letters === letters.toUpperCase()) return { label: line, rest: "", title: title };
     if (kind === "other") return null;
     var words = line.split(/\s+/).filter(function (w) { return /^[A-Za-z]{4,}/.test(w); });
     var caps = words.filter(function (w) { return /^[A-Z]/.test(w); });
-    if (words.length && caps.length / words.length >= 0.6) return { label: line, rest: "" };
+    if (words.length && caps.length / words.length >= 0.6) return { label: line, rest: "", title: title };
     // Plain words such as "Why we denied it" or "Date of notice", but only
     // at the start of a block, so a wrapped line of a paragraph never counts.
     if (/^[A-Z]/.test(line) && count <= 7 && (!ctx || ctx.fresh)) {
-      if (kind === "service" && !/denied|requested|description|^services?$|^procedure$/i.test(line)) return null;
+      if (title) return null;
       return { label: line, rest: "", plain: true };
     }
     return null;
@@ -131,7 +140,8 @@
   var SVC_END = "(?=\\s+(?:has|have|had|was|is|are|were|cannot|could|will|would|did|does)\\b|\\s+because\\b|\\s+at\\s+[A-Z]|\\s+on\\s+\\d|\\s+on\\s+[A-Z][a-z]+\\s+\\d|\\s+from\\s|\\s+by\\s|\\s+(?:requested|ordered|that|which)\\b|[.,;:]|$)";
   var SVC_PATTERNS = [
     "\\brequest(?:ed|ing)?(?:\\s+from\\s+.{1,60}?)?(?:\\s+(?:prior\\s+|pre-?)?(?:authorization|approval|coverage))?\\s+(?:for|of)\\s+(.+?)" + SVC_END,
-    "\\b(?:denied|deny|denying|denial of|not approved?|cannot approve|unable to approve|will not cover|cannot cover)\\s+(?:(?:coverage|payment|authorization|approval|the request|your request)\\s+(?:for|of)\\s+)?(.+?)" + SVC_END,
+    "\\b(?:denied|deny|denying|not approved?|cannot approve|unable to approve|will not cover|cannot cover)\\s+(?:(?:coverage|payment|authorization|approval|the request|your request)\\s+(?:for|of)\\s+)?(.+?)" + SVC_END,
+    "\\bdenial of\\s+(?:coverage|payment|authorization|approval|the request|your request)\\s+(?:for|of)\\s+(.+?)" + SVC_END,
     "\\b(?:coverage|authorization|approval|payment)\\s+(?:for|of)\\s+(.+?)" + SVC_END
   ];
 
@@ -153,13 +163,56 @@
     return "";
   }
 
+  // PDFs often split a word at an "fi" or "fl" ligature: "bene fi t",
+  // "Health fi rst". Join the pieces again. "the fi rst" keeps its space.
+  var WHOLE_WORD = /^(a|an|the|of|in|on|at|to|by|for|from|with|and|or|but|if|as|is|are|was|were|be|been|not|no|any|all|this|that|these|those|your|our|my|his|her|its|their|we|you|it|will|can|may|must|should|has|have|had|within|after|before|during|per|each|every|one|two|three|four|five|six|new|next|last|more|into|than|then|also)$/i;
+  var STARTS_WORD = /^(first|final|finally|file|filed|files|filing|fill|filled|find|finding|findings|fine|finish|fiscal|fit|five|fix|fixed|field|fifth|fifteen|fifty|figure|financial|finance|flat|flexible|floor|flow|fluid|flu|fly|flag|flare)$/i;
+  function fixLigatures(t) {
+    return t.replace(/([A-Za-z]+) (ffi|ffl|fi|fl|ff) ([a-z]+)/g, function (m, left, lig, right) {
+      return WHOLE_WORD.test(left) && STARTS_WORD.test(lig + right) ? left + " " + lig + right : left + lig + right;
+    }).replace(/(^|[^A-Za-z])(ffi|ffl|fi|fl|ff) ([a-z]+)/g, "$1$2$3")
+      // "3- day" from a line that wrapped at the hyphen.
+      .replace(/(\d)- ([a-z])/g, "$1-$2");
+  }
+
+  // A heading in the middle of a line, which happens when a PDF gives its
+  // text without the line breaks seen on the page. Put it on its own line.
+  function splitHeadings(line) {
+    if (line.length < 60) return [line];
+    var out = [], from = 0, m;
+    var re = /(^|[.!?)]\s+|\s)((?:[A-Z][A-Za-z\/&'-]*)(?: [A-Za-z\/&'-]+){0,5})(:\s|\s+(?=[A-Z][a-z]))/g;
+    while ((m = re.exec(line))) {
+      var words = m[2].split(" "), label = "";
+      // The shortest run of words before the colon that names a field.
+      for (var i = words.length - 1; i >= 0; i--) {
+        var tail = words.slice(i).join(" ");
+        if (/^[A-Z]/.test(tail) && /^(reason|instructions|date|service|setting)$/.test(classify(tail)) &&
+            classify(tail) === classify(m[2])) { label = tail; break; }
+      }
+      var colon = /:/.test(m[3]);
+      var caps = m[2].replace(/[^A-Za-z]/g, "");
+      // No colon: only a heading in capitals counts, such as "YOUR RIGHT TO APPEAL".
+      if (!colon && (caps.length < 8 || caps !== caps.toUpperCase() || classify(m[2]) === "other")) { re.lastIndex = m.index + 1; continue; }
+      if (!colon) label = m[2];
+      if (!label) { re.lastIndex = m.index + 1; continue; }
+      var at = m.index + m[0].length - m[3].length - label.length;
+      if (at <= from) continue;
+      out.push(line.slice(from, at).trim());
+      if (!colon) { out.push(label); from = at + label.length; }
+      else from = at;
+    }
+    out.push(line.slice(from).trim());
+    return out.filter(Boolean);
+  }
+
   function sentencesOf(t) { return t.split(/(?<=[.!?])\s+(?=[A-Z])/); }
 
   // A section with no heading. In a letter with blank lines between
   // paragraphs, the first paragraph that passes the test. Otherwise the
   // first sentence that passes, plus the ones after it up to a stop.
   function proseSection(paras, test, stop, skip) {
-    if (paras.length > 2) {
+    var short = paras.every(function (p) { return p.length <= 600; });
+    if (paras.length > 2 && short) {
       for (var i = 0; i < paras.length; i++) {
         if (paras[i] !== skip && test(paras[i])) {
           // "mail your appeal to:" carries on into the address block.
@@ -219,7 +272,11 @@
     var out = { planName: "", service: "", noticeDate: "", reason: "", instructions: "", appealsAddress: "", planGuessed: false };
     // NFKC turns ligature characters (the single "fi" glyph) back into letters.
     var src = String(text || "").normalize ? String(text || "").normalize("NFKC") : String(text || "");
-    var lines = src.replace(/\r/g, "").split("\n");
+    src = fixLigatures(src);
+    var lines = [];
+    src.replace(/\r/g, "").split("\n").forEach(function (l) {
+      if (!l.trim()) lines.push(l); else splitHeadings(l.trim()).forEach(function (x) { lines.push(x); });
+    });
     var cur = null;
     var MAX = 1500;
     var named = [], subject = [], settings = [];
@@ -227,7 +284,8 @@
     var last = null;      // the list a service value just went into
     var ctx = { fresh: true, afterColon: false };
     function finish() {
-      if (cur && !out[cur.kind]) out[cur.kind] = joinLines(cur.parts).slice(0, MAX).trim();
+      // The sign off is not part of the section.
+      if (cur && !out[cur.kind]) out[cur.kind] = joinLines(cur.parts).replace(/\s(Sincerely|Regards|Respectfully),?\s.*$/, "").slice(0, MAX).trim();
       cur = null;
     }
     function take(kind, label, value) {
@@ -267,7 +325,7 @@
         finish();
         if (/^(date|planName|service|setting)$/.test(kind)) {
           if (h.rest) take(kind, h.label, h.rest);
-          else pending = { kind: kind, label: h.label };
+          else if (!h.title) pending = { kind: kind, label: h.label };
         }
         return;
       }
@@ -299,7 +357,8 @@
     lines.forEach(function (raw) {
       var t = raw.trim();
       // "Label: value" lines and the greeting are not part of a paragraph.
-      var label = /^[A-Z][A-Za-z \/&'-]{0,40}:\s+\S/.test(t) || /^dear\b.{0,40}[:,]$/i.test(t);
+      var label = /^[A-Z][A-Za-z \/&'-]{0,40}:\s+\S/.test(t) || /^dear\b.{0,40}[:,]$/i.test(t) ||
+        Boolean(t && headingOf(t, { fresh: true }));
       if (t && !label) buf.push(t);
       else if (buf.length) { paras.push(joinLines(buf)); buf = []; }
     });
@@ -315,7 +374,7 @@
     // The denied care: a named field first, then a sentence in the letter,
     // then the subject line. The setting is added when the care named does
     // not already say it, e.g. "Lumbar spinal fusion (Inpatient hospital)".
-    var service = named[0] || proseService(paras.join(" ")) || subject[0] || "";
+    var service = named[0] || proseService(paras.join(" ")) || proseService(out.reason) || subject[0] || "";
     var where = settings.filter(function (v) { return /inpatient|hospital|admission|acute/i.test(v); })[0] || settings[0] || "";
     if (!service) service = where;
     else if (where && !/inpatient|hospital|admission|admit/i.test(service)) service += " (" + where + ")";
