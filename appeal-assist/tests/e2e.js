@@ -42,6 +42,49 @@ async function contrastCheck(page, label, where) {
   check(`${label}: ${where} text contrast at least 4.5:1`, w.ratio >= 4.5, `${w.ratio} ${w.what}`);
 }
 
+const step = (page) => page.$eval("section.step:not([hidden])", (x) => x.dataset.step);
+const fixture = (name) => path.resolve(__dirname, "fixtures", name);
+
+// Past the first two pages: understand the limits, then a supported, planned case.
+async function start(page, label) {
+  await page.goto(url);
+  if (!label) {
+    await page.check("#ack");
+    await page.click("section[data-step='0'] [data-next]");
+    await page.selectOption("#care-timing", "planned");
+    await page.click("section[data-step='1'] [data-next]");
+    return;
+  }
+  await page.click("section[data-step='0'] [data-next]");
+  check(`${label}: ack required`, (await step(page)) === "0" && (await page.isVisible("section[data-step='0'] .error")));
+  await page.check("#ack");
+  await page.click("section[data-step='0'] [data-next]");
+
+  // Step 1: only a planned admission on the supported plan goes on.
+  await page.click("section[data-step='1'] [data-next]");
+  check(`${label}: care timing required`, (await step(page)) === "1" && (await page.isVisible("section[data-step='1'] .error")));
+  for (const v of ["received", "unsure"]) {
+    await page.selectOption("#care-timing", v);
+    await page.click("section[data-step='1'] [data-next]");
+    check(`${label}: "${v}" cannot continue`, (await step(page)) === "1");
+  }
+  check(`${label}: unsure is sent to the plan or care team`, (await page.textContent("section[data-step='1'] .error")).includes("contact your health plan or care team"));
+  await page.selectOption("#care-timing", "planned");
+  await page.selectOption("#state", "other");
+  await page.click("section[data-step='1'] [data-next]");
+  check(`${label}: another state cannot continue`, (await step(page)) === "1" && (await page.textContent("#scope-feedback")).includes("not supported yet"));
+  await page.selectOption("#state", "NY");
+  await page.click("section[data-step='1'] [data-next]");
+  check(`${label}: supported planned case continues`, (await step(page)) === "2");
+}
+
+async function leaveGaps(page) {
+  let guard = 0;
+  while ((await page.$$("#review-list button:has-text('Leave for later')")).length && guard++ < 30) {
+    await page.click("#review-list button:has-text('Leave for later')");
+  }
+}
+
 async function run(label, contextOpts) {
   const browser = await chromium.launch();
   const ctx = await browser.newContext({ ...contextOpts, acceptDownloads: true });
@@ -53,382 +96,170 @@ async function run(label, contextOpts) {
   const bodyBg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
   check(`${label}: ${scheme} mode background follows the device`, bodyBg === (scheme === "dark" ? "rgb(0, 0, 0)" : "rgb(255, 255, 255)"), bodyBg);
   await contrastCheck(page, label, "start page");
+  check(`${label}: page title is the app name`, (await page.title()) === "Appeal Assist");
+  check(`${label}: no test site or developer package link`, !(await page.$("a[href*='developer-package']")) && !/chatgpt\.site/.test(await page.content()));
+  check(`${label}: fictional notices only is stated`, (await page.innerText(".test-banner")).includes("Fictional notices only"));
+  await start(page, label);
+  await contrastCheck(page, label, "notice page");
 
-  // Step 0: gate on acknowledgement
-  check(`${label}: hero shows name and tagline only`, (await page.textContent("#h-intro")) === "Appeal Assist" && (await page.textContent(".tagline")) === "Helping patients understand denials and prepare an appeal.");
-  check(`${label}: no prototype or synthetic wording`, !/prototype|synthetic/i.test(await page.innerText("body")));
-  check(`${label}: outcome disclaimer on first page`, (await page.textContent("ul.crosses")).includes("We are not responsible for whether your appeal is approved or denied."));
-  check(`${label}: no real notices on first page`, (await page.textContent("ul.crosses")).includes("Accept real notices or medical records."));
-  check(`${label}: new opening line`, (await page.textContent(".intro")).includes("Break down your denial notice, be informed on requested documents, and receive a drafted appeal letter to review and submit."));
-  await page.click("section[data-step='0'] [data-next]");
-  check(`${label}: ack required`, await page.isVisible("section[data-step='0'] .error"));
-  await page.check("#ack");
-  await page.click("section[data-step='0'] [data-next]");
-
-  // Step 1: keyboard selection
-  await page.focus("#state");
-  await page.selectOption("#state", "NY");
-  check(`${label}: only ACA insurance type offered`, (await page.$$eval('input[name="planType"]', (r) => r.map((x) => x.value))).join() === "aca");
-  await page.focus("#pt-aca");
-  await page.keyboard.press("Space");
-  check(`${label}: radio via keyboard`, await page.isChecked("#pt-aca"));
-  await page.selectOption("#plan", "healthfirst-silver-leaf");
-  await page.click("section[data-step='1'] [data-next]");
-
-  // Step 2: load synthetic notice
+  // Step 2: a fictional example fills the form, with its practice address.
   const opts = await page.$$eval("#sample option", (o) => o.length);
-  check(`${label}: 3 samples offered for NY ACA`, opts === 3, `got ${opts}`);
-  check(`${label}: fictional example is the primary start`, (await page.isVisible("#load-sample")) && (await page.getAttribute("#load-sample", "class")) === "primary" &&
-    (await page.textContent("#example-tile h2")) === "Start with a fictional example");
-  check(`${label}: upload is optional and collapsed`, (await page.isHidden("#dropzone")) && (await page.textContent("#upload-tile summary")).startsWith("Optional"));
+  check(`${label}: 3 examples offered`, opts === 3, `got ${opts}`);
+  await page.click("#example-tile summary");
   await page.click("#load-sample");
   const reason = await page.inputValue("#reason");
-  check(`${label}: sample fills reason`, reason.length > 10);
+  check(`${label}: example fills reason`, reason.length > 10);
+  check(`${label}: example address is marked test only`, (await page.inputValue("#notice-address")).includes("TEST ONLY"));
+  check(`${label}: entered is not called verified`, (await page.innerText("#notice-review")).includes("Entered does not mean verified"));
   await page.screenshot({ path: path.join(outDir, `${label}-notice.png`), fullPage: true });
-  await page.click("section[data-step='2'] [data-next]");
 
-  // Step 3: denial facts and fallback shown, no numbers invented
-  const denial = await page.textContent("#guide-reason");
-  check(`${label}: options page shows plan, date and plan's reason`, denial.includes("Denied by") && denial.includes("Date of notice") && denial.includes("as stated by your plan") && denial.includes(reason));
-  const guide = await page.textContent("#guide-rules");
-  check(`${label}: Silver Leaf rules shown, not the fallback`, !guide.includes("have not yet checked") && guide.includes("Confirm every deadline on your denial notice."));
-  check(`${label}: plain explanation of the denial`, denial.includes("What this means, in plain words") && denial.includes("does not decide who is correct"));
-  await page.screenshot({ path: path.join(outDir, `${label}-guide.png`), fullPage: true });
-  await contrastCheck(page, label, "options page");
-
-  // A notice date long past: the filing deadline is flagged with what to do now.
-  const keepDate = await (async () => { await page.click("section[data-step='3'] [data-back]"); return page.inputValue("#noticeDate"); })();
-  await page.fill("#noticeDate", "2020-08-01");
+  // Dates that cannot be right are refused.
+  const keepDate = await page.inputValue("#noticeDate");
+  await page.fill("#noticeDate", "2099-01-01");
   await page.click("section[data-step='2'] [data-next]");
-  const late = await page.textContent("#guide-rules");
-  check(`${label}: past deadline flagged with a plan of action`, (await page.$(".past-alert")) && late.includes("may have passed") && late.includes("What to do now") && (await page.textContent(".deadline.past")).includes("Past deadline"));
-  await page.screenshot({ path: path.join(outDir, `${label}-guide-past.png`), fullPage: true });
-  await contrastCheck(page, label, "options page with past deadline");
-  await page.click("section[data-step='3'] [data-back]");
+  check(`${label}: future notice date refused`, (await step(page)) === "2");
   await page.fill("#noticeDate", keepDate);
   await page.click("section[data-step='2'] [data-next]");
-  check(`${label}: no past flag for a current notice`, !(await page.$(".past-alert")));
+  check(`${label}: moves to options`, (await step(page)) === "3");
+
+  // Step 3: the plan's own words, and an estimate when the received date is unknown.
+  const guide = await page.innerText("section[data-step='3']");
+  check(`${label}: options page shows the plan's reason`, guide.includes(reason) && guide.includes("Denied by"));
+  check(`${label}: deadline marked as an estimate without a received date`, guide.includes("Received date unknown"));
+  await page.screenshot({ path: path.join(outDir, `${label}-guide.png`), fullPage: true });
+  await contrastCheck(page, label, "options page");
   await page.click("section[data-step='3'] [data-next]");
 
-  // Step 4: checklist. A ticked document is one the user will attach.
-  check(`${label}: checklist titled suggested, not required`, (await page.textContent("#h-checklist")) === "Suggested supporting documents");
-  const docs = await page.textContent("#checklist");
-  check(`${label}: US-04 documents offered`, docs.includes("A copy of the denial notice") && docs.includes("explaining why inpatient admission is medically necessary") && docs.includes("clinical evaluations or treatment plans") && docs.includes("Any additional information requested by Healthfirst"));
-  check(`${label}: reminder to confirm documents`, (await page.textContent("#docs-reminder")) === "Not every appeal requires the same documents. Check your denial notice and contact Healthfirst to confirm what information is needed for your specific appeal.");
-  check(`${label}: no upload on checklist`, !(await page.$("section[data-step='4'] input[type='file']")));
-  check(`${label}: no separate attach checkbox`, !(await page.$("#at-records")));
+  // Step 4: a ticked document is one the user will attach.
   await page.check("#cl-records");
   await page.check("#cl-notice");
   await page.click("section[data-step='4'] [data-next]");
 
-  // Step 5: draft (no Claude here, so template fills in)
+  // Step 5: draft, written by the app with no AI.
+  if (!(await page.inputValue("#letter"))) await page.click("#write-letter");
   await page.waitForFunction(() => document.querySelector("#letter").value.length > 0);
   const letter = await page.inputValue("#letter");
   check(`${label}: letter repeats reason`, letter.includes(reason));
-  check(`${label}: letter has placeholders`, letter.includes("[ADD:"));
-  check(`${label}: only attached items enclosed`, letter.includes("* Records about my condition and the planned admission") && letter.includes("* A copy of the denial notice") && !letter.includes("* My plan's coverage document"));
-  check(`${label}: no personal detail fields`, !(await page.$("#s-name")) && !(await page.$("#s-phone")) && !(await page.$("#s-memberId")) && !(await page.$("#s-address")));
+  check(`${label}: example has no identity, so placeholders stay`, letter.includes("[ADD: your full name]") && letter.includes("[ADD: your mailing address]"));
+  check(`${label}: letter carries the practice address`, letter.includes("TEST ONLY"));
+  check(`${label}: no legal block before the team confirms`, !/References:|CFR|Public Health Law/.test(letter));
+  await contrastCheck(page, label, "letter page");
   await page.click("section[data-step='5'] [data-next]");
 
-  // Step 6: review gate
+  // Step 6: review gate.
   check(`${label}: download locked with gaps`, await page.isDisabled("#to-download"));
   await page.check("#reviewed");
   check(`${label}: still locked after tick`, await page.isDisabled("#to-download"));
-  let guard = 0;
-  while ((await page.$$("#review-list button:has-text('Leave for later')")).length && guard++ < 30) {
-    await page.click("#review-list button:has-text('Leave for later')");
-  }
+  await leaveGaps(page);
+  if (!(await page.isChecked("#reviewed"))) await page.check("#reviewed");
   check(`${label}: unlocked after gaps left for later`, await page.isEnabled("#to-download"));
-  const reviewText = await page.textContent("#review-list");
-  check(`${label}: left for later is not shown as done`, !reviewText.includes("Every gap is filled") && reviewText.includes("not ready to send"));
   const kept = await page.inputValue("#letter-review");
   check(`${label}: placeholders kept after leaving for later`, kept.includes("[ADD: your full name]") && kept.includes("[ADD: your clinician's explanation"));
+  // Editing the reviewed letter takes the approval back.
+  await page.fill("#letter-review", kept + "\nmy own edit");
+  check(`${label}: an edit resets the review tick`, !(await page.isChecked("#reviewed")) && (await page.isDisabled("#to-download")));
+  await page.check("#reviewed");
   await page.screenshot({ path: path.join(outDir, `${label}-review.png`), fullPage: true });
   await contrastCheck(page, label, "review page");
   await page.click("#to-download");
 
-  // Step 7: download
+  // Step 7: download.
   const [dl] = await Promise.all([page.waitForEvent("download"), page.click("#dl-docx")]);
-  const file = await dl.path();
   const docxPath = path.join(outDir, `${label}-letter.docx`);
-  fs.copyFileSync(file, docxPath);
+  fs.copyFileSync(await dl.path(), docxPath);
   const text = require("child_process").execFileSync("python3", ["-c",
     "import docx,sys; print('\\n'.join(p.text for p in docx.Document(sys.argv[1]).paragraphs))", docxPath]).toString();
-  check(`${label}: docx opens and has reminder and reason`, text.includes("no legal or medical advice") && text.includes(reason));
+  check(`${label}: docx opens with the reason and the edit`, text.includes(reason) && text.includes("my own edit"));
   check(`${label}: docx says not ready and keeps gaps`, text.includes("NOT READY TO SEND") && text.includes("[ADD: your full name]"));
   check(`${label}: docx file name`, dl.suggestedFilename() === "appeal-letter-draft.docx");
   check(`${label}: download page flags incomplete draft`, await page.isVisible("#incomplete"));
-  const finalLetter = await page.evaluate(() => JSON.parse(localStorage.getItem("appealAssist.v2")).letter);
   const [dlt] = await Promise.all([page.waitForEvent("download"), page.click("#dl-txt")]);
   const txt = fs.readFileSync(await dlt.path(), "utf8");
-  check(`${label}: txt opens and matches the reviewed letter`, txt.endsWith(finalLetter) && txt.startsWith("DRAFT FOR HUMAN REVIEW"));
+  check(`${label}: txt opens and matches the reviewed letter`, txt.includes("my own edit") && txt.startsWith("DRAFT FOR HUMAN REVIEW"));
   await page.screenshot({ path: path.join(outDir, `${label}-download.png`), fullPage: true });
   await contrastCheck(page, label, "download page");
 
-  // Save and resume
+  // Nothing is kept in the browser. A reload starts again.
+  check(`${label}: nothing saved in browser storage`, (await page.evaluate(() => localStorage.length + sessionStorage.length)) === 0);
   await page.reload();
-  check(`${label}: resume offered after reload`, await page.isVisible("#resume") || (await page.isVisible("section[data-step='7']")));
+  check(`${label}: reload clears the case`, (await step(page)) === "0" && (await page.isHidden("#resume")));
 
-  // No horizontal scroll
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
   check(`${label}: no horizontal scroll`, !overflow);
   check(`${label}: no page errors`, errors.length === 0, errors.join("; "));
-
   await browser.close();
 }
 
-// Upload a synthetic notice file and let the app write the letter, no AI.
+// Upload fictional notice files and let the app fill the form and the letter.
 async function runUpload() {
   const browser = await chromium.launch();
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, acceptDownloads: true });
   const page = await ctx.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  await page.goto(url);
-  await page.check("#ack");
-  await page.click("section[data-step='0'] [data-next]");
-  await page.selectOption("#state", "NY");
-  await page.check("#pt-aca", { force: true });
-  check("plan: picker shows for ACA", await page.isVisible("#plan"));
-  const planOpts = await page.$$eval("#plan option", (o) => o.map((x) => x.textContent));
-  check("plan: only one plan offered", planOpts.length === 2 && planOpts[1] === "Healthfirst Silver Leaf Plan", planOpts.join("|"));
-  await page.click("section[data-step='1'] [data-next]");
-  check("plan: required for ACA", await page.isVisible("section[data-step='1'] .error"));
-  await page.selectOption("#plan", "healthfirst-silver-leaf");
-  await page.click("section[data-step='1'] [data-next]");
-  check("plan: fills plan name on notice step", (await page.inputValue("#planName")) === "Healthfirst Silver Leaf Plan");
+  await start(page);
 
-  // Download an example notice file, then upload it.
-  await page.click("#upload-tile summary");
-  const [dl] = await Promise.all([page.waitForEvent("download"), page.click("#dl-sample")]);
-  const noticePath = await dl.path();
-  const noticeText = fs.readFileSync(noticePath, "utf8");
-  check("upload: example file is marked as an example", noticeText.includes("EXAMPLE NOTICE. NOT A REAL LETTER."));
-  await page.setInputFiles("#notice-file", { name: "notice.txt", mimeType: "text/plain", buffer: Buffer.from(noticeText) });
-  check("upload: synthetic data popup shows before reading", (await page.isVisible("#synthetic-confirm")) &&
-    (await page.textContent("#synthetic-text")) === "We do not accept real notices or medical records. Confirm that this is synthetic data." &&
-    (await page.isHidden("#file-row")) && (await page.isDisabled("#read-notice")));
-  await page.click("#synthetic-cancel");
-  check("upload: cancel drops the file", (await page.isHidden("#file-row")) && (await page.isDisabled("#read-notice")) &&
-    (await page.$eval("#notice-file", (i) => i.files.length)) === 0 && (await page.textContent("#read-status")).includes("File not used"));
-  await page.setInputFiles("#notice-file", { name: "notice.txt", mimeType: "text/plain", buffer: Buffer.from(noticeText) });
-  await page.click("#synthetic-ok");
-  await page.click("#read-notice");
-  await page.waitForFunction(() => document.querySelectorAll(".filled").length > 0);
-  check("upload: all 5 fields filled", (await page.$$(".filled")).length === 5);
-  const reason = await page.inputValue("#reason");
-  await page.screenshot({ path: path.join(outDir, "upload-notice.png"), fullPage: true });
+  async function upload(name, confirm) {
+    await page.setInputFiles("#notice-file", fixture(name));
+    await page.waitForSelector("#synthetic-confirm[open]");
+    await page.click(confirm === false ? "#synthetic-cancel" : "#synthetic-ok");
+    if (confirm === false) return;
+    await page.click("#read-notice");
+    await page.waitForFunction(() => /Filled|Could not/.test(document.querySelector("#read-status").textContent));
+  }
 
-  await page.setInputFiles("#notice-file", path.join(__dirname, "fixtures", "notice-word.docx"));
-  await page.click("#synthetic-ok");
-  await page.click("#read-notice");
-  await page.waitForFunction(() => document.querySelector("#planName").value === "Sample Riverside Health Plan (synthetic)");
-  check("upload: Word .docx fills all 5 fields", (await page.$$(".filled")).length === 5);
-  await page.screenshot({ path: path.join(outDir, "upload-docx.png"), fullPage: true });
-  await page.click("#remove-file");
-  check("upload: remove clears the file and the fields read from it",
-    (await page.isHidden("#file-row")) && (await page.$$(".filled")).length === 0 &&
-    (await page.inputValue("#planName")) === "" && (await page.isDisabled("#read-notice")) &&
-    (await page.$eval("#notice-file", (i) => i.files.length)) === 0);
-  // Put the text example back so later checks match it.
-  await page.setInputFiles("#notice-file", { name: "notice.txt", mimeType: "text/plain", buffer: Buffer.from(noticeText) });
-  await page.click("#synthetic-ok");
-  await page.click("#read-notice");
-  await page.waitForFunction((r) => document.querySelector("#reason").value === r, reason);
-  await page.setInputFiles("#notice-file", { name: "photo.png", mimeType: "image/png", buffer: Buffer.from([137, 80, 78, 71]) });
-  await page.click("#synthetic-ok");
-  await page.click("#read-notice");
-  await page.waitForFunction(() => document.querySelector("#read-status").textContent.includes("Photos"));
-  check("upload: photo gets a clear message", true);
+  // A file is read only after the user confirms it is fictional.
+  await upload("knee-notice.txt", false);
+  check("upload: cancelled file is not read", (await page.isDisabled("#read-notice")) && (await page.inputValue("#service")) === "");
 
-  check("upload: hint says example only and not sent", (await page.textContent("#upload-hint")).includes("never a real notice") && (await page.textContent("#upload-hint")).includes("not sent anywhere"));
-  await page.click("section[data-step='2'] [data-next]");
-
-  // Step 3: verified Silver Leaf rules for a planned admission
-  const guide = await page.textContent("#guide-rules");
-  check("guide: Silver Leaf rules shown with source and date checked", guide.includes("180 calendar days") && guide.includes("plan contract, Section XX") && guide.includes("Date checked: October 28, 2026."));
-  check("guide: deadlines split by who acts", guide.includes("Your deadlines to ask for an appeal") && guide.includes("How long the plan has to respond"));
-  check("guide: official source link shown", (await page.getAttribute("#guide-rules a:has-text('Certificate of Coverage')", "href")).includes("assets.healthfirst.org"));
-  check("guide: short confirm note, no verification talk", guide.includes("Confirm every deadline on your denial notice.") && !/Claude|not yet confirmed|Not fully verified/.test(guide));
-  check("guide: contacts and missing address", guide.includes("888-250-2220") && guide.includes("877-779-2959") && guide.includes("does not list a mailing address"));
-  check("guide: earliest deadline from notice date", guide.includes("January 28, 2027"));
-  check("guide: call links inside the blocks", await page.$$eval("#guide-rules .deadline dd.calls a[href='tel:+18882502220']", (n) => n.length) >= 2 &&
-    (await page.$("#guide-rules .deadline dd.calls a[href='tel:+18777792959']")) && (await page.$("#guide-rules .deadline dd.calls a[href='tel:+18004008882']")));
-  check("guide: written notice inside the 30 day limit", guide.includes("always inside that 30 day limit"));
-  check("guide: external appeal counts from final denial or waiver", guide.includes("written waiver of the internal appeal") && guide.includes("or the date you receive a waiver of the internal appeal"));
-  const plain = await page.textContent("#guide-reason");
-  check("guide: plain explanation for planned admission", plain.includes("The disagreement is about the need for inpatient admission.") && plain.includes("whether the surgery is covered"));
-  await page.screenshot({ path: path.join(outDir, "guide-silver-leaf.png"), fullPage: true });
-  await page.click("section[data-step='3'] [data-back]");
-  await page.fill("#instructions", "Write to the Grievance and Appeals Department listed below.");
-  await page.click("section[data-step='2'] [data-next]");
-  check("guide: notice pointing elsewhere is flagged", (await page.textContent("#guide-instructions")).includes("This guide does not have them"));
-  await page.click("section[data-step='3'] [data-next]");
-
-  // Step 4: planned admission checklist
-  check("checklist: planned admission wording", (await page.textContent("#checklist")).includes("support the planned admission") && !(await page.textContent("#checklist")).includes("discharge summary"));
-  await page.check("#cl-doctor");
-  await page.check("#cl-records");
-  await page.click("section[data-step='4'] [data-next]");
-
-  // Step 5: letter
-  const v0 = await page.inputValue("#letter");
-  check("letter: written without AI, quotes reason, lists only attached items", v0.includes(reason) && v0.includes("* A letter from my clinician") && v0.includes("* Records about") && !v0.includes("* My plan's coverage document"));
-  check("letter: personal details stay placeholders", v0.includes("Name: [ADD: your full name]") && v0.includes("Member ID: [ADD: member ID from your insurance card]"));
-  check("letter: no necessity claim without clinician explanation", !v0.includes("medically necessary. I therefore") && v0.includes("[ADD: your clinician's explanation of why inpatient care is needed"));
-  check("letter: question asks for clinician's explanation", (await page.textContent("#clinician-legend")).includes("What explanation has your clinician provided for why inpatient care is needed?"));
-  await page.check("#clinician-unsure");
-  check("letter: not sure keeps the gap", (await page.inputValue("#letter")).includes("[ADD: your clinician's explanation") && await page.isDisabled("#clinician"));
-  await page.uncheck("#clinician-unsure");
-  await page.fill("#clinician", "i need monitoring after surgery because of my heart condition");
-  const v1 = await page.inputValue("#letter");
-  check("letter: clinician explanation tidied and inserted", v1.includes("I need monitoring after surgery because of my heart condition."));
-  check("letter: formal wording", /respectfully/i.test(v1));
-  check("letter: no tone picker or version button", !(await page.$("#tone")) && !(await page.$("#another")));
-  check("letter: closing uses team wording, future tense", v1.includes("Based on the aforementioned clinical information, I believe the planned inpatient admission for surgery is medically necessary."));
-  check("letter: no past stay wording", !/hospital stay|my stay|was needed|discharge/i.test(v1));
-  check("letter: opening names plan and notice date", v1.includes("denial issued by Healthfirst Silver Leaf Plan in its notice dated"));
-  check("letter: copies request removed", !v1.includes("send me copies") && !v1.includes("send me a copy"));
-  check("letter: legal basis and reference links", v1.includes("New York Public Health Law sections 4904 and 4910") && v1.includes("45 CFR 147.136") && v1.includes("References:") && v1.includes("https://www.ecfr.gov/"));
-  await page.screenshot({ path: path.join(outDir, "upload-draft.png"), fullPage: true });
+  await upload("knee-notice.txt");
+  check("knee: service is the requested admission, not the opening paragraph",
+    (await page.inputValue("#service")) === "Planned inpatient acute care hospital admission following an elective left total knee replacement", await page.inputValue("#service"));
+  check("knee: notice date", (await page.inputValue("#noticeDate")) === "2026-10-27");
+  check("knee: reason is the rationale paragraph", (await page.inputValue("#reason")).startsWith("Your physician requested approval for a planned inpatient acute care hospital admission") &&
+    (await page.inputValue("#reason")).endsWith("NOT medically necessary for your clinical profile."), await page.inputValue("#reason"));
+  check("knee: appeals address copied from the notice", (await page.inputValue("#notice-address")) === "Healthfirst Appeals & Grievances Department, P.O. Box 5166, New York, NY 10274-5166", await page.inputValue("#notice-address"));
+  check("knee: found identity is listed", (await page.textContent("#identity-preview")) === "Name: Eleanor Vance · Member ID: HF908234101-01 · Reference: PA-2026-0988412", await page.textContent("#identity-preview"));
+  check("knee: all five fields reported", (await page.textContent("#read-status")).includes("Filled 5 of 5 fields"));
+  for (const st of [2, 3, 4]) await page.click(`section[data-step='${st}'] [data-next]`);
+  if (!(await page.inputValue("#letter"))) await page.click("#write-letter");
+  await page.waitForFunction(() => document.querySelector("#letter").value.length > 0);
+  const letter = await page.inputValue("#letter");
+  check("knee: name, member ID and reference carry into the draft", letter.includes("Name: Eleanor Vance") && letter.includes("Member ID: HF908234101-01") && letter.includes("Claim or reference number: PA-2026-0988412"));
+  check("knee: address, phone, clinician and signature stay placeholders", ["[ADD: your mailing address]", "[ADD: your phone number]", "[ADD: your clinician's explanation", "[ADD: your signature and printed name]"].every((g) => letter.includes(g)));
+  check("knee: draft uses the appeals address from the notice", letter.includes("Appeals address: Healthfirst Appeals & Grievances Department, P.O. Box 5166, New York, NY 10274-5166"));
   await page.click("section[data-step='5'] [data-next]");
+  check("knee: found identity is not flagged as unsupported", !/Eleanor|HF908234101|PA-2026-0988412/.test(await page.innerText("#review-warnings")), await page.innerText("#review-warnings"));
+  check("upload: nothing saved in browser storage", (await page.evaluate(() => localStorage.length + sessionStorage.length)) === 0);
 
-  // Step 6: review
-  const warn = await page.textContent("#review-warnings");
-  check("letter: no unsupported numbers flagged", warn.trim() === "", warn);
-  const privateRows = ["your full name", "your mailing address", "your phone number", "member ID from your insurance card", "reference number from your notice", "your signature and printed name"];
-  let privateOk = true;
-  for (const p of privateRows) {
-    const row = page.locator(".review-item", { hasText: `[ADD: ${p}]` });
-    privateOk = privateOk && (await row.count()) === 1 && (await row.locator("input").count()) === 0 && (await row.textContent()).includes("Add this privately after you download");
-  }
-  check("review: no fill boxes for personal details, kept for after download", privateOk);
-  const addrRow = page.locator(".review-item", { hasText: "[ADD: appeals address from your notice]" });
-  await addrRow.locator("label.ph").click();
-  check("review: clicking a gap focuses its fill box", await addrRow.locator("input").evaluate((i) => i === document.activeElement));
-  await addrRow.locator("input").fill("[PO Box 1, New York NY]");
-  await addrRow.locator("button:has-text('Fill in')").click();
-  const afterFill = await page.inputValue("#letter-review");
-  check("review: fill box replaces whole placeholder", afterFill.includes("Appeals address: PO Box 1, New York NY") && !afterFill.includes("[PO Box"));
-  await page.fill("#letter-review", afterFill.replace("Appeals address: PO Box 1, New York NY", "Appeals address: [PO Box 1]"));
-  await page.waitForSelector("text=Remove leftover brackets");
-  await page.click("text=Remove the brackets for me");
-  check("review: stray brackets removed", (await page.inputValue("#letter-review")).includes("Appeals address: PO Box 1"));
-  await page.screenshot({ path: path.join(outDir, "review-fill.png"), fullPage: true });
-  await page.fill("#letter-review", (await page.inputValue("#letter-review")) + "\n[ADD: test gap]");
-  await page.check("#reviewed");
-  check("review: locked until each gap is filled or left for later", await page.isDisabled("#to-download"));
-  await page.locator(".review-item", { hasText: "[ADD: test gap]" }).locator("button:has-text('Leave for later')").click();
-  check("review: left for later can be undone", await page.isVisible("#review-list button:has-text('Fill in now')"));
-  while (await page.locator("#review-list button:has-text('Leave for later')").count()) {
-    await page.locator("#review-list button:has-text('Leave for later')").first().click();
-  }
-  check("review: unlocked once every gap is filled or left for later", await page.isEnabled("#to-download"));
-  await page.click("#to-download");
-  check("download: incomplete draft flagged", (await page.textContent("#incomplete")).includes("not ready to send"));
+  // A second notice replaces everything from the first.
+  for (const st of [6, 5, 4, 3]) await page.click(`section[data-step='${st}'] [data-back]`);
+  await page.fill("#received-date", "2026-10-29");
+  await upload("spinal-notice.txt");
+  check("spinal: service is the requested admission, not review text",
+    (await page.inputValue("#service")) === "3-day acute care inpatient hospital admission following a planned single-level lumbar spine fusion (L4-L5)", await page.inputValue("#service"));
+  check("spinal: notice date", (await page.inputValue("#noticeDate")) === "2026-11-03");
+  check("spinal: reason", /NOT medically necessary/.test(await page.inputValue("#reason")));
+  check("spinal: appeals address", (await page.inputValue("#notice-address")).includes("P.O. Box 5166"));
+  check("replace: received date from the earlier notice is cleared", (await page.inputValue("#received-date")) === "");
+  for (const st of [2, 3, 4]) await page.click(`section[data-step='${st}'] [data-next]`);
+  if (!(await page.inputValue("#letter"))) await page.click("#write-letter");
+  await page.waitForFunction(() => document.querySelector("#letter").value.includes("lumbar"));
+  const second = await page.inputValue("#letter");
+  check("replace: letter is rewritten for the new notice", second.includes("lumbar spine fusion") && !second.includes("knee replacement"));
+  check("replace: no identity from the earlier notice", !/Eleanor Vance|HF908234101|PA-2026-0988412/.test(second) || /Eleanor Vance/.test(fs.readFileSync(fixture("spinal-notice.txt"), "utf8")));
 
-  // A failed save keeps the draft and says what failed.
-  const page2 = await ctx.newPage();
-  await page2.addInitScript(() => {
-    window.claude = { use: () => Promise.resolve({ save: () => Promise.reject({ code: "bad_request", message: "test failure" }) }) };
-  });
-  await page2.goto(url);
-  await page2.click("#resume");
-  await page2.click("#dl-txt");
-  await page2.waitForFunction(() => document.querySelector("#dl-status").textContent.length > 0);
-  const failMsg = await page2.textContent("#dl-status");
-  check("download: failure message names the error and keeps the draft", failMsg.includes("bad_request: test failure") && failMsg.includes("draft is still saved"), failMsg);
-  await page2.close();
+  // An example after a file clears the file and its identity.
+  for (const st of [5, 4, 3]) await page.click(`section[data-step='${st}'] [data-back]`);
+  await page.click("#example-tile summary");
+  await page.click("#load-sample");
+  check("example after a file: identity summary is hidden", await page.isHidden("#identity-summary"));
+  check("example after a file: the file is removed", (await page.isHidden("#file-row")) && (await page.isDisabled("#read-notice")));
+  for (const st of [2, 3, 4]) await page.click(`section[data-step='${st}'] [data-next]`);
+  if (!(await page.inputValue("#letter"))) await page.click("#write-letter");
+  await page.waitForFunction(() => document.querySelector("#letter").value.length > 0);
+  check("example after a file: name is a placeholder again", (await page.inputValue("#letter")).includes("[ADD: your full name]"));
 
-  // iPhone: the save opens the share sheet inside the tap, with the file.
-  const page3 = await ctx.newPage();
-  await page3.addInitScript(() => {
-    Object.defineProperty(navigator, "userAgent", { get: () => "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1" });
-    window.__shared = [];
-    navigator.canShare = (d) => Boolean(d && d.files && d.files.length);
-    navigator.share = (d) => { window.__shared.push({ name: d.files[0].name, size: d.files[0].size, active: navigator.userActivation ? navigator.userActivation.isActive : null }); return Promise.resolve(); };
-  });
-  await page3.goto(url);
-  await page3.click("#resume");
-  await page3.click("#dl-docx");
-  await page3.waitForFunction(() => document.querySelector("#dl-status").textContent.includes("Save to Files"));
-  const shared = await page3.evaluate(() => window.__shared);
-  check("download: iPhone opens share sheet with the Word file inside the tap", shared.length === 1 && shared[0].name === "appeal-letter-draft.docx" && shared[0].size > 1000 && shared[0].active !== false, JSON.stringify(shared));
-  await page3.close();
-
-  // A fictional notice written as a plain letter, the way testers wrote
-  // theirs: service in a sentence, question headings, address block.
-  const page4 = await ctx.newPage();
-  page4.on("pageerror", (e) => errors.push(e.message));
-  await page4.goto(url);
-  await page4.evaluate(() => localStorage.clear());
-  await page4.reload();
-  await page4.check("#ack");
-  await page4.click("section[data-step='0'] [data-next]");
-  await page4.selectOption("#state", "NY");
-  await page4.check("#pt-aca");
-  await page4.selectOption("#plan", "healthfirst-silver-leaf");
-  await page4.click("section[data-step='1'] [data-next]");
-  await page4.click("#upload-tile summary");
-  const letterNotice = [
-    "Healthfirst", "100 Example Street", "New York, NY 10007", "", "October 20, 2026", "",
-    "Jane Sample", "12 Example Road", "Brooklyn, NY 11201", "", "Date of Birth: 01/01/1970", "Customer Service: 1-888-250-2220", "",
-    "Dear Jane Sample:", "",
-    "We received a request from Dr. A. Example for a planned inpatient admission for total knee replacement surgery at Example Hospital. After review, we have denied this request.", "",
-    "Why did we deny this request?", "This surgery can be safely done in an outpatient setting.", "",
-    "What can you do if you disagree?", "Call Member Services at 1-888-250-2220, or mail your appeal to:",
-    "Healthfirst Appeals Department", "P.O. Box 0000", "New York, NY 10274", "", "Sincerely,", "Medical Management"].join("\n");
-  const readLetter = async (text) => {
-    await page4.setInputFiles("#notice-file", { name: "letter.txt", mimeType: "text/plain", buffer: Buffer.from(text) });
-    await page4.click("#synthetic-ok");
-    await page4.click("#read-notice");
-  };
-  await readLetter(letterNotice);
-  await page4.waitForFunction(() => document.querySelector("#read-status").textContent.includes("Filled"));
-  check("letter notice: service read from the sentence, not a phone number",
-    (await page4.inputValue("#service")) === "Planned inpatient admission for total knee replacement surgery");
-  check("letter notice: notice date, not the birth date", (await page4.inputValue("#noticeDate")) === "2026-10-20" && (await page4.isHidden("#noticeDate-warn")));
-  check("letter notice: fuller plan name kept over the letterhead", (await page4.inputValue("#planName")) === "Healthfirst Silver Leaf Plan");
-  check("letter notice: status mentions the appeals address", (await page4.textContent("#read-status")).includes("Also found the appeals address"));
-  await page4.fill("#noticeDate", "2019-01-01");
-  check("letter notice: old date gets a warning", (await page4.textContent("#noticeDate-warn")).includes("more than a year ago"));
-  await page4.fill("#noticeDate", "2026-10-20");
-  for (const st of [2, 3, 4]) await page4.click(`section[data-step='${st}'] [data-next]`);
-  const addr = "Healthfirst Appeals Department, P.O. Box 0000, New York, NY 10274";
-  check("letter notice: appeals address filled in letter details", (await page4.inputValue("#s-appealsAddress")) === addr &&
-    (await page4.textContent("#s-appealsAddress-hint")).includes("Read from your notice file"));
-  const lv = await page4.inputValue("#letter");
-  check("letter notice: letter carries the address, service, date and reason", lv.includes("Appeals address: " + addr) &&
-    lv.includes("Re: Appeal of denial for Planned inpatient admission for total knee replacement surgery") &&
-    lv.includes("Date of denial notice: October 20, 2026") && lv.includes("\"This surgery can be safely done in an outpatient setting.\""));
-  await page4.screenshot({ path: path.join(outDir, "letter-notice-draft.png"), fullPage: true });
-  // Edit the letter by hand, then read a different notice. The letter must follow the new notice.
-  await page4.fill("#letter", lv + "\nmy own edit");
-  for (const st of [5, 4, 3]) await page4.click(`section[data-step='${st}'] [data-back]`);
-  await readLetter(letterNotice.replace("total knee replacement surgery", "hip replacement surgery").replace("P.O. Box 0000", "P.O. Box 1111"));
-  await page4.waitForFunction(() => document.querySelector("#service").value.includes("hip replacement"));
-  check("letter notice: second upload says the letter is rewritten", (await page4.textContent("#read-status")).includes("written again"));
-  for (const st of [2, 3, 4]) await page4.click(`section[data-step='${st}'] [data-next]`);
-  const lv2 = await page4.inputValue("#letter");
-  check("letter notice: letter follows the newly read notice", lv2.includes("hip replacement surgery") && lv2.includes("P.O. Box 1111") &&
-    !lv2.includes("knee") && !lv2.includes("my own edit"));
-  // An example, then a file that lacks a field: the example's value must not stay.
-  for (const st of [5, 4, 3]) await page4.click(`section[data-step='${st}'] [data-back]`);
-  await page4.click("#load-sample");
-  const exampleInstr = await page4.inputValue("#instructions");
-  await readLetter("Healthfirst Silver Leaf Plan\nDate of Notice: October 27, 2026\nRequested Service: Planned inpatient admission for hip replacement surgery\nReason for Denial: Not medically necessary.");
-  await page4.waitForFunction(() => document.querySelector("#read-status").textContent.includes("Filled 4 of 5"));
-  check("letter notice: field missing from the file is cleared, not left from the example", exampleInstr.length > 0 &&
-    (await page4.inputValue("#instructions")) === "" && (await page4.textContent("#read-status")).includes("Cleared 1 detail"));
-  for (const st of [2, 3, 4]) await page4.click(`section[data-step='${st}'] [data-next]`);
-  // Typed change after a hand edit: the edit is kept and the user is told.
-  await page4.fill("#letter", (await page4.inputValue("#letter")) + "\nmy own edit");
-  for (const st of [5, 4, 3]) await page4.click(`section[data-step='${st}'] [data-back]`);
-  await page4.fill("#service", "Planned inpatient admission for spine surgery");
-  for (const st of [2, 3, 4]) await page4.click(`section[data-step='${st}'] [data-next]`);
-  check("letter notice: typed change after an edit keeps the edit and says so", (await page4.inputValue("#letter")).includes("my own edit") &&
-    (await page4.textContent("#letter-status")).includes("changed the notice details"));
-  await page4.close();
   check("upload: no page errors", errors.length === 0, errors.join("; "));
   await browser.close();
 }

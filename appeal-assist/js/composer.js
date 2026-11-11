@@ -44,6 +44,12 @@
     { id: "criteria", re: /criteria|definition|guideline|policy|standard/i }
   ];
 
+  function alternateSetting(reason) {
+    if (/home health/i.test(reason)) return "home health care";
+    if (/observation/i.test(reason)) return "observation care";
+    if (/outpatient/i.test(reason)) return "an outpatient setting";
+    return "a different care setting";
+  }
   function reasonKinds(reason) {
     var r = clean(reason);
     if (!r) return [];
@@ -73,7 +79,7 @@
     var out = [];
     if (kinds.indexOf("setting") !== -1) {
       out.push(planned
-        ? "The plan's stated reason is that it believes the care could be provided in an outpatient setting. The disagreement is about the need for inpatient admission."
+        ? "The plan's stated reason is that it believes the care could be provided in " + alternateSetting(reason) + ". The disagreement is about the need for inpatient admission."
         : "The plan's stated reason is that it believes your care could have been given in a different setting, such as outpatient care or observation. The disagreement is about whether you needed to be admitted as an inpatient.");
     }
     if (kinds.indexOf("length") !== -1) {
@@ -88,18 +94,20 @@
       out.push("The plan says it used its clinical review criteria. You can ask the plan which criteria it used.");
     }
     if (!out.length) {
-      out.push("The plan says the inpatient care " + (planned ? "is" : "was") + " not medically necessary. The quote above gives the plan's exact words.");
+      out.push(/not medically necessary/i.test(reason) ? "The notice says the inpatient care is not medically necessary. This is the plan’s stated reason, not a conclusion by this guide." : "The reason does not match a supported explanation pattern. Read the exact wording above and ask the plan what information is needed.");
     }
     var what = /surg/i.test(clean(service) + " " + clean(reason)) ? "the surgery" : "the treatment itself";
-    out.push("This does not, by itself, tell us whether " + what + " is covered. This guide does not decide who is correct.");
+    if (/procedure itself[^.]{0,100}is a covered benefit/i.test(reason) && /inpatient[^.]{0,160}not medically necessary/i.test(reason)) {
+      out.push("Your notice states that the surgical procedure is a covered benefit, but denies the inpatient admission. This summarizes the notice; it is not an independent coverage decision.");
+    } else out.push("This does not, by itself, tell us whether " + what + " is covered. This guide does not decide who is correct.");
     return out;
   }
 
-  function reasonParagraphs(kinds, attach, planned) {
+  function reasonParagraphs(kinds, attach, planned, reason) {
     var out = [];
     if (kinds.indexOf("setting") !== -1) {
       out.push(planned
-        ? "Your notice says my care could be provided in an outpatient setting. I ask you to review whether inpatient care is needed, using the information from my care team about my condition and the planned treatment."
+        ? "Your notice says my care could be provided in " + alternateSetting(reason) + ". I ask you to review whether inpatient care is needed, using the information from my care team about my condition and the planned treatment."
         : "Your notice says my care could have been given in a different setting. I ask you to review the full record of my stay and consider my condition at the time I was admitted, not only how things turned out afterward.");
     }
     if (kinds.indexOf("length") !== -1 && !planned) {
@@ -158,7 +166,8 @@
 
     var me = input.sender || {};
     var field = function (label, value, what) { return label + ": " + (clean(value) || gap(what)); };
-    L.push("Name: " + gap(PRIVATE.name));
+    var synthetic = input.syntheticIdentity || {};
+    L.push("Name: " + (clean(synthetic.name) || gap(PRIVATE.name)));
     L.push("Address: " + gap(PRIVATE.address));
     L.push("Phone: " + gap(PRIVATE.phone));
     L.push(field("Date", clean(me.date) ? Letter.formatDate(me.date) : "", "today's date"));
@@ -167,8 +176,8 @@
     L.push(field("Appeals address", me.appealsAddress, "appeals address from your notice"));
     L.push("");
     L.push("Re: Appeal of denial for " + service);
-    L.push("Member ID: " + gap(PRIVATE.memberId));
-    L.push("Claim or reference number: " + gap(PRIVATE.refNumber));
+    L.push("Member ID: " + (clean(synthetic.memberId) || gap(PRIVATE.memberId)));
+    L.push("Claim or reference number: " + (clean(synthetic.refNumber) || gap(PRIVATE.refNumber)));
     L.push("Date of denial notice: " + (clean(d.noticeDate) ? Letter.formatDate(d.noticeDate) : gap("date on your notice")));
     L.push("");
     L.push("Dear Appeals Review Department:");
@@ -188,7 +197,7 @@
     L.push("My clinician's explanation of why inpatient care " + verb + " needed:");
     L.push(explanation || gap("your clinician's explanation of why inpatient care " + verb + " needed. Ask your clinician before you send this letter"));
     L.push("");
-    reasonParagraphs(reasonKinds(reason), attach, planned).forEach(function (p) {
+    reasonParagraphs(reasonKinds(reason), attach, planned, reason).forEach(function (p) {
       L.push(p);
       L.push("");
     });
@@ -243,3 +252,4 @@
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.AppealComposer = api;
 })(typeof window !== "undefined" ? window : this);
+

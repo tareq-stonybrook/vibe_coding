@@ -50,8 +50,8 @@
   };
 
   var HELP_LINKS = {
-    general: { label: "HealthCare.gov", url: "https://www.healthcare.gov/" },
-    aca: { label: "New York State Department of Financial Services", url: "https://www.dfs.ny.gov/" }
+    general: { label: "HealthCare.gov appeal guidance", url: "https://www.healthcare.gov/appeal-insurance-company-decision/" },
+    aca: { label: "New York State external appeal guidance and forms", url: "https://www.dfs.ny.gov/complaints/file_external_appeal" }
   };
 
   // Healthfirst Silver Leaf, planned inpatient admission denied before
@@ -61,9 +61,10 @@
   // matches it.
   var SILVER_LEAF = "Healthfirst PHSP HMO Contract, Silver Leaf 2026 (HF-STDIND-26)";
   var SOURCE_URL = "https://assets.healthfirst.org/pdf_nbw02xNkbSCn/2026-silver-leaf-certificate-of-coverage-english";
-  var CHECKED = { verifiedOn: "2026-10-28", verifiedBy: "Claude (AI), from the contract copy the team supplied" };
+  var CHECKED = { verifiedOn: "2026-11-10", verifiedBy: "AI review of retained contract PDF; team sign-off pending" };
   function cite(where) {
-    return { citation: SILVER_LEAF + ", " + where, where: where, sourceUrl: SOURCE_URL, verifiedOn: CHECKED.verifiedOn, verifiedBy: CHECKED.verifiedBy };
+    var page = /pages? (\d+)/i.exec(where);
+    return { citation: SILVER_LEAF + ", " + where, where: where, sourceUrl: SOURCE_URL + (page ? "#page=" + page[1] : ""), verifiedOn: CHECKED.verifiedOn, verifiedBy: CHECKED.verifiedBy };
   }
   function entry(fields, where) {
     var c = cite(where);
@@ -92,7 +93,7 @@
       entry({
         who: "you",
         label: "Ask for an external appeal",
-        rule: "Within 4 months after you receive the plan's final denial of your internal appeal, or within 4 months after you receive the plan's written waiver of the internal appeal (its agreement that you can skip it). The plan has no authority to extend this deadline.",
+        rule: "Within 4 months after you receive the plan's final denial of your internal appeal, or within 4 months after you receive the plan's written waiver of the internal appeal (its agreement that you can skip it). For an appeal based on a qualifying claim-processing failure, the 4 months run from that failure. The plan cannot extend the deadline.",
         days: null,
         countFrom: "the date you receive the final denial, or the date you receive a waiver of the internal appeal",
         verifiedBy: PO_REVIEW,
@@ -113,7 +114,7 @@
       entry({
         who: "plan",
         label: "Decide an expedited (urgent) appeal",
-        rule: "Within 72 hours after it receives the appeal, or 2 business days after it receives the information it needs, whichever is sooner."
+        rule: "A decision is due at the earlier of 72 hours after receipt of the appeal or 2 business days after receipt of needed information. Written notice is due within 24 hours of the decision and no later than 72 hours after receipt of the appeal."
       }, "Section XX, Utilization Review, I.3 (pages 81 to 82)"),
       entry({
         who: "plan",
@@ -123,7 +124,7 @@
       entry({
         who: "plan",
         label: "External appeal decision",
-        rule: "The independent reviewer decides within 30 days of a completed application, or within 72 hours for an expedited external appeal."
+        rule: "Normally 30 days after receipt of a completed application. If additional information is requested, the reviewer has 5 extra business days. A qualifying expedited external appeal is decided within 72 hours of receipt of a completed application."
       }, "Section XXI, External Appeal, G (page 85)")
     ],
     paths: [
@@ -134,18 +135,23 @@
       }, "Section XX, Utilization Review, H (page 80)"),
       entry({
         label: "Urgent? Ask for an expedited appeal",
-        rule: "Use this if waiting could harm your health, or if your clinician asks for an immediate review. You can file an expedited external appeal at the same time.",
+        rule: "Ask the plan and your clinician about an expedited internal appeal for an urgent matter or when your provider requests immediate review. You may apply for an external appeal at the same time, but expedited external review has separate eligibility requirements.",
         call: ["expedited"]
       }, "Section XX, I.3 (page 81) and Section XXI, A (page 83)"),
       entry({
         label: "Your clinician can ask for a reconsideration",
-        rule: "If the plan did not talk with your clinician before denying, your clinician can ask the same reviewer to reconsider. This happens within 1 business day of the request."
+        rule: "If the plan did not attempt to consult the provider who recommended the service before denying it, that provider can request reconsideration. For preauthorization, this takes place within 1 business day. The original reviewer handles it, or a designated reviewer if the original is unavailable."
       }, "Section XX, Utilization Review, G (page 80)"),
       entry({
         label: "2. External appeal to New York State",
-        rule: "If the plan upholds its denial, you can ask for an independent review through the New York State Department of Financial Services. The plan sends an application with its final denial.",
+        rule: "For an otherwise covered service, a qualifying denial may be reviewed independently through New York State. Usually you need a final internal denial. Exceptions include a written waiver, applying alongside an expedited internal appeal, or qualifying claim-processing failures. Certain minor failures do not qualify. Check Section XXI.A and the DFS application.",
         call: ["external"]
       }, "Section XXI, External Appeal, A and G (pages 83 to 85)")
+      ,entry({
+        label: "When external review can be expedited",
+        rule: "For this planned-care scenario, your attending physician must certify that delay poses an imminent or serious health threat, or that the standard timeframe would seriously jeopardize life, health or recovery of maximum function. Asking for urgent internal review alone does not establish this.",
+        call: ["external"]
+      }, "Section XXI, G (page 85)")
     ],
     contacts: [
       entry({ id: "appeals", short: "Appeals", label: "Appeals", rule: "888-250-2220" }, "Section II, L (page 13)"),
@@ -202,7 +208,7 @@
       paths: combo.paths.filter(isVerified),
       contacts: (combo.contacts || []).filter(isVerified),
       missing: combo.missing || [],
-      legal: isVerified(combo.legal) ? combo.legal : null
+      legal: combo.teamConfirmed === true && isVerified(combo.legal) ? combo.legal : null
     };
   }
 
@@ -219,3 +225,4 @@
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.AppealRules = api;
 })(this);
+

@@ -141,12 +141,16 @@ test("composer: reason kinds drive paragraphs", () => {
   const planned = Composer.compose({ details: { reason: "The information submitted does not show that inpatient care is needed." }, planned: true });
   assert.ok(planned.includes("[ADD: say whether you will send records that support the planned admission]"));
 });
+const oneLine = (t) => String(t || "").replace(/\s+/g, " ").trim();
 test("reader: round trips every synthetic notice", () => {
   for (const s of SAMPLES) {
     const out = Reader.parseNoticeText(Reader.sampleToText(s, "Plan"));
-    for (const f of ["planName", "service", "noticeDate", "reason", "instructions"]) {
+    for (const f of ["planName", "service", "noticeDate", "reason"]) {
       assert.equal(out[f], s[f] || "", `${s.id} ${f}`);
     }
+    // The practice address line sits under the instructions, so it is read with them.
+    assert.ok(out.instructions.startsWith(oneLine(s.instructions)), `${s.id} instructions`);
+    assert.equal(out.appealsAddress, s.appealsAddress, `${s.id} appealsAddress`);
   }
 });
 
@@ -161,7 +165,7 @@ test("reader: free form notice", () => {
 
 test("reader: nothing found stays blank", () => {
   const out = Reader.parseNoticeText("hello there\nnothing useful");
-  assert.deepEqual(out, { planName: "", service: "", noticeDate: "", reason: "", instructions: "", appealsAddress: "", planGuessed: false });
+  assert.deepEqual(out, { planName: "", service: "", noticeDate: "", reason: "", instructions: "", appealsAddress: "", planGuessed: false, testIdentity: { name: "", memberId: "", refNumber: "" } });
 });
 
 test("composer: personal details are placeholders only", () => {
@@ -221,7 +225,9 @@ test("reader: app's own Word example round trips", async () => {
   const s = SAMPLES[0];
   const bytes = Docx.build(Reader.sampleToText(s, "Medicare").split("\n"));
   const out = await Reader.readFile(new File([bytes], "x.docx"));
-  for (const f of ["planName", "service", "noticeDate", "reason", "instructions"]) assert.equal(out[f], s[f]);
+  for (const f of ["planName", "service", "noticeDate", "reason"]) assert.equal(out[f], s[f]);
+  assert.ok(out.instructions.startsWith(oneLine(s.instructions)), out.instructions);
+  assert.equal(out.appealsAddress, s.appealsAddress);
 });
 
 test("reader: old .doc and photos get clear errors", async () => {
@@ -271,7 +277,7 @@ test("Silver Leaf rules show with source and date checked, split by who acts", (
   for (const e of r.deadlines.concat(r.paths, r.contacts)) {
     assert.ok(Rules.isVerified(e));
     assert.match(e.citation, /Silver Leaf 2026.*page/);
-    assert.equal(e.verifiedOn, "2026-10-28");
+    assert.equal(e.verifiedOn, "2026-11-10");
     assert.match(e.sourceUrl, /^https:\/\/assets\.healthfirst\.org\/.*silver-leaf-certificate-of-coverage/);
   }
   const you = r.deadlines.filter((d) => d.who === "you").map((d) => d.rule).join(" ");
@@ -312,8 +318,15 @@ test("examples: one stay after surgery per insurance type, others varied, Silver
 });
 
 test("composer: legal basis only from the checked list, with reference links", () => {
-  const legal = Rules.getRules("NY", "aca").legal;
-  assert.ok(legal && Rules.isVerified(legal));
+  // Left out of the app until the team confirms the rules.
+  assert.equal(Rules.getRules("NY", "aca").teamConfirmed, false);
+  assert.equal(Rules.getRules("NY", "aca").legal, null);
+  // The composer still writes a checked block when one is passed.
+  const legal = { citation: "test", verifiedOn: "2026-11-02", paragraph: "This appeal is made under the plan's appeal process.", references: [
+    { label: "Healthfirst Silver Leaf 2026 Certificate of Coverage", url: "https://assets.healthfirst.org/example" },
+    { label: "New York Public Health Law section 4904", url: "https://www.nysenate.gov/legislation/laws/PBH/4904" },
+    { label: "45 CFR 147.136", url: "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-B/part-147/section-147.136" }] };
+  assert.ok(Rules.isVerified(legal));
   const s = SAMPLES[0];
   const t = Composer.compose({ details: s, planned: true, legal });
   assert.ok(t.includes(legal.paragraph));
@@ -361,7 +374,8 @@ test("reader: team style notice fills all five fields", () => {
   const out = Reader.parseNoticeText(TEAM_NOTICE, { knownPlans: ["Healthfirst Silver Leaf Plan"] });
   assert.equal(out.planName, "Healthfirst Silver Leaf Plan");
   assert.equal(out.noticeDate, "2026-10-15");
-  assert.equal(out.service, "Acute care inpatient hospital admission (3 days) after single-level lumbar spine fusion");
+  // The request named in the reason is used before the service table.
+  assert.equal(out.service, "3-day acute care inpatient hospital admission following a planned single-level lumbar spine fusion (L4-L5)");
   assert.ok(out.reason.startsWith("Your spine surgeon requested prior approval for a 3-day acute care"), out.reason);
   assert.ok(out.reason.includes("covered benefit under your Healthfirst Silver Leaf Plan"), out.reason);
   assert.ok(out.reason.endsWith("overnight observation stay."), out.reason);

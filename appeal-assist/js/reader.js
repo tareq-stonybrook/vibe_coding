@@ -20,6 +20,7 @@
   function toIso(y, m, d) {
     var yy = parseInt(y, 10), mm = parseInt(m, 10), dd = parseInt(d, 10);
     if (!(yy > 1900 && mm >= 1 && mm <= 12 && dd >= 1 && dd <= 31)) return "";
+    if (new Date(Date.UTC(yy, mm - 1, dd)).getUTCDate() !== dd) return "";
     return yy + "-" + String(mm).padStart(2, "0") + "-" + String(dd).padStart(2, "0");
   }
 
@@ -76,6 +77,8 @@
   // is never a service name, whatever label it sits under.
   function looksLikeService(v) {
     var s = String(v || "").trim();
+    if (/has reviewed|has completed|based on|following service|clinical review against|(?:clinical|authorization) review|review requested by/i.test(s)) return false;
+    if (/^(requested|setting|determination|diagnosis(?: \/ codes)?|requested service \/ procedure)$/i.test(s)) return false;
     if (/\(?\b\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}\b|@|https?:|www\./i.test(s)) return false;
     if (/^(denied|denial|not approved|not covered|n\/?a|none|yes|no|see (below|above|attached))\b/i.test(s)) return false;
     if (/notice of|adverse (benefit )?determination|denial of|your (appeal|rights?)\b/i.test(s)) return false;
@@ -240,7 +243,7 @@
   // a state and ZIP code and follows words like "mail your appeal to".
   function findAppealsAddress(src) {
     var zipRe = /\b[A-Z]{2},?\s+\d{5}(?:-\d{4})?\b/g;
-    var cueRe = /\b(?:mail|send|write|submit|return|address(?:ed)?)\b[^.:;]{0,80}?\b(?:to|at)\b\s*:?|\bappeals?\s+(?:mailing\s+)?address\b\s*:?|\bmailing\s+address\b\s*:?/gi;
+    var cueRe = /\bby mail\s*:|\b(?:mail|send|write|submit|return|address(?:ed)?)\b[^.:;]{0,80}?\b(?:to|at)\b\s*:?|\bappeals?\s+(?:mailing\s+)?address\b\s*:?|\bmailing\s+address\b\s*:?/gi;
     var m;
     while ((m = zipRe.exec(src))) {
       var end = m.index + m[0].length;
@@ -374,8 +377,13 @@
     // The denied care: a named field first, then a sentence in the letter,
     // then the subject line. The setting is added when the care named does
     // not already say it, e.g. "Lumbar spinal fusion (Inpatient hospital)".
-    var service = named[0] || proseService(paras.join(" ")) || proseService(out.reason) || subject[0] || "";
-    var where = settings.filter(function (v) { return /inpatient|hospital|admission|acute/i.test(v); })[0] || settings[0] || "";
+    // A clinical rationale often states the full admission request more clearly
+    // than a multi-column table. Require an explicit request and admission.
+    var explicitRequest = joinLines(lines).match(/\brequested\s+(?:prior\s+)?(?:approval|authorization)\s+for\s+((?:a|an|the)\s+[^.!?]{8,220})[.!?]/i);
+    var admission = explicitRequest && /inpatient|hospital admission/i.test(explicitRequest[1]) && looksLikeService(explicitRequest[1])
+      ? explicitRequest[1].replace(/^(?:a|an|the)\s+/i, "") : "";
+    var service = admission || named[0] || proseService(paras.join(" ")) || proseService(out.reason) || subject[0] || "";
+    var where = settings.filter(function (v) { return /inpatient|hospital|admission|acute|outpatient|observation/i.test(v) && !/diagnosis|determination|procedure/i.test(v); })[0] || "";
     if (!service) service = where;
     else if (where && !/inpatient|hospital|admission|admit/i.test(service)) service += " (" + where + ")";
     out.service = service;
@@ -386,7 +394,7 @@
     var known = (opts && opts.knownPlans) || [];
     var hay = squashAll(src);
     for (var k = 0; k < known.length; k++) {
-      if (known[k] && hay.indexOf(squashAll(known[k])) !== -1) { out.planName = known[k]; break; }
+      if (!out.planName && known[k] && hay.indexOf(squashAll(known[k])) !== -1) { out.planName = known[k]; break; }
     }
     // Plan name fallback: an early line that looks like a plan name. This
     // is a guess, so the app keeps a plan name the user already has.
@@ -403,6 +411,39 @@
       var top = lines.slice(0, 15).filter(function (x) { return !NOT_NOTICE_DATE.test(x); });
       for (var j = 0; j < top.length && !out.noticeDate; j++) out.noticeDate = findDate(top[j]);
     }
+    // Prefer a specifically named requested admission in the rationale over
+    // multi-column table fragments or an introductory service-section paragraph.
+    // Joining lines can leave "3- day" where a line wrapped at the hyphen.
+    var flat = fixLigatures(src.replace(/\s+/g, " "));
+    var admission = flat.match(/requested\s+approval\s+for\s+(?:a|an)\s+([^.!?]{5,200})[.!?]/i);
+    if (admission && /inpatient|hospital admission/i.test(admission[1]) &&
+        !/review|following service|based on/i.test(admission[1])) {
+      out.service = admission[1].charAt(0).toUpperCase() + admission[1].slice(1);
+    }
+    // Keep the exact rationale, rather than columns from the service table.
+    // Only when one of the headings that ends it is present. Without one
+    // the match would run on through the appeal instructions.
+    var rationale = flat.match(/Reason for (?:Adverse Determination|Denial)\s*:\s*(.+?)(?=Clinical Review Guidelines Used\s*:|Detailed Rationale\s*:|\d+\.\s+HOW TO APPEAL)/i);
+    if (rationale) out.reason = rationale[1].trim().slice(0, 3000);
+    var appealStart = src.search(/(?:^|\n)\s*\d+\.\s+HOW TO APPEAL/i);
+    if (appealStart !== -1) out.instructions = src.slice(appealStart)
+      .split(/Notice ID:|This is a fictional document/i)[0]
+      .replace(/Healthfirst Silver Leaf Plan[^\n]*Page \d+ of \d+/gi, "")
+      .replace(/\s+/g, " ").trim().slice(0, 6000);
+    var noticeDate = flat.match(/Notice Date\s*:\s*([^:]{5,40})/i);
+    if (noticeDate) out.noticeDate = findDate(noticeDate[1]);
+    // Optional synthetic identity data is used only by an explicit test mode.
+    // Never infer missing identity fields or use the insurer's letterhead address.
+    out.testIdentity = {};
+    var identityPatterns = {
+      name: /Member Name\s*:\s*([^\n:]+?)(?=\s{2,}|\s+Notice Date\s*:|\n|$)/i,
+      memberId: /Member ID\s*:\s*([A-Za-z0-9-]+)/i,
+      refNumber: /Reference\s*\/\s*Auth\s*#\s*:\s*([A-Za-z0-9-]+)/i
+    };
+    Object.keys(identityPatterns).forEach(function (key) {
+      var match = src.match(identityPatterns[key]);
+      out.testIdentity[key] = match ? match[1].trim() : "";
+    });
     return out;
   }
 
@@ -588,6 +629,11 @@
       L.push(s.instructions);
       L.push("");
     }
+    if (s.appealsAddress) {
+      L.push("Appeals mailing address: " + s.appealsAddress);
+      L.push("Practice address only. Do not mail anything here.");
+      L.push("");
+    }
     L.push("Questions: call the number on your member card.");
     return L.join("\n");
   }
@@ -605,3 +651,4 @@
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.AppealReader = api;
 })(typeof window !== "undefined" ? window : this);
+

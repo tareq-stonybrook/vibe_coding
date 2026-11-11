@@ -1,0 +1,129 @@
+healthfirst                                                                                     100 Church Street, 18th Floor
+                                                                                                        New York, NY 10007
+HEALTH INSURANCE PLAN, INC. | NY STATE OF HEALTH MARKETPLACE                               Customer Service: 1-888-250-2220
+
+
+
+
+   NOTICE OF ADVERSE BENEFIT DETERMINATION
+   Prior Authorization Coverage Denial — Healthfirst Silver Leaf Plan
+
+
+
+
+   Member Name: Robert Mercer                                    Notice Date: November 3, 2026
+   Member ID: HF884392019-02                                     Reference / Auth #: PA-2026-1104823
+   Date of Birth: 11/03/1968                                     Requesting Provider: NYU Langone Orthopedic Surgery
+   Plan Product: Healthfirst Silver Leaf (Individual ACA)        Facility: NYU Langone Health
+
+
+
+1. REQUESTED SERVICE & ACTION TAKEN
+
+
+Healthfirst has completed the clinical prior authorization review requested by your provider on October 28, 2026.
+Coverage for the following requested inpatient admission has been DENIED:
+
+
+                                                                         Setting
+ Requested Service / Procedure               Diagnosis / Codes                                  Determination
+                                                                         Requested
+
+ Single-Level Posterior Lumbar               Lumbar Spondylolisthesis    Inpatient Acute        DENIED
+ Interbody Fusion (PLIF), L4-L5              & Radiculopathy             Hospital Stay          (Acute Inpatient Level of Care
+ CPT 22630 - Arthrodesis, posterior          ICD-10 M43.16 & M54.16      3-Day Planned          Not Medically Necessary)
+ interbody technique, single interspace,                                 Admission
+ lumbar
+
+
+2. CLINICAL RATIONALE & GUIDELINES APPLIED
+
+
+
+   Reason for Adverse Determination:
+
+   Your spine surgeon requested prior approval for a 3-day acute care inpatient hospital admission following a
+   planned single-level lumbar spine fusion (L4-L5). While single-level lumbar fusion is a covered benefit under your
+   Healthfirst Silver Leaf Plan when criteria are met, our medical reviewer determined that an acute care inpatient
+   hospital admission is NOT medically necessary.
+
+   Clinical Review Guidelines Used: InterQual® 2026 Acute Adult Guidelines (Spinal Procedures: Lumbar Fusion) &
+   Healthfirst Clinical Coverage Policy #SP-019 (Surgical Inpatient vs. Outpatient Observation Criteria).
+
+   Detailed Rationale: Medical records submitted by Dr. Sarah Jenkins on 10/28/2026 were reviewed by a board-
+   certified orthopedic physician reviewer. The documentation demonstrates that you are a 58-year-old male
+   undergoing a single-level posterior lumbar fusion. The notes do not document significant comorbidities—such
+   as severe cardiopulmonary instability, ASA physical status class III/IV, morbid obesity (BMI > 45), or acute
+   neurological deficits—that require multi-day acute inpatient nursing care. Guidelines specify that single-level
+   lumbar interbody fusions without complex surgical risk factors should be performed in an ambulatory surgical
+   setting or managed under short-term observation (under 24–48 hours). Therefore, the request for a 3-day
+   inpatient stay is denied.
+
+
+
+
+Healthfirst Silver Leaf Plan — Official Coverage Determination                                                       Page 1 of 2
+3. HOW TO APPEAL THIS DECISION (YOUR APPEAL RIGHTS)
+
+
+If you, your authorized representative, or your doctor disagree with this denial, you have the right to request an
+Internal Appeal. During an internal appeal, independent Healthfirst physician specialists will review the clinical
+records, guidelines, and any additional medical information you provide.
+
+
+
+   Important Filing Deadline: You have 180 calendar days from the date of this letter to request an appeal (Deadline:
+   May 2, 2027). Appeal requests filed after this date will not be accepted. There is no fee to submit an appeal.
+
+
+
+4. STANDARD VS. EXPEDITED APPEAL PROCEDURES
+
+
+Standard Internal Appeal:
+
+
+Healthfirst will send a written determination within 30 calendar days of receiving your appeal. You or your physician
+should include supplementary medical records (e.g., physical therapy notes, pain management reports, or physician
+statements explaining why outpatient observation is unsafe for your condition).
+
+
+Expedited (Fast-Track) Appeal:
+
+
+If waiting 30 days could seriously harm your life, health, or recovery, you or your physician may request an expedited
+appeal. Healthfirst will evaluate the request and provide a final verbal and written determination within 72 hours.
+
+
+5. APPEAL SUBMISSION DETAILS
+
+
+Submit your appeal request along with any supporting documents to Healthfirst via any of the following methods:
+
+
+ By Mail:                          Healthfirst Appeals & Grievances Department
+                                   P.O. Box 5166, New York, NY 10274-5166
+
+ By Phone:                         1-888-250-2220 (TTY/TDD: 1-888-211-1777)
+                                   Mon–Fri, 8:00 AM – 6:00 PM EST
+
+ By Fax:                           1-646-313-4615 (Attention: Clinical Appeals Unit)
+
+ Online Member Portal:             Submit via member account at my.healthfirst.org
+
+
+6. NY STATE DEPARTMENT OF FINANCIAL SERVICES (DFS) EXTERNAL APPEAL
+
+
+If Healthfirst upholds this denial following an internal appeal, you have the right to request an External Appeal through
+the New York State Department of Financial Services (DFS). An independent medical panel appointed by the state
+will review your appeal. You must submit your External Appeal application to the NYS DFS within 4 months of
+receiving Healthfirst's final appeal determination notice.
+
+Notice ID: HF-NY-DEN-20261103-SL2 | Form ACA-NY-SL-2026. This is a fictional document generated for software testing purposes.
+
+
+
+
+Healthfirst Silver Leaf Plan — Official Coverage Determination                                                       Page 2 of 2
+

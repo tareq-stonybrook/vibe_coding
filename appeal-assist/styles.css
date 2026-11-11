@@ -248,7 +248,7 @@ a.call:hover { background: color-mix(in srgb, var(--link) 8%, transparent); }
 .deadline.past { border-left-color: var(--error); }
 .deadline.past { background: color-mix(in srgb, var(--muted) 10%, transparent); border-radius: 0 10px 10px 0; padding: 8px 12px 4px 14px; }
 .deadline.past dt, .deadline.past dd:not(.calls) { color: var(--muted); }
-.deadline.past dt:first-child { text-decoration: line-through; }
+.deadline.past dt:first-child { text-decoration: none; }
 .deadline.soon { border-left-color: var(--warn-text); }
 .past-alert { border: 2px solid var(--error); border-radius: 14px; padding: 14px 18px; margin: 12px 0 16px; }
 .past-alert p { margin: 0 0 8px; }
@@ -275,3 +275,98 @@ dialog {
   padding: 24px; background: var(--bg); color: var(--text);
 }
 dialog::backdrop { background: rgba(0, 0, 0, 0.45); }
+
+
+.test-banner { padding: 12px 24px; background: #fff0c2; color: #493500; text-align:center; font-size:14px; border-bottom:1px solid #d8bd69; }
+#save-file, #load-file, label[for="load-file"] { display:none; }
+
+input, select, textarea { max-width: 100%; }
+.facts dd, blockquote, .call, .source { overflow-wrap: anywhere; }
+:focus-visible { outline: 3px solid var(--accent, #3987ff); outline-offset: 3px; }
+
+/* Guided test experience */
+.wrap { max-width: 54rem; }
+.hero { padding-block: 46px 26px; text-align: left; }
+.brand-title { font-size: clamp(2.65rem, 6vw, 4.2rem); max-width: 44rem; }
+.tagline { max-width: 38rem; font-size: 1.2rem; line-height: 1.5; }
+.hero .eyebrow { color: var(--link); letter-spacing: .12em; font-size: .75rem; margin-bottom: 18px; }
+.journey-overview { display: grid; grid-template-columns: repeat(3,1fr); gap: 24px; margin: 12px 0 28px; }
+.journey-overview span { color: var(--link); font-size: .8rem; font-weight: 700; }
+.journey-overview h2 { font-size: 1.05rem; margin-top: 6px; }
+.journey-overview p { color: var(--muted); font-size: .95rem; }
+.scope-note { background: var(--bg-alt); border-left: 3px solid var(--btn); padding: 16px 20px; border-radius: 0 12px 12px 0; margin-block: 20px; font-size: .95rem; }
+.scope-note p { margin: 5px 0 0; }
+.scope-note.unsupported { border-color: var(--error); }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 28px; }
+.form-grid .field { margin: 0; }
+select { min-height: 52px; cursor: pointer; }
+.intro-limits, .rule-details { border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; margin-block: 18px; }
+summary { cursor: pointer; font-weight: 600; }
+details[open] > summary { margin-bottom: 16px; }
+.step-nav { max-width: 54rem; margin: auto; padding: 0 20px; }
+#step-list { display: flex; list-style: none; padding: 0; margin: 0; gap: 18px; overflow-x: auto; scrollbar-width: thin; }
+#step-list li { white-space: nowrap; color: var(--muted); font-size: .75rem; padding: 12px 0; border-bottom: 2px solid transparent; }
+#step-list li[aria-current] { color: var(--link); font-weight: 700; border-color: var(--link); }
+#step-list li.complete { color: var(--ok); }
+.test-banner { font-size: .8rem; padding: 8px 16px; }
+.upload { border: 1px solid var(--line); border-radius: 16px; padding: 22px; margin-top: 26px; }
+.start-example, .identity-test { padding: 18px 22px; margin-block: 12px; }
+.next-steps { padding-left: 22px; display: grid; gap: 10px; margin-bottom: 24px; }
+.actions { padding-top: 16px; gap: 12px; }
+section.step > .actions { border-top: 1px solid var(--line); margin-top: 30px; }
+@media(max-width:600px) {
+ .journey-overview { grid-template-columns: 1fr; gap: 14px; }
+ .journey-overview > div { border-bottom: 1px solid var(--line); padding-bottom: 10px; }
+ .form-grid { grid-template-columns: 1fr; gap: 18px; }
+ .hero { padding-block: 30px 20px; }
+ #step-list { gap: 12px; } #step-list li { font-size: .7rem; }
+ .tile, .upload { padding: 18px; }
+}
+
+.example-downloads { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line); }
+.example-downloads .inline { gap: 12px; }
+.identity-summary { margin-block: 20px; padding: 18px 22px; border-left: 3px solid var(--ok); background: var(--bg-alt); border-radius: 0 12px 12px 0; overflow-wrap: anywhere; }
+.identity-summary h2 { font-size: 1rem; }
+
+/* Reading comfort and clearer hierarchy */
+body { line-height: 1.65; }
+h1 { line-height: 1.16; }
+.lede { font-size: 1.1rem; line-height: 1.6; max-width: 42rem; margin-top: 14px; }
+.step.wrap { padding-top: 8px; }
+.field > label, fieldset > legend { line-height: 1.45; }
+.hint { line-height: 1.55; }
+input[type="text"], input[type="date"], select, textarea { font-size: 1rem; padding: 13px 15px; border-radius: 10px; }
+textarea { line-height: 1.7; }
+textarea.letter { font-family: var(--font); font-size: 1rem; line-height: 1.8; padding: 24px; min-height: 30rem; border: 1px solid var(--line); }
+.tile { border-radius: 14px; }
+blockquote { font-size: 1rem; line-height: 1.75; margin-inline: 0; overflow-wrap: anywhere; }
+.facts { row-gap: 12px; }
+.deadline { margin-block: 24px; padding: 18px 20px; background: var(--bg); border-radius: 10px; }
+.deadline > dt:first-child { font-size: 1.08rem; }
+.deadline dd { margin-bottom: 12px; line-height: 1.65; }
+.deadline .calls { display: flex; flex-wrap: wrap; gap: 10px; }
+.source-details { font-size: .85rem; color: var(--muted); margin-top: 8px; }
+.source-details summary { font-weight: 400; }
+.source-details .source { margin: 10px 0 0; }
+.rule-details > summary { line-height: 1.5; padding-block: 3px; }
+.review-item { padding-block: 18px; }
+.fill-row { gap: 12px; }
+.notice-dates { margin-bottom: 26px; }
+@media(max-width:600px) {
+ textarea.letter { padding: 16px; min-height: 26rem; }
+ .step > .actions > button { flex: 1 1 auto; min-height: 48px; }
+ .deadline { padding: 16px; }
+ .notice-dates { gap: 22px; }
+}
+
+.case-review { border: 1px solid var(--line); margin-block: 26px; }
+.case-field-list { list-style: none; padding: 0; margin: 18px 0; }
+.case-field-list li { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.case-field-list li > span:first-child { flex: 1 1 150px; font-weight: 600; }
+.case-field-list button { padding: 7px 16px; min-height: 44px; }
+.case-badge { font-size: .8rem; border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; }
+.case-badge.entered { color: var(--muted); }
+
+/* Make text links recognizable without relying on color alone. */
+main a:not(.call), .test-banner a { text-decoration: underline; text-underline-offset: 3px; }
+a:focus-visible { outline: 3px solid var(--accent, #0074cc); outline-offset: 4px; }

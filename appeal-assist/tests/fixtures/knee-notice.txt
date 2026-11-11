@@ -1,0 +1,129 @@
+healthfirst                                                                                            100 Church Street, 18th Floor
+                                                                                                               New York, NY 10007
+HEALTH INSURANCE PLAN, INC. | NY STATE OF HEALTH MARKETPLACE                                      Customer Service: 1-888-250-2220
+
+
+
+
+   NOTICE OF ADVERSE BENEFIT DETERMINATION
+   Prior Authorization Coverage Denial — Healthfirst Silver Leaf Plan
+
+
+
+
+   Member Name: Eleanor Vance                                      Notice Date: October 27, 2026
+   Member ID: HF908234101-01                                       Reference / Auth #: PA-2026-0988412
+   Date of Birth: 04/12/1974                                       Requesting Provider: Metro Orthopedic Surgery
+   Plan Product: Healthfirst Silver Leaf (Individual ACA)          Associates
+                                                                   Facility: Mount Sinai Health System
+
+
+
+1. REQUESTED SERVICE & ACTION TAKEN
+
+
+Healthfirst has reviewed the prior authorization request submitted by your provider on October 22, 2026. Based on
+clinical review against established Medical Necessity Criteria, coverage for the following service has been DENIED:
+
+
+ Requested Service / Procedure                       Diagnosis / Codes          Setting Requested      Determination
+
+ Elective Total Knee Arthroplasty (TKA), Left        Primary Osteoarthritis,    Inpatient Acute        DENIED
+ Knee                                                Left Knee                  Hospital Stay          (Inpatient Setting Not
+ CPT 27447 - Arthroplasty, knee, condyle and         ICD-10 M17.12              2-Day Planned          Medically Necessary)
+ plateau; medial and lateral compartments                                       Admission
+
+
+2. CLINICAL RATIONALE & CLINICAL CRITERIA APPLIED
+
+
+
+   Reason for Adverse Determination:
+
+   Your physician requested approval for a planned inpatient acute care hospital admission following an elective
+   left total knee replacement. While the surgical procedure itself (CPT 27447) is a covered benefit under your
+   Healthfirst Silver Leaf Plan, our Medical Utilization Management Committee has determined that an acute care
+   inpatient admission and hospital stay is NOT medically necessary for your clinical profile.
+
+   Clinical Review Guidelines Used: MCG™ Health Care Guidelines (28th Edition) – Inpatient & Surgical Care:
+   Arthroplasty, Knee, Total (S-700) & Healthfirst Clinical Policy #MM-041 (Surgical Care Setting Determination).
+
+   Detailed Rationale: Medical records provided by Dr. Marcus Thorne (dated 10/10/2026 and 10/18/2026) show
+   that you are 52 years old with primary knee osteoarthritis. Clinical review indicates that you do not possess
+   active high-risk co-morbid conditions (such as severe uncontrolled congestive heart failure, severe COPD
+   requiring active oxygen adjustment, or end-stage renal disease) that necessitate acute overnight inpatient
+   telemetry or intensive acute nursing care. Current evidence-based clinical guidelines mandate that elective total
+   knee replacements in functional adults without severe unstable systemic disease be performed in an outpatient
+   surgical setting or under observation status (under 24 hours). Therefore, inpatient admission is denied.
+
+
+
+
+Healthfirst Silver Leaf Plan — Official Coverage Determination                                                           Page 1 of 2
+3. HOW TO APPEAL THIS DECISION (YOUR APPEAL RIGHTS)
+
+
+If you or your doctor disagree with this decision, you have the right to request an Internal Appeal. Requesting an
+appeal means asking Healthfirst medical doctors to re-review your case along with any additional medical evidence
+provided.
+
+
+
+   Important Deadline: You must submit your appeal within 180 calendar days from the date of this notice (April 25,
+   2027). There is no cost to file an appeal. You may represent yourself, or choose an authorized representative (such as
+   your physician) to act on your behalf.
+
+
+
+4. INTERNAL APPEAL OPTIONS & PROCEDURES
+
+
+Standard Internal Appeal:
+
+
+A decision will be made in writing within 30 calendar days of receiving your appeal request. You or your physician
+should submit additional clinical documentation, such as functional status notes, home support limitations, or
+medical risk factors not previously provided.
+
+
+Expedited (Fast-Track) Appeal:
+
+
+If your doctor certifies that waiting 30 days for a standard appeal could seriously jeopardize your life, health, or ability
+to regain maximum function, you may request an Expedited Appeal. Expedited decisions are delivered verbally and in
+writing within 72 hours.
+
+
+5. WHERE AND HOW TO FILE YOUR APPEAL
+
+
+You can file your appeal by mail, phone, fax, or online using the contact details below:
+
+
+ By Mail:                          Healthfirst Appeals & Grievances Department
+                                   P.O. Box 5166, New York, NY 10274-5166
+
+ By Phone:                         1-888-250-2220 (TTY/TDD: 1-888-211-1777)
+                                   Mon–Fri, 8:00 AM – 6:00 PM EST
+
+ By Fax:                           1-646-313-4615 (Attention: Clinical Appeals Unit)
+
+ Online Portal:                    Log in to your member account at my.healthfirst.org
+
+
+6. NEW YORK STATE EXTERNAL APPEAL RIGHTS
+
+
+Under New York Insurance Law, if Healthfirst upholds this denial upon internal appeal (or if Healthfirst waives the
+internal appeal requirement), you have the right to file an External Appeal with the New York State Department of
+Financial Services (DFS). An independent medical panel will review the denial. You must file for a NY State External
+Appeal within 4 months of receiving Healthfirst's final adverse determination.
+
+Notice ID: HF-NY-DEN-20261027-SL1 | Form ACA-NY-SL-2026. This is a fictional document generated for software application
+evaluation purposes.
+
+
+
+
+Healthfirst Silver Leaf Plan — Official Coverage Determination                                                       Page 2 of 2
+

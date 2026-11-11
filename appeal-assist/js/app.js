@@ -2,12 +2,13 @@
   "use strict";
 
   var Rules = window.AppealRules;
+  var Safety = window.AppealSafety;
   var Samples = window.AppealSamples.SAMPLES;
   var Letter = window.AppealLetter;
   var Reader = window.AppealReader;
   var Composer = window.AppealComposer;
 
-  var STORAGE_KEY = "appealAssist.v2";
+  var STORAGE_KEY = "appealAssist.notice-test.v1";
   var STEP_NAMES = ["Start", "Your plan", "Notice", "Options", "Checklist", "Draft", "Review", "Download"];
   // Suggested, not required. The 2026 Silver Leaf contract has no fixed
   // list of documents for a medical necessity appeal. Healthfirst names
@@ -38,9 +39,12 @@
     return {
       step: 0,
       ack: false,
-      state: "",
-      planType: "",
-      plan: "",
+      scopeConfirmed: true,
+      careTiming: "",
+      receivedDate: "",
+      state: "NY",
+      planType: "aca",
+      plan: "healthfirst-silver-leaf",
       details: { planName: "", service: "", noticeDate: "", reason: "", instructions: "" },
       checklist: CHECKLIST.map(function (c) { return { id: c.id, have: false, attach: false }; }),
       clinician: { text: "", unsure: false },
@@ -54,9 +58,6 @@
       // Appeals address read from a notice file, so it can be marked and
       // cleared again. Empty once the user types their own.
       addressFromNotice: "",
-      // Notice details that came from an example or a file, not typed.
-      // A newly read file replaces these, even with a blank.
-      autoDetails: {},
       // Notice details changed after the user edited the letter by hand.
       letterStale: false
     };
@@ -64,16 +65,14 @@
 
   var S = freshState();
   var noticeFile = null;
+  var testIdentity = {};
 
   // ---------- storage (browser only, may be unavailable) ----------
   function save() {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(S)); } catch (e) { /* storage unavailable */ }
+    // Kept in memory only, so details read from a notice are not stored.
   }
   function loadSaved() {
-    try {
-      var raw = localStorage.getItem(STORAGE_KEY);
-      return raw ? JSON.parse(raw) : null;
-    } catch (e) { return null; }
+    return null;
   }
   function clearSaved() {
     try { localStorage.removeItem(STORAGE_KEY); } catch (e) { /* ignore */ }
@@ -139,7 +138,7 @@
   // Planned admission scenario: the plan denied care before the stay.
   function isPlanned() {
     var p = plansFor(S.planType).filter(function (x) { return x.id === S.plan; })[0];
-    return Boolean(p && p.scenario === "planned");
+    return Boolean(p && p.scenario === "planned" && S.careTiming === "planned");
   }
   function checklistLabel(id) {
     var c = CHECKLIST.filter(function (x) { return x.id === id; })[0];
@@ -249,7 +248,7 @@
   // Nothing is lost on failure: the draft stays saved in the page.
   function failed(filename, detail) {
     return "Could not save " + filename + (detail ? " (" + detail + ")" : "") +
-      ". Your draft is still saved here. Try the other format, or use Copy letter.";
+      ". Your draft is still here until you reload. Try the other format, or use Copy letter.";
   }
   // iPhone and iPad: open the share sheet, which has Save to Files.
   // Falls back to a normal download where sharing files is not supported.
@@ -258,7 +257,7 @@
       var file = new File([content], filename, { type: type });
       if (navigator.canShare({ files: [file] })) {
         return navigator.share({ files: [file] }).then(
-          function () { return "Shared " + filename + ". If you chose Save to Files, it is in the Files app. Your draft is still saved here."; },
+          function () { return "Shared " + filename + ". If you chose Save to Files, it is in the Files app. Your draft is still here until you reload."; },
           function (e) {
             if (e && e.name === "AbortError") return "Save cancelled. Your draft is still here. Tap the button again and choose Save to Files.";
             return blobDownload(filename, content, type);
@@ -278,7 +277,7 @@
     setTimeout(function () { a.remove(); URL.revokeObjectURL(url); }, 60000);
     // The browser or the page host can still block this download without
     // telling the page, so the message does not claim success.
-    return "Download of " + filename + " started. If no file appears, use Copy letter. Your draft is still saved here.";
+    return "Download of " + filename + " started. If no file appears, use Copy letter. Your draft is still here until you reload.";
   }
 
   // ---------- step navigation ----------
@@ -287,6 +286,13 @@
     if (step === 1 && !S.state) return "Choose your state.";
     if (step === 1 && !S.planType) return "Choose your insurance type.";
     if (step === 1 && plansFor(S.planType).length && !S.plan) return "Choose your plan.";
+    if (step === 1 && !S.scopeConfirmed) return "This plan combination is not supported. Select New York, ACA marketplace and Healthfirst Silver Leaf to test the supported scenario.";
+    if (step === 1 && S.careTiming !== "planned") return S.careTiming === "received" ? "Care already received is outside this app's scope. Use the appeal instructions on your notice or contact your plan." : "Confirm that the denied admission is still planned. If unsure, contact your health plan or care team before continuing.";
+    if (step >= 2) {
+      var issue = Safety.scopeError(S) || Safety.dateError(S.details.noticeDate, S.receivedDate, todayIso());
+      if (issue) return issue;
+    }
+    if (step >= 5 && S.letterStale) return "Your case details changed. Press Write my letter to rebuild the draft, then review it again.";
     if (step === 5 && !S.letter.trim()) return "Press Write my letter first.";
     if (step === 6 && openGaps().length) return "Fill in each gap or leave it for later before download.";
     if (step === 6 && !S.reviewed) return "Confirm you read the whole letter.";
@@ -320,35 +326,25 @@
     STEP_NAMES.forEach(function (name, i) {
       var li = el("li", {}, (i + 1) + ". " + name);
       if (i === S.step) li.setAttribute("aria-current", "step");
+      if (i < S.step) li.className = "complete";
       list.appendChild(li);
     });
     $("#step-count").textContent = S.step === 0 ? "" : "Step " + (S.step + 1) + " of " + STEP_NAMES.length;
     $("#progress-fill").style.width = (S.step / (STEP_NAMES.length - 1) * 100) + "%";
   }
 
+  function updateScopeFeedback() {
+    S.scopeConfirmed = S.state === "NY" && S.planType === "aca" && S.plan === "healthfirst-silver-leaf";
+    var message = !S.scopeConfirmed ? "This combination is not supported yet. Check the choices above or use the instructions on your denial notice. We won’t apply Silver Leaf rules to another plan." : S.careTiming === "received" ? "Care already received is outside this test’s scope. Use your notice or contact the plan for the right appeal process." : S.careTiming === "unsure" ? "Contact your health plan or care team to confirm whether this is a planned admission before continuing." : S.careTiming === "planned" ? "This case fits the test. Next, add a fictional denial notice." : "Plan supported. Choose whether the denied admission has happened.";
+    $("#scope-feedback").textContent = message;
+    $("#scope-feedback").classList.toggle("unsupported", !S.scopeConfirmed || S.careTiming === "received" || S.careTiming === "unsure");
+  }
   function renderContext() {
-    var sel = $("#state");
-    if (!sel.options.length) {
-      sel.appendChild(el("option", { value: "" }, "Choose a state"));
-      Rules.STATES.forEach(function (s) { sel.appendChild(el("option", { value: s.id }, s.label)); });
-    }
-    sel.value = S.state;
-
-    var box = $("#plan-types");
-    if (!box.children.length) {
-      Rules.INSURANCE_TYPES.forEach(function (t) {
-        var row = el("div", { "class": "choice" });
-        var input = el("input", { type: "radio", name: "planType", id: "pt-" + t.id, value: t.id });
-        var label = el("label", { "for": "pt-" + t.id });
-        label.appendChild(document.createTextNode(t.label));
-        label.appendChild(el("span", { "class": "hint", style: "display:block" }, t.hint));
-        row.appendChild(input);
-        row.appendChild(label);
-        box.appendChild(row);
-      });
-    }
-    $all('input[name="planType"]').forEach(function (r) { r.checked = r.value === S.planType; });
-    renderPlan();
+    $("#state").value = S.state;
+    $("#insurance-type").value = S.planType;
+    $("#plan").value = S.plan;
+    $("#care-timing").value = S.careTiming;
+    updateScopeFeedback();
   }
 
   function plansFor(type) {
@@ -360,28 +356,65 @@
   }
 
   // Plan picker shows only for insurance types that list plans.
-  function renderPlan() {
-    var plans = plansFor(S.planType);
-    $("#plan-field").hidden = !plans.length;
-    var sel = $("#plan");
-    sel.innerHTML = "";
-    if (!plans.length) return;
-    sel.appendChild(el("option", { value: "" }, "Choose a plan"));
-    plans.forEach(function (p) { sel.appendChild(el("option", { value: p.id }, p.label)); });
-    sel.value = S.plan;
+  function renderPlan() { $("#plan").value = S.plan; updateScopeFeedback(); }
+
+  function caseFields() {
+    return [
+      {label:"Plan name", value:S.details.planName, id:"planName"},
+      {label:"Inpatient service", value:S.details.service, id:"service"},
+      {label:"Notice date", value:S.details.noticeDate, id:"noticeDate"},
+      {label:"Denial reason", value:S.details.reason, id:"reason"},
+      {label:"Appeal instructions", value:S.details.instructions, id:"instructions"},
+      {label:"Appeals mailing address", value:S.sender.appealsAddress, id:"notice-address"}
+    ];
+  }
+  function editNoticeField(id) {
+    if (S.step !== 2) go(2);
+    var input = $("#" + id);
+    input.focus(); input.scrollIntoView({behavior:"smooth", block:"center"});
+  }
+  function renderCaseReview(target, overview) {
+    var box = $(target); box.replaceChildren();
+    var fields = caseFields();
+    var missing = fields.filter(function(f){return !f.value.trim();});
+    var supplied = fields.length - missing.length;
+    box.appendChild(el("p", {"class":"eyebrow"}, overview ? "NOTICE CHECK" : "BEFORE YOU PREPARE YOUR LETTER"));
+    box.appendChild(el("h2", {}, overview ? supplied + " of 6 notice details entered" : "What still needs your attention"));
+    box.appendChild(el("p", {"class":"hint"}, "Entered does not mean verified. Check every detail against the fictional notice. Blank items stay as placeholders where needed."));
+    var list = el("ul", {"class":"case-field-list"});
+    (overview ? fields : missing).forEach(function(f){
+      var present = Boolean(f.value.trim());
+      var row = el("li", {});
+      row.appendChild(el("span", {}, f.label));
+      row.appendChild(el("span", {"class":"case-badge" + (present ? " entered" : "")}, present ? "Entered · check it" : "Not entered"));
+      var button = el("button", {type:"button", "class":"secondary", "aria-label":(present ? "Check " : "Add ") + f.label.toLowerCase()}, present ? "Check" : "Add");
+      button.addEventListener("click", function(){editNoticeField(f.id);}); row.appendChild(button); list.appendChild(row);
+    });
+    box.appendChild(list);
+    if (!overview && !missing.length) box.appendChild(el("p", {}, "All six notice fields have text. Confirm they are accurate before continuing."));
+    if (!S.receivedDate) box.appendChild(el("p", {"class":"hint"}, "Received date unknown: the deadline shown is an estimate. Add the actual date on the notice step if you know it, or confirm with the plan."));
+    if (!overview) {
+      box.appendChild(el("p", {}, S.clinician.text.trim() ? "Clinician explanation entered. Check that it supports the planned admission." : "Still to gather: your clinician’s explanation of why the planned inpatient admission is needed. You can add it on the draft step."));
+      box.appendChild(el("p", {"class":"hint"}, "Name, member ID, reference number and other missing letter details are checked separately on the Review step. Do not enter real patient information."));
+      var edit = el("button", {type:"button", "class":"secondary"}, "Review all notice details");
+      edit.addEventListener("click", function(){go(2);}); box.appendChild(edit);
+    }
   }
 
   function renderNotice() {
+    $("#received-date").value = S.receivedDate;
     var sel = $("#sample");
     sel.innerHTML = "";
     var matching = Samples.filter(function (s) {
       return (!S.state || s.state === S.state) && (!S.planType || s.planType === S.planType);
     });
     matching.forEach(function (s, i) {
-      sel.appendChild(el("option", { value: s.id }, "Example " + (i + 1) + ": " + (s.planName || "notice with missing details")));
+      sel.appendChild(el("option", { value: s.id }, "Example " + (i + 1) + ": " + s.service));
     });
     DETAIL_FIELDS.forEach(function (f) { $("#" + f).value = S.details[f] || ""; });
     checkNoticeDate();
+    $("#notice-address").value = S.sender.appealsAddress;
+    renderCaseReview("#notice-review", true);
   }
 
   // A notice date far in the past or in the future is usually a misread
@@ -401,6 +434,22 @@
 
   // A new notice replaces the old one, so a letter written from the old
   // details is dropped and written again on the letter step.
+  function unreview() { S.reviewed = false; $("#reviewed").checked = false; }
+  function changedCase() {
+    unreview();
+    if (S.letter) S.letterStale = true;
+    if (S.step === 5 && S.letterStale) setStatus("#letter-status", "Your case details changed. Press Write my letter and review the new draft.", true);
+  }
+  function clearCaseExtras() {
+    testIdentity = {};
+    $("#identity-summary").hidden = true;
+    $("#identity-preview").textContent = "";
+    S.receivedDate = ""; $("#received-date").value = "";
+    S.clinician = {text:"", unsure:false};
+    S.checklist.forEach(function(c){ c.have = c.attach = false; });
+    S.sender = {appealsAddress:"", date:todayIso()}; S.addressFromNotice = "";
+    resetLetter();
+  }
   function resetLetter() {
     var had = Boolean(S.letter && S.letterEdited);
     S.letter = "";
@@ -414,13 +463,14 @@
   }
 
   function renderGuide() {
+    renderCaseReview("#case-todo", false);
     var rules = Rules.getRules(S.state, S.planType);
     $("#guide-context").textContent = "Showing results for " + stateLabel(S.state) + ", " + typeLabel(S.planType) +
       (planLabel(S.plan) ? ", " + planLabel(S.plan) : "") + ".";
 
     var reasonBox = $("#guide-reason");
     reasonBox.innerHTML = "";
-    reasonBox.appendChild(el("h2", {}, "Your denial"));
+    reasonBox.appendChild(el("h2", {}, "What was denied?"));
     var facts = el("dl", { "class": "facts" });
     function fact(k, v, missing) {
       facts.appendChild(el("dt", {}, k));
@@ -430,7 +480,7 @@
     fact("Date of notice", S.details.noticeDate ? Letter.formatDate(S.details.noticeDate) : "", "Not entered yet");
     fact("Service denied", S.details.service.trim(), "Not entered yet");
     reasonBox.appendChild(facts);
-    reasonBox.appendChild(el("h3", {}, "Reason for denial, as stated by your plan"));
+    reasonBox.appendChild(el("h3", {}, "Why was it denied?"));
     if (S.details.reason.trim()) reasonBox.appendChild(el("blockquote", {}, S.details.reason.trim()));
     else reasonBox.appendChild(el("p", {}, "You have not entered the denial reason yet. Go back to add it, or fill it in later in the letter."));
     var plain = Composer.explainDenial(S.details.reason, S.details.service, isPlanned());
@@ -442,12 +492,20 @@
     var box = $("#guide-rules");
     box.innerHTML = "";
     var card = el("div", { "class": "tile" });
-    card.appendChild(el("h2", {}, "Appeal paths and deadlines"));
+    card.appendChild(el("h2", {}, "Your next steps"));
+    var actions = el("ol", {"class":"next-steps"});
+    ["Confirm your deadline and where to send the appeal.", "Ask your clinician for support for the planned admission. If the matter is urgent, ask about expedited review.", "Gather the documents you will attach, then prepare your draft."].forEach(function(t){ actions.appendChild(el("li", {}, t)); }); card.appendChild(actions);
+    if (!rules.teamConfirmed) card.appendChild(el("p", {"class":"warn", role:"note"}, "Guidance is still under team review. Check that this contract applies to the case, and confirm deadlines and requirements with the plan."));
 
     if (rules.deadlines.length) {
       if (rules.sourceUrl) {
         var src = el("p", {}, "Source: ");
-        src.appendChild(el("a", { href: rules.sourceUrl, target: "_blank", rel: "noopener" }, "Healthfirst Silver Leaf 2026 Certificate of Coverage"));
+        src.appendChild(el("a", { href: rules.sourceUrl, target: "_blank", rel: "noopener noreferrer" }, "Healthfirst Silver Leaf 2026 Certificate of Coverage"));
+        var backup = el("p", {"class":"hint"});
+        backup.appendChild(document.createTextNode("PDF not opening? "));
+        backup.appendChild(el("a", {href:"https://healthfirst.org/individual-and-family-health-plans/member-resources/documents", target:"_blank", rel:"noopener noreferrer"}, "Find the contract on Healthfirst’s plan documents page"));
+        backup.appendChild(document.createTextNode(" (choose 2026, then Silver Leaf). External pages open in a new tab; PDF page jumps depend on your browser."));
+        card.appendChild(backup);
         src.appendChild(el("span", { "class": "visually-hidden" }, " (opens in new tab)"));
         card.appendChild(src);
       }
@@ -463,8 +521,8 @@
     } else {
       if (isPlanned()) card.appendChild(el("p", {}, "These rules are for a planned inpatient admission the plan denied before your stay."));
       if (rules.paths.length) {
-        card.appendChild(el("h3", {}, "Your appeal options"));
-        rules.paths.forEach(function (p) { card.appendChild(renderRule(p, rules)); });
+        var paths = el("details", {"class":"rule-details"}); paths.appendChild(el("summary", {}, "Explore standard, urgent and external appeals"));
+        rules.paths.forEach(function (p) { paths.appendChild(renderRule(p, rules)); }); card.appendChild(paths);
       }
       var yours = rules.deadlines.filter(function (d) { return d.who !== "plan"; });
       var theirs = rules.deadlines.filter(function (d) { return d.who === "plan"; });
@@ -475,21 +533,21 @@
         yours.forEach(function (d) { card.appendChild(renderRule(d, rules)); });
       }
       if (theirs.length) {
-        card.appendChild(el("h3", {}, "How long the plan has to respond"));
-        theirs.forEach(function (d) { card.appendChild(renderRule(d, rules)); });
+        var responses = el("details", {"class":"rule-details"}); responses.appendChild(el("summary", {}, "How long the plan has to respond"));
+        theirs.forEach(function (d) { responses.appendChild(renderRule(d, rules)); }); card.appendChild(responses);
       }
     }
     if (rules.contacts.length || rules.missing.length) {
-      card.appendChild(el("h3", {}, "Who to contact"));
-      rules.contacts.forEach(function (c) { card.appendChild(renderRule(c, rules)); });
-      rules.missing.forEach(function (m) { card.appendChild(el("p", { "class": "missing" }, m)); });
+      var contacts = el("details", {"class":"rule-details"}); contacts.appendChild(el("summary", {}, "All contact numbers and mailing guidance"));
+      rules.contacts.forEach(function (c) { contacts.appendChild(renderRule(c, rules)); });
+      rules.missing.forEach(function (m) { contacts.appendChild(el("p", { "class": "missing" }, m)); }); card.appendChild(contacts);
     } else if (rules.deadlines.length || rules.paths.length) {
       card.appendChild(el("p", {}, "We have no checked contact details for this plan. Use the phone number and address on your notice."));
     }
 
     var help = Rules.HELP_LINKS[S.planType] || Rules.HELP_LINKS.general;
     var p = el("p", { style: "margin:0" }, "Official help: ");
-    p.appendChild(el("a", { href: help.url, target: "_blank", rel: "noopener" }, help.label));
+    p.appendChild(el("a", { href: help.url, target: "_blank", rel: "noopener noreferrer" }, help.label));
     card.appendChild(p);
     box.appendChild(card);
 
@@ -501,7 +559,7 @@
       // The notice may point to details printed elsewhere on it. Say so
       // instead of leaving the user looking for something not shown here.
       if (/below|above|last page|back of|next page|page \d|enclosed|attached|printed on|on this notice/i.test(S.details.instructions)) {
-        instr.appendChild(el("p", { "class": "missing" }, "Your notice refers to details printed elsewhere on it, such as an address. This guide does not have them. Copy them from your notice and confirm them before you send anything."));
+        instr.appendChild(el("p", { "class": "missing" }, "Your notice refers to details printed elsewhere on it, such as an address. Check that these details were copied correctly. Any missing address must be added on the draft step before sending."));
       }
     } else instr.appendChild(el("p", {}, "You did not enter appeal instructions. Look on your notice for a section like \"Your right to appeal\"."));
   }
@@ -510,13 +568,8 @@
   // The real deadline counts from the day the notice arrived, so it can
   // only be the same or later. Returns null when it cannot be worked out.
   function deadlineStatus(r) {
-    if (typeof r.days !== "number" || !r.estimateFromNotice || !S.details.noticeDate) return null;
-    var due = new Date(S.details.noticeDate + "T00:00:00Z");
-    if (isNaN(due)) return null;
-    due.setUTCDate(due.getUTCDate() + r.days);
-    var today = new Date(todayIso() + "T00:00:00Z");
-    var left = Math.round((due - today) / 86400000);
-    return { iso: due.toISOString().slice(0, 10), left: left, past: left < 0, soon: left >= 0 && left <= 30 };
+    if (typeof r.days !== "number" || !r.estimateFromNotice) return null;
+    return Safety.deadline(S.details.noticeDate, S.receivedDate, r.days, todayIso());
   }
 
   function telHref(num) { return "tel:+1" + num.replace(/\D/g, "").replace(/^1(?=\d{10}$)/, ""); }
@@ -542,9 +595,9 @@
     var st = deadlineStatus(r);
     var box = el("div", { "class": "past-alert", role: "alert" });
     box.appendChild(el("p", { "class": "past-title" }, "Your deadline to " + r.label.toLowerCase() + " may have passed"));
-    box.appendChild(el("p", {}, "Based on the date on your notice, the earliest possible deadline was " +
+    box.appendChild(el("p", {}, (st.estimated ? "Using the notice date as an estimate, the calculated date was " : "Using the received date you entered, the calculated date was ") +
       Letter.formatDate(st.iso) + ", " + Math.abs(st.left) + (Math.abs(st.left) === 1 ? " day" : " days") +
-      " ago. If your notice arrived later than its date, your real deadline is later too."));
+      (st.estimated ? " ago. Your received date may change this estimate. Confirm the actual deadline with the plan." : " ago. Confirm the deadline and any available next steps with the plan.")));
     box.appendChild(el("p", {}, "What to do now:"));
     var ol = el("ol", {});
     var appeals = contactById(rules, "appeals");
@@ -568,8 +621,8 @@
       wrap.appendChild(el("dd", {}, v));
     }
     var head = el("dt", {}, r.label);
-    if (st && st.past) head.appendChild(el("span", { "class": "badge past" }, "Past deadline"));
-    else if (st && st.soon) head.appendChild(el("span", { "class": "badge soon" }, st.left === 0 ? "Due today" : st.left + (st.left === 1 ? " day left" : " days left")));
+    if (st && st.past) head.appendChild(el("span", { "class": "badge past" }, "Check deadline"));
+    else if (st && st.soon) head.appendChild(el("span", { "class": "badge soon" }, (st.estimated ? "Estimated: " : "Calculated: ") + (st.left === 0 ? "today" : st.left + " days")));
     wrap.appendChild(head);
     var body = el("dd", {});
     // A contact entry: the number itself is a call link.
@@ -579,21 +632,22 @@
     if (r.countFrom) row("Counted from", r.countFrom);
     if (st) {
       var when = Letter.formatDate(st.iso);
-      if (st.past) row("Earliest possible deadline", when + ". Too late if your notice arrived on its date. " +
-        "It passed " + Math.abs(st.left) + (Math.abs(st.left) === 1 ? " day" : " days") + " ago. See what to do now above.");
-      else row("Earliest possible deadline", when + " (" + (st.left === 0 ? "today" : st.left + (st.left === 1 ? " day" : " days") + " from today") +
-        "). This counts from the date on your notice. Your real deadline counts from the day you received it, so it may be later. Confirm it on your notice.");
+      row(st.estimated ? "Estimated deadline (notice date)" : "Calculated deadline (received date)", when + ". " +
+        (st.estimated ? "The received date is unknown, so this is only an estimate. " : "Based on the received date you entered. ") +
+        "Confirm with the plan and your notice." + (st.past ? " This date is in the past; contact the plan about next steps." : ""));
     }
     var calls = rules ? callRow(rules, r.call) : null;
     if (calls) wrap.appendChild(calls);
     // Source and date checked beside every rule, on one line.
-    var src = el("dd", { "class": "source" });
+    var src = el("p", { "class": "source" });
     src.appendChild(document.createTextNode("Source: "));
     var name = r.where ? "plan contract, " + r.where : r.citation;
-    if (r.sourceUrl) src.appendChild(el("a", { href: r.sourceUrl, target: "_blank", rel: "noopener" }, name));
+    if (r.sourceUrl) src.appendChild(el("a", { href: r.sourceUrl, target: "_blank", rel: "noopener noreferrer" }, name));
     else src.appendChild(document.createTextNode(name));
-    src.appendChild(document.createTextNode(". Date checked: " + Letter.formatDate(r.verifiedOn) + "."));
-    wrap.appendChild(src);
+    src.appendChild(document.createTextNode(". Research date: " + Letter.formatDate(r.verifiedOn) + ". " + (r.verifiedBy || "") + "."));
+    var sourceDetails = el("details", {"class":"source-details"});
+    sourceDetails.appendChild(el("summary", {}, "Source and review information")); sourceDetails.appendChild(src);
+    var sourceRow = el("dd", {}); sourceRow.appendChild(sourceDetails); wrap.appendChild(sourceRow);
     return wrap;
   }
 
@@ -611,6 +665,7 @@
       // A ticked item is listed as enclosed in the letter.
       input.addEventListener("change", function () {
         c.have = c.attach = input.checked;
+        changedCase();
         save();
       });
       box.appendChild(item);
@@ -618,7 +673,7 @@
     $("#docs-reminder").textContent = "Not every appeal requires the same documents. Check your denial notice and contact " +
       (isSilverLeaf() ? "Healthfirst" : "your plan") + " to confirm what information is needed for your specific appeal.";
     $("#missing-help").textContent = isPlanned()
-      ? "Ask your clinician's office for records that support the planned admission, and for a letter explaining why inpatient rather than outpatient care is needed. You can also ask your plan for the documents it used to decide. Do not guess at medical details in your letter."
+      ? "Ask your clinician's office for records that support the planned admission, and for a letter explaining why inpatient care rather than the alternative named in your notice is needed. You can also ask your plan for the documents it used to decide. Do not guess at medical details in your letter."
       : "Ask your care team or the hospital's medical records office for records from your stay. You can also ask your plan for the documents it used to decide. Do not guess at medical details in your letter.";
   }
 
@@ -644,11 +699,14 @@
   }
 
   function writeLetter() {
+    var issue = Safety.scopeError(S);
+    if (issue) { setStatus("#letter-status", issue, true); return; }
     S.letter = Composer.compose({
       details: S.details,
       checklist: S.checklist,
       clinician: S.clinician,
       sender: S.sender,
+      syntheticIdentity: testIdentity,
       planned: isPlanned(),
       legal: Rules.getRules(S.state, S.planType).legal
     });
@@ -672,6 +730,7 @@
     box.innerHTML = "";
     var sources = DETAIL_FIELDS.map(function (f) { return S.details[f]; })
       .concat(SENDER_FIELDS.map(function (f) { return S.sender[f]; }))
+      .concat(Object.keys(testIdentity).map(function (k) { return testIdentity[k]; }))
       .concat(S.fills).concat([S.clinician.text]).concat(haveLabels())
       .concat([Composer.legalText(Rules.getRules(S.state, S.planType).legal)]);
     var extra = Letter.findUnsupported(S.letter, sources);
@@ -685,6 +744,7 @@
       fix.addEventListener("click", function () {
         S.letter = Letter.removeStrayBrackets(S.letter);
         S.letterEdited = true;
+        unreview();
         $("#letter-review").value = S.letter;
         renderReviewList();
         save();
@@ -762,6 +822,7 @@
           S.letter = S.letter.split(g).join(v);
           S.fills.push(v);
           S.letterEdited = true;
+          unreview();
           $("#letter-review").value = S.letter;
           renderReviewList();
           save();
@@ -864,6 +925,8 @@
   // Drop the chosen file and any field values read from it that the user has not edited.
   function removeFile() {
     var cleared = 0;
+    testIdentity = {};
+    $("#identity-preview").textContent = "";
     DETAIL_FIELDS.forEach(function (f) {
       var input = $("#" + f);
       if (input.classList.contains("filled")) {
@@ -878,7 +941,8 @@
       cleared++;
     }
     S.addressFromNotice = "";
-    if (cleared) { resetLetter(); save(); }
+    clearCaseExtras();
+    save();
     checkNoticeDate();
     $("#notice-file").value = "";
     pickFile(null);
@@ -895,41 +959,31 @@
     setStatus("#read-status", "Reading your notice.");
     Reader.readFile(file, { knownPlans: knownPlanLabels() }).then(function (out) {
       if (file !== noticeFile) return; // removed or replaced while reading
-      var filled = [], stale = 0;
-      if (!S.autoDetails || typeof S.autoDetails !== "object") S.autoDetails = {};
+      clearCaseExtras();
+      var filled = [];
       DETAIL_FIELDS.forEach(function (f) {
         var input = $("#" + f);
-        input.classList.remove("filled");
-        // A letterhead guess such as "Healthfirst" never replaces a fuller
-        // plan name already in the field.
-        if (f === "planName" && out.planGuessed && out[f] &&
-            S.details.planName.toLowerCase().indexOf(out[f].toLowerCase()) !== -1) return;
-        if (out[f]) {
-          S.details[f] = out[f];
-          input.value = out[f];
-          input.classList.add("filled");
-          filled.push(f);
-          S.autoDetails[f] = out[f];
-        } else if (S.details[f] && S.autoDetails[f] === S.details[f] && f !== "planName") {
-          // Left over from an example or an earlier file. It is not in
-          // this notice, so it must not carry into this letter.
-          S.details[f] = "";
-          input.value = "";
-          stale++;
-        }
+        S.details[f] = out[f] || "";
+        input.value = S.details[f];
+        input.classList.toggle("filled", Boolean(out[f]));
+        if (out[f]) filled.push(f);
       });
-      // The appeals address goes to the letter step, unless the user
-      // already typed their own there.
-      var typedOwn = S.sender.appealsAddress && S.sender.appealsAddress !== S.addressFromNotice;
-      var address = typedOwn ? "" : (out.appealsAddress || "").replace(/[\[\]]/g, "");
-      if (!typedOwn) S.sender.appealsAddress = S.addressFromNotice = address;
-      var rewrote = filled.length || address || stale ? resetLetter() : false;
+      // A replacement notice starts a new case, including address and clinician input.
+      var address = (out.appealsAddress || "").replace(/[\[\]]/g, "");
+      S.sender.appealsAddress = S.addressFromNotice = address;
+      testIdentity = out.testIdentity || {};
+      $("#identity-summary").hidden = !Object.keys(testIdentity).some(function(k){ return Boolean(testIdentity[k]); });
+      $("#identity-preview").textContent = [testIdentity.name && "Name: " + testIdentity.name, testIdentity.memberId && "Member ID: " + testIdentity.memberId, testIdentity.refNumber && "Reference: " + testIdentity.refNumber].filter(Boolean).join(" · ");
+      S.clinician = { text: "", unsure: false };
+      S.checklist.forEach(function (c) { c.have = c.attach = false; });
+      var rewrote = resetLetter();
       checkNoticeDate();
+      $("#notice-address").value = S.sender.appealsAddress;
+      renderCaseReview("#notice-review", true);
       save();
       setStatus("#read-status", filled.length
         ? "Filled " + filled.length + " of 5 fields, outlined in green. Check each one against your notice." +
           (filled.length < 5 ? " Type anything still blank." : "") +
-          (stale ? " Cleared " + stale + (stale === 1 ? " detail" : " details") + " left from the earlier notice." : "") +
           (address ? " Also found the appeals address. It is filled in on the letter step." : "") +
           (rewrote ? " Your letter will be written again from these details." : "")
         : "Could not find the details in that file. Type them below.", !filled.length);
@@ -964,37 +1018,39 @@
     $all("[data-next]").forEach(function (b) { b.addEventListener("click", next); });
     $all("[data-back]").forEach(function (b) { b.addEventListener("click", function () { go(S.step - 1); }); });
 
+    $("#scope-confirm").addEventListener("change", function(e){ S.scopeConfirmed=e.target.checked; changedCase(); });
+    $("#care-timing").addEventListener("change", function(e){ S.careTiming=e.target.value; changedCase(); updateScopeFeedback(); });
+    $("#received-date").addEventListener("input", function(e){ S.receivedDate=e.target.value; changedCase(); renderCaseReview("#notice-review", true); });
     $("#ack").addEventListener("change", function (e) { S.ack = e.target.checked; save(); });
     $("#resume").addEventListener("click", function () {
       S = adopt(loadSaved());
       go(S.step);
     });
 
-    $("#state").addEventListener("change", function (e) { S.state = e.target.value; save(); });
-    $("#plan-types").addEventListener("change", function (e) {
-      if (e.target.name === "planType") {
-        S.planType = e.target.value;
-        if (!planLabel(S.plan)) S.plan = "";
-        renderPlan();
-        save();
-      }
-    });
+    $("#state").addEventListener("change", function (e) { S.state = e.target.value; changedCase(); updateScopeFeedback(); save(); });
+    $("#insurance-type").addEventListener("change", function(e) { S.planType=e.target.value; changedCase(); updateScopeFeedback(); });
     $("#plan").addEventListener("change", function (e) {
       var old = planLabel(S.plan);
       S.plan = e.target.value;
       // Fill the plan name on the notice step unless the user typed their own.
       if (!S.details.planName || S.details.planName === old) S.details.planName = planLabel(S.plan);
-      save();
+      changedCase(); updateScopeFeedback(); save();
     });
 
     DETAIL_FIELDS.forEach(function (f) {
       $("#" + f).addEventListener("input", function (e) {
         S.details[f] = e.target.value;
         e.target.classList.remove("filled");
-        if (S.letter && S.letterEdited) S.letterStale = true;
+        changedCase();
         if (f === "noticeDate") checkNoticeDate();
+        renderCaseReview("#notice-review", true);
         save();
       });
+    });
+
+    $("#notice-address").addEventListener("input", function(e){
+      S.sender.appealsAddress = e.target.value.replace(/[\[\]]/g, "");
+      S.addressFromNotice = ""; changedCase(); renderCaseReview("#notice-review", true); save();
     });
 
     var dz = $("#dropzone");
@@ -1029,10 +1085,10 @@
       var id = $("#sample").value;
       var s = Samples.filter(function (x) { return x.id === id; })[0];
       if (!s) return;
-      S.autoDetails = {};
-      DETAIL_FIELDS.forEach(function (f) { S.details[f] = s[f] || ""; S.autoDetails[f] = S.details[f]; $("#" + f).classList.remove("filled"); });
-      if (S.addressFromNotice && S.sender.appealsAddress === S.addressFromNotice) S.sender.appealsAddress = "";
-      S.addressFromNotice = "";
+      clearCaseExtras();
+      pickFile(null); $("#notice-file").value = "";
+      DETAIL_FIELDS.forEach(function (f) { S.details[f] = s[f] || ""; $("#" + f).classList.remove("filled"); });
+      S.sender.appealsAddress = S.addressFromNotice = s.appealsAddress || "";
       resetLetter();
       renderNotice();
       $("#sample").value = id;
@@ -1046,17 +1102,17 @@
         S.sender[f] = e.target.value.replace(/[\[\]]/g, "");
         if (e.target.value !== S.sender[f]) e.target.value = S.sender[f];
         if (f === "appealsAddress") { S.addressFromNotice = ""; markAddress(); }
-        if (!S.letterEdited) writeLetter(); else save();
+        if (!S.letterEdited) writeLetter(); else { changedCase(); save(); }
       });
     });
     $("#clinician").addEventListener("input", function (e) {
       S.clinician.text = e.target.value;
-      if (!S.letterEdited) writeLetter(); else save();
+      if (!S.letterEdited) writeLetter(); else { changedCase(); save(); }
     });
     $("#clinician-unsure").addEventListener("change", function (e) {
       S.clinician.unsure = e.target.checked;
       $("#clinician").disabled = S.clinician.unsure;
-      if (!S.letterEdited) writeLetter(); else save();
+      if (!S.letterEdited) writeLetter(); else { changedCase(); save(); }
     });
     $("#write-letter").addEventListener("click", function () {
       confirmReplace($("#write-letter"), function () {
@@ -1074,6 +1130,8 @@
     $("#letter-review").addEventListener("input", function (e) {
       S.letter = e.target.value;
       S.letterEdited = true;
+      S.reviewed = false;
+      $("#reviewed").checked = false;
       renderReviewList();
       save();
     });
@@ -1107,12 +1165,20 @@
 
     confirmClick($("#start-over"), "Click again to clear everything", function () {
       clearSaved();
+      pickFile(null); pendingFile=null; $("#notice-file").value="";
       S = freshState();
+      testIdentity = {};
+      $("#identity-summary").hidden = true;
+      $("#identity-preview").textContent = "";
       go(0);
     });
     confirmClick($("#clear"), "Click again to clear saved progress", function () {
       clearSaved();
+      pickFile(null); pendingFile=null; $("#notice-file").value="";
       S = freshState();
+      testIdentity = {};
+      $("#identity-summary").hidden = true;
+      $("#identity-preview").textContent = "";
       go(0);
       announce("Saved progress cleared.");
     });
@@ -1140,3 +1206,4 @@
   bind();
   render();
 })();
+
