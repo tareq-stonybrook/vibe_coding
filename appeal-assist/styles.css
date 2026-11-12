@@ -144,6 +144,8 @@ textarea.letter { font-family: var(--mono); font-size: 0.9rem; line-height: 1.55
 .filled { border-color: var(--ok) !important; }
 .date-warn { background: var(--warn-bg); color: var(--warn-text); border-radius: 8px; padding: 8px 12px; }
 .date-warn[hidden] { display: none; }
+.inpatient-warn { color: var(--error); font-weight: 500; }
+.inpatient-warn[hidden] { display: none; }
 
 .check { display: flex; gap: 12px; align-items: flex-start; }
 .check input { width: 1.25rem; height: 1.25rem; margin-top: 3px; flex: none; accent-color: var(--btn); }

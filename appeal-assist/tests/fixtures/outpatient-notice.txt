@@ -1,0 +1,18 @@
+healthfirst
+HEALTH INSURANCE PLAN, INC. | NY STATE OF HEALTH MARKETPLACE
+
+NOTICE OF ADVERSE BENEFIT DETERMINATION
+Prior Authorization Coverage Denial - Healthfirst Silver Leaf Plan
+
+Member Name: Test Person                       Notice Date: October 20, 2026
+Member ID: TEST000000-00                       Reference / Auth #: PA-TEST-0000001
+Plan Product: Healthfirst Silver Leaf (Individual ACA)
+
+Service Requested: Outpatient MRI of the lumbar spine
+
+Reason for Denial:
+The records submitted do not show that this imaging is medically necessary at this time.
+
+How to Appeal:
+You may appeal this decision within 180 days. Mail your appeal to:
+Healthfirst Appeals TEST ONLY, P.O. Box 0000, New York, NY 10000

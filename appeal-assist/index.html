@@ -151,6 +151,11 @@
         <p class="hint" id="instructions-hint">Often under "Your right to appeal". Include addresses, fax numbers and any deadline the notice gives.</p>
       </div>
       <div class="field"><label for="notice-address">Appeals mailing address from the notice</label><input id="notice-address" type="text" autocomplete="off"><p class="hint">Add it if your notice provides one. It will carry into your letter. If you cannot find it, leave it blank and confirm with the plan.</p></div>
+      <div class="field check">
+        <input type="checkbox" id="inpatient-confirm" aria-describedby="inpatient-confirm-hint">
+        <label for="inpatient-confirm">This is an inpatient denial notice.</label>
+      </div>
+      <p class="hint inpatient-warn" id="inpatient-confirm-hint" hidden>Locked. The uploaded notice is not an inpatient denial.</p>
       <div class="actions">
         <button type="button" class="secondary" data-back>Back</button>
         <button type="button" class="primary" data-next>See my next steps</button>

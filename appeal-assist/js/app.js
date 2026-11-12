@@ -59,7 +59,11 @@
       // cleared again. Empty once the user types their own.
       addressFromNotice: "",
       // Notice details changed after the user edited the letter by hand.
-      letterStale: false
+      letterStale: false,
+      // An outpatient notice was read. Only a new upload or an example clears it.
+      noticeBlocked: false,
+      // User ticked "This is an inpatient denial notice".
+      inpatientConfirmed: false
     };
   }
 
@@ -413,6 +417,9 @@
     });
     DETAIL_FIELDS.forEach(function (f) { $("#" + f).value = S.details[f] || ""; });
     checkNoticeDate();
+    $("#inpatient-confirm").checked = S.inpatientConfirmed;
+    $("#inpatient-confirm").disabled = S.noticeBlocked;
+    $("#inpatient-confirm-hint").hidden = !S.noticeBlocked;
     $("#notice-address").value = S.sender.appealsAddress;
     renderCaseReview("#notice-review", true);
   }
@@ -460,6 +467,15 @@
     S.fills = [];
     S.deferred = [];
     return had;
+  }
+  // Each new notice needs its own inpatient confirmation.
+  function setNoticeBlock(blocked) {
+    S.noticeBlocked = blocked;
+    S.inpatientConfirmed = false;
+    var box = $("#inpatient-confirm");
+    box.checked = false;
+    box.disabled = blocked;
+    $("#inpatient-confirm-hint").hidden = !blocked;
   }
 
   function renderGuide() {
@@ -960,6 +976,18 @@
     Reader.readFile(file, { knownPlans: knownPlanLabels() }).then(function (out) {
       if (file !== noticeFile) return; // removed or replaced while reading
       clearCaseExtras();
+      if (out.service && Safety.notInpatient(out.service)) {
+        // Outpatient notice: clear everything read and lock the step.
+        DETAIL_FIELDS.forEach(function (f) { S.details[f] = ""; $("#" + f).value = ""; $("#" + f).classList.remove("filled"); });
+        S.clinician = { text: "", unsure: false };
+        setNoticeBlock(true);
+        checkNoticeDate();
+        $("#notice-address").value = "";
+        renderCaseReview("#notice-review", true);
+        setStatus("#read-status", "This notice denies \u201c" + out.service + "\u201d, which is not an inpatient admission. " + Safety.OUTPATIENT_MSG, true);
+        return;
+      }
+      setNoticeBlock(false);
       var filled = [];
       DETAIL_FIELDS.forEach(function (f) {
         var input = $("#" + f);
@@ -987,6 +1015,7 @@
           (address ? " Also found the appeals address. It is filled in on the letter step." : "") +
           (rewrote ? " Your letter will be written again from these details." : "")
         : "Could not find the details in that file. Type them below.", !filled.length);
+      if (filled.length && !out.service) setStatus("#read-status", $("#read-status").textContent + " Type the inpatient service that was denied.");
     }, function (e) {
       if (file !== noticeFile) return;
       setStatus("#read-status", Reader.errorMessage(e), true);
@@ -1065,6 +1094,11 @@
       dz.addEventListener(t, function () { dz.classList.remove("drag"); });
     });
     $("#read-notice").addEventListener("click", readNotice);
+    $("#inpatient-confirm").addEventListener("change", function (e) {
+      S.inpatientConfirmed = !S.noticeBlocked && e.target.checked;
+      e.target.checked = S.inpatientConfirmed;
+      changedCase();
+    });
     $("#remove-file").addEventListener("click", removeFile);
     $("#dl-sample-docx").addEventListener("click", function () {
       var id = $("#sample").value;
@@ -1090,6 +1124,8 @@
       DETAIL_FIELDS.forEach(function (f) { S.details[f] = s[f] || ""; $("#" + f).classList.remove("filled"); });
       S.sender.appealsAddress = S.addressFromNotice = s.appealsAddress || "";
       resetLetter();
+      setNoticeBlock(false);
+      setStatus("#read-status", "");
       renderNotice();
       $("#sample").value = id;
       save();

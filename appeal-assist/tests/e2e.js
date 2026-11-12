@@ -113,6 +113,11 @@ async function run(label, contextOpts) {
   check(`${label}: entered is not called verified`, (await page.innerText("#notice-review")).includes("Entered does not mean verified"));
   await page.screenshot({ path: path.join(outDir, `${label}-notice.png`), fullPage: true });
 
+  // Each notice must be confirmed as an inpatient denial.
+  await page.click("section[data-step='2'] [data-next]");
+  check(`${label}: inpatient box required`, (await step(page)) === "2" && (await page.innerText("section[data-step='2'] .error")).includes("inpatient denial notice"));
+  await page.check("#inpatient-confirm");
+
   // Dates that cannot be right are refused.
   const keepDate = await page.inputValue("#noticeDate");
   await page.fill("#noticeDate", "2099-01-01");
@@ -208,6 +213,23 @@ async function runUpload() {
     await page.waitForFunction(() => /Filled|Could not/.test(document.querySelector("#read-status").textContent));
   }
 
+  // An outpatient notice is refused, cleared and locks the step.
+  await page.setInputFiles("#notice-file", fixture("outpatient-notice.txt"));
+  await page.waitForSelector("#synthetic-confirm[open]");
+  await page.click("#synthetic-ok");
+  await page.click("#read-notice");
+  await page.waitForFunction(() => /only supports inpatient/.test(document.querySelector("#read-status").textContent));
+  check("outpatient: says only inpatient denials", (await page.textContent("#read-status")).includes("Please upload an inpatient denial notice"));
+  check("outpatient: fields cleared", (await page.inputValue("#service")) === "" && (await page.inputValue("#reason")) === "" && (await page.inputValue("#notice-address")) === "");
+  check("outpatient: inpatient box locked", await page.isDisabled("#inpatient-confirm"));
+  await page.fill("#service", "Planned inpatient admission");
+  await page.click("section[data-step='2'] [data-next]");
+  check("outpatient: typing inpatient does not unlock", (await step(page)) === "2" && (await page.innerText("section[data-step='2'] .error")).includes("only supports inpatient"));
+  await page.click("#remove-file");
+  await page.click("section[data-step='2'] [data-next]");
+  check("outpatient: removing the file does not unlock", (await step(page)) === "2");
+  await page.fill("#service", "");
+
   // A file is read only after the user confirms it is fictional.
   await upload("knee-notice.txt", false);
   check("upload: cancelled file is not read", (await page.isDisabled("#read-notice")) && (await page.inputValue("#service")) === "");
@@ -221,6 +243,7 @@ async function runUpload() {
   check("knee: appeals address copied from the notice", (await page.inputValue("#notice-address")) === "Healthfirst Appeals & Grievances Department, P.O. Box 5166, New York, NY 10274-5166", await page.inputValue("#notice-address"));
   check("knee: found identity is listed", (await page.textContent("#identity-preview")) === "Name: Eleanor Vance · Member ID: HF908234101-01 · Reference: PA-2026-0988412", await page.textContent("#identity-preview"));
   check("knee: all five fields reported", (await page.textContent("#read-status")).includes("Filled 5 of 5 fields"));
+  await page.check("#inpatient-confirm");
   for (const st of [2, 3, 4]) await page.click(`section[data-step='${st}'] [data-next]`);
   if (!(await page.inputValue("#letter"))) await page.click("#write-letter");
   await page.waitForFunction(() => document.querySelector("#letter").value.length > 0);
@@ -242,6 +265,7 @@ async function runUpload() {
   check("spinal: reason", /NOT medically necessary/.test(await page.inputValue("#reason")));
   check("spinal: appeals address", (await page.inputValue("#notice-address")).includes("P.O. Box 5166"));
   check("replace: received date from the earlier notice is cleared", (await page.inputValue("#received-date")) === "");
+  await page.check("#inpatient-confirm");
   for (const st of [2, 3, 4]) await page.click(`section[data-step='${st}'] [data-next]`);
   if (!(await page.inputValue("#letter"))) await page.click("#write-letter");
   await page.waitForFunction(() => document.querySelector("#letter").value.includes("lumbar"));
@@ -255,6 +279,7 @@ async function runUpload() {
   await page.click("#load-sample");
   check("example after a file: identity summary is hidden", await page.isHidden("#identity-summary"));
   check("example after a file: the file is removed", (await page.isHidden("#file-row")) && (await page.isDisabled("#read-notice")));
+  await page.check("#inpatient-confirm");
   for (const st of [2, 3, 4]) await page.click(`section[data-step='${st}'] [data-next]`);
   if (!(await page.inputValue("#letter"))) await page.click("#write-letter");
   await page.waitForFunction(() => document.querySelector("#letter").value.length > 0);
