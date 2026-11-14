@@ -5,6 +5,7 @@
   --text: #1d1d1f;
   --muted: #6e6e73;
   --line: #d2d2d7;
+  --field-border: #86868b; /* 3:1 or more on --bg and --bg-alt (WCAG 1.4.11) */
   --link: #0066cc;
   --btn: #0071e3;
   --btn-text: #ffffff;
@@ -28,6 +29,7 @@
     --text: #f5f5f7;
     --muted: #a1a1a6;
     --line: #424245;
+    --field-border: #7c7c80;
     --link: #2997ff;
     --btn: #0071e3;
     --btn-text: #ffffff;
@@ -49,6 +51,7 @@
   --text: #f5f5f7;
   --muted: #a1a1a6;
   --line: #424245;
+  --field-border: #7c7c80;
   --link: #2997ff;
   --btn: #0071e3;
   --btn-text: #ffffff;
@@ -133,7 +136,7 @@ ul.crosses li::before { content: "\2715"; position: absolute; left: 0; color: va
 .hint { color: var(--muted); font-size: 0.9rem; margin: 6px 0 0; }
 input[type="text"], input[type="date"], select, textarea {
   width: 100%; font: inherit; color: var(--text); background: var(--bg);
-  border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px;
+  border: 1px solid var(--field-border); border-radius: 12px; padding: 12px 14px;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 input[type="text"]:focus, input[type="date"]:focus, select:focus, textarea:focus {
@@ -155,7 +158,7 @@ textarea.letter { font-family: var(--mono); font-size: 0.9rem; line-height: 1.55
 .choice { position: relative; }
 .choice input { position: absolute; opacity: 0; width: 1px; height: 1px; }
 .choice label {
-  display: block; height: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 14px;
+  display: block; height: 100%; background: var(--bg); border: 1px solid var(--field-border); border-radius: 14px;
   padding: 16px; cursor: pointer; font-weight: 600; transition: border-color 0.15s, box-shadow 0.15s;
 }
 .choice label .hint { font-weight: 400; }
@@ -183,7 +186,7 @@ textarea.letter { font-family: var(--mono); font-size: 0.9rem; line-height: 1.55
 .dropzone input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
 .dropzone-label {
   display: grid; place-items: center; gap: 2px; text-align: center;
-  border: 1.5px dashed var(--line); border-radius: 14px; padding: 28px 16px; background: var(--bg);
+  border: 1.5px dashed var(--field-border); border-radius: 14px; padding: 28px 16px; background: var(--bg);
   transition: border-color 0.15s, background 0.15s;
 }
 .dropzone.drag .dropzone-label, .dropzone:focus-within .dropzone-label { border-color: var(--btn); }
@@ -306,7 +309,8 @@ select { min-height: 52px; cursor: pointer; }
 summary { cursor: pointer; font-weight: 600; }
 details[open] > summary { margin-bottom: 16px; }
 .step-nav { max-width: 54rem; margin: auto; padding: 0 20px; }
-#step-list { display: flex; list-style: none; padding: 0; margin: 0; gap: 18px; overflow-x: auto; scrollbar-width: thin; }
+/* Wraps instead of scrolling so every step stays visible at 320px (WCAG 1.4.10, 2.1.1). */
+#step-list { display: flex; flex-wrap: wrap; list-style: none; padding: 0; margin: 0; gap: 0 18px; }
 #step-list li { white-space: nowrap; color: var(--muted); font-size: .75rem; padding: 12px 0; border-bottom: 2px solid transparent; }
 #step-list li[aria-current] { color: var(--link); font-weight: 700; border-color: var(--link); }
 #step-list li.complete { color: var(--ok); }
@@ -321,7 +325,7 @@ section.step > .actions { border-top: 1px solid var(--line); margin-top: 30px; }
  .journey-overview > div { border-bottom: 1px solid var(--line); padding-bottom: 10px; }
  .form-grid { grid-template-columns: 1fr; gap: 18px; }
  .hero { padding-block: 30px 20px; }
- #step-list { gap: 12px; } #step-list li { font-size: .7rem; }
+ #step-list { gap: 0 12px; } #step-list li { font-size: .7rem; padding: 6px 0; }
  .tile, .upload { padding: 18px; }
 }
 
@@ -339,7 +343,7 @@ h1 { line-height: 1.16; }
 .hint { line-height: 1.55; }
 input[type="text"], input[type="date"], select, textarea { font-size: 1rem; padding: 13px 15px; border-radius: 10px; }
 textarea { line-height: 1.7; }
-textarea.letter { font-family: var(--font); font-size: 1rem; line-height: 1.8; padding: 24px; min-height: 30rem; border: 1px solid var(--line); }
+textarea.letter { font-family: var(--font); font-size: 1rem; line-height: 1.8; padding: 24px; min-height: 30rem; border: 1px solid var(--field-border); }
 .tile { border-radius: 14px; }
 blockquote { font-size: 1rem; line-height: 1.75; margin-inline: 0; overflow-wrap: anywhere; }
 .facts { row-gap: 12px; }

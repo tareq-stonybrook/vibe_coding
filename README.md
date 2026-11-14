@@ -82,5 +82,5 @@ Nothing is saved in the browser. The case stays in the open tab and reloading cl
 
 * Check appeal rules, deadlines and sources for each insurance type.
 * Replace help links with exact official pages.
-* Full WCAG 2.1 AA accessibility review, including a screen reader pass.
+* Screen reader pass for WCAG 2.1 AA. Automated audit, contrast, zoom and reflow results are in `appeal-assist/docs/accessibility-audit.md`.
 * Decide on translation.

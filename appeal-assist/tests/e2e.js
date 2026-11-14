@@ -102,6 +102,24 @@ async function run(label, contextOpts) {
   await start(page, label);
   await contrastCheck(page, label, "notice page");
 
+  // WCAG 1.4.11: field borders at least 3:1 against the page and the tile behind.
+  const border = await page.evaluate(() => {
+    function rgb(c) { const m = c.match(/[\d.]+/g).map(Number); return { r: m[0], g: m[1], b: m[2] }; }
+    function lum(c) {
+      return [c.r, c.g, c.b].map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); })
+        .reduce((s, v, i) => s + v * [0.2126, 0.7152, 0.0722][i], 0);
+    }
+    const ratio = (a, b) => { const x = lum(rgb(a)), y = lum(rgb(b)); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+    const cs = getComputedStyle(document.documentElement);
+    const edge = getComputedStyle(document.querySelector("#reason")).borderTopColor;
+    return Math.round(Math.min(ratio(edge, cs.getPropertyValue("--bg").trim().replace(/^#(..)(..)(..)$/, (m, r, g, b) => `rgb(${parseInt(r, 16)},${parseInt(g, 16)},${parseInt(b, 16)})`)),
+      ratio(edge, cs.getPropertyValue("--bg-alt").trim().replace(/^#(..)(..)(..)$/, (m, r, g, b) => `rgb(${parseInt(r, 16)},${parseInt(g, 16)},${parseInt(b, 16)})`))) * 100) / 100;
+  });
+  check(`${label}: field border contrast at least 3:1`, border >= 3, String(border));
+  // WCAG 1.4.10: every step name stays on screen, no hidden side scroll.
+  const navFits = await page.evaluate(() => [...document.querySelectorAll("#step-list li")].every((li) => li.getBoundingClientRect().right <= document.documentElement.clientWidth));
+  check(`${label}: every step name fits the screen`, navFits);
+
   // Step 2: a fictional example fills the form, with its practice address.
   const opts = await page.$$eval("#sample option", (o) => o.length);
   check(`${label}: 3 examples offered`, opts === 3, `got ${opts}`);

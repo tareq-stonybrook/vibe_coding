@@ -72,7 +72,7 @@ Switched off since the November 11, 2026 update, until the team confirms the rul
 
 * Team check of the four law references against the official text.
 
-* Formal WCAG 2.1 AA audit (screen reader pass, contrast measurement tool). Automated flow checks keyboard selection, layout width and page errors only.
+* Screen reader pass for WCAG 2.1 AA. Automated audit, contrast, zoom and reflow results are in `docs/accessibility-audit.md` (November 14, 2026).
 * Translation.
 * Team confirmation that the Silver Leaf rules match the published certificate of coverage.
 * Other insurance types (removed for now, ACA marketplace only).
