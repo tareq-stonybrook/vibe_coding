@@ -149,6 +149,11 @@ async function run(label, contextOpts) {
   const guide = await page.innerText("section[data-step='3']");
   check(`${label}: options page shows the plan's reason`, guide.includes(reason) && guide.includes("Denied by"));
   check(`${label}: deadline marked as an estimate without a received date`, guide.includes("Received date unknown"));
+  check(`${label}: next steps and deadline visible`, guide.includes("Your next steps") && guide.includes("Within 180 calendar days after you receive the denial notice."));
+  check(`${label}: detail collapsed until opened`, await page.evaluate(() => {
+    const all = Array.from(document.querySelectorAll("section[data-step='3'] details"));
+    return all.length > 3 && all.every((d) => !d.open);
+  }));
   await page.screenshot({ path: path.join(outDir, `${label}-guide.png`), fullPage: true });
   await contrastCheck(page, label, "options page");
   await page.click("section[data-step='3'] [data-next]");
@@ -156,6 +161,11 @@ async function run(label, contextOpts) {
   // Step 4: a ticked document is one the user will attach.
   await page.check("#cl-records");
   await page.check("#cl-notice");
+  check(`${label}: other document box hidden until Other is ticked`, !(await page.isVisible("#cl-other-text")));
+  await page.check("#cl-other");
+  await page.click("section[data-step='4'] [data-next]");
+  check(`${label}: Other ticked with no name stays on documents`, (await step(page)) === "4");
+  await page.fill("#cl-other-text", "Second opinion letter");
   await page.click("section[data-step='4'] [data-next]");
 
   // Step 5: draft, written by the app with no AI.
@@ -163,6 +173,8 @@ async function run(label, contextOpts) {
   await page.waitForFunction(() => document.querySelector("#letter").value.length > 0);
   const letter = await page.inputValue("#letter");
   check(`${label}: letter repeats reason`, letter.includes(reason));
+  check(`${label}: letter lists ticked and other documents`, letter.includes("I am enclosing:") && letter.includes("  * A copy of the denial notice") && letter.includes("  * Second opinion letter"));
+  check(`${label}: no attachment placeholder`, !letter.includes("documents you will attach"));
   check(`${label}: example has no identity, so placeholders stay`, letter.includes("[ADD: your full name]") && letter.includes("[ADD: your mailing address]"));
   check(`${label}: letter carries the practice address`, letter.includes("TEST ONLY"));
   check(`${label}: no legal block before the team confirms`, !/References:|CFR|Public Health Law/.test(letter));

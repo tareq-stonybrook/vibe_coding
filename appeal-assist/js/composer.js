@@ -150,6 +150,12 @@
     return names[id];
   }
 
+  // A document name the user typed under Other. Kept to one plain line,
+  // with no brackets so it can never read as a gap marker.
+  function docName(v) {
+    return String(v || "").replace(/[\[\]]/g, "").replace(/\s+/g, " ").trim().slice(0, 120);
+  }
+
   function compose(input) {
     var d = input.details || {};
     var planned = Boolean(input.planned);
@@ -157,6 +163,8 @@
     var attached = (input.checklist || []).filter(function (c) { return c.have && c.attach; });
     var attach = {};
     attached.forEach(function (c) { attach[c.id] = true; });
+    var others = (input.otherDocs || []).map(docName).filter(Boolean);
+    var enclosed = attached.map(function (c) { return enclosure(c.id, planned) || c.label; }).concat(others);
     var service = clean(d.service) || gap("inpatient service that was denied");
     var reason = clean(d.reason);
     var clinician = input.clinician || {};
@@ -190,7 +198,7 @@
     L.push("Your notice gives this reason for the denial:");
     L.push("\"" + (reason || gap("denial reason exactly as written on your notice")) + "\"");
     L.push("");
-    L.push(attached.length
+    L.push(enclosed.length
       ? "I respectfully request that you review the enclosed documents and consider overturning your coverage decision."
       : "I respectfully request that you review your coverage decision and consider overturning it.");
     L.push("");
@@ -207,10 +215,13 @@
       L.push(legal.paragraph);
       L.push("");
     }
-    L.push("I am enclosing:");
-    if (attached.length) attached.forEach(function (c) { L.push("  * " + (enclosure(c.id, planned) || c.label)); });
-    else L.push("  * " + gap("documents you will attach, or delete this list"));
-    L.push("");
+    // Only documents the user ticked or named are listed. With none, the
+    // letter has no enclosure list at all.
+    if (enclosed.length) {
+      L.push("I am enclosing:");
+      enclosed.forEach(function (name) { L.push("  * " + name); });
+      L.push("");
+    }
     // Closing in the team's wording, only when the user gave the
     // clinician's explanation. The letter never claims support it lacks.
     var svc = lowerFirst(service);
@@ -243,6 +254,7 @@
 
   var api = {
     compose: compose,
+    docName: docName,
     legalText: legalText,
     reasonKinds: reasonKinds,
     tidy: tidy,

@@ -376,3 +376,8 @@ blockquote { font-size: 1rem; line-height: 1.75; margin-inline: 0; overflow-wrap
 /* Make text links recognizable without relying on color alone. */
 main a:not(.call), .test-banner a { text-decoration: underline; text-underline-offset: 3px; }
 a:focus-visible { outline: 3px solid var(--accent, #0074cc); outline-offset: 4px; }
+
+/* Documents step: the user's own document under Other. */
+.other-doc-field { margin: 12px 0 0 calc(1.25rem + 12px); }
+/* Options step: the rule itself stays visible, the detail opens on request. */
+.source-details .rule-text { margin: 10px 0 0; color: var(--text); font-size: 1rem; line-height: 1.65; }

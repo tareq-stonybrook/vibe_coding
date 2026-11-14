@@ -204,7 +204,14 @@ test("enclosures list only what the user will attach, in first person", () => {
   assert.ok(!text.includes("Records from my hospital stay"));
   assert.ok(!text.includes("your treating doctor"));
   const none = Composer.compose({ details: SAMPLES[0], checklist: [{ id: "records", have: true, attach: false }] });
-  assert.ok(none.includes("[ADD: documents you will attach, or delete this list]"));
+  assert.ok(!none.includes("I am enclosing:"));
+  assert.ok(!none.includes("documents you will attach"));
+  assert.ok(!none.includes("the enclosed documents"));
+  const other = Composer.compose({ details: SAMPLES[0], checklist: [], otherDocs: ["  My [pharmacy]   receipts ", ""] });
+  assert.ok(other.includes("I am enclosing:\n  * My pharmacy receipts\n"));
+  assert.ok(other.includes("review the enclosed documents"));
+  const both = Composer.compose({ details: SAMPLES[0], checklist: [{ id: "notice", have: true, attach: true }], otherDocs: ["Second opinion letter"] });
+  assert.ok(both.includes("  * A copy of the denial notice\n  * Second opinion letter\n"));
   const planned = Composer.compose({ details: SAMPLES[6], planned: true, checklist: [{ id: "doctor", have: true, attach: true }] });
   assert.ok(planned.includes("* A letter from my clinician"));
 });

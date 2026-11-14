@@ -47,6 +47,8 @@
       plan: "healthfirst-silver-leaf",
       details: { planName: "", service: "", noticeDate: "", reason: "", instructions: "" },
       checklist: CHECKLIST.map(function (c) { return { id: c.id, have: false, attach: false }; }),
+      // A document the user names themselves on the documents step.
+      otherDoc: { on: false, text: "" },
       clinician: { text: "", unsure: false },
       sender: { appealsAddress: "", date: todayIso() },
       letter: "",
@@ -85,7 +87,7 @@
     var base = freshState();
     if (!obj || typeof obj !== "object") return base;
     Object.keys(base).forEach(function (k) {
-      if (k in obj && ["details", "checklist", "sender", "fills", "deferred", "clinician"].indexOf(k) === -1) base[k] = obj[k];
+      if (k in obj && ["details", "checklist", "sender", "fills", "deferred", "clinician", "otherDoc"].indexOf(k) === -1) base[k] = obj[k];
     });
     // Saved progress may name an insurance type or plan we no longer offer.
     if (!Rules.INSURANCE_TYPES.some(function (t) { return t.id === base.planType; })) base.planType = "";
@@ -96,6 +98,10 @@
     if (obj.clinician && typeof obj.clinician === "object") {
       base.clinician.text = typeof obj.clinician.text === "string" ? obj.clinician.text : "";
       base.clinician.unsure = Boolean(obj.clinician.unsure);
+    }
+    if (obj.otherDoc && typeof obj.otherDoc === "object") {
+      base.otherDoc.on = Boolean(obj.otherDoc.on);
+      base.otherDoc.text = typeof obj.otherDoc.text === "string" ? obj.otherDoc.text : "";
     }
     SENDER_FIELDS.forEach(function (f) {
       if (obj.sender && typeof obj.sender[f] === "string") base.sender[f] = obj.sender[f];
@@ -152,6 +158,11 @@
   function isSilverLeaf() { return S.plan === "healthfirst-silver-leaf"; }
   function haveLabels() {
     return S.checklist.filter(function (c) { return c.have; }).map(function (c) { return checklistLabel(c.id); });
+  }
+  // The document the user named under Other, or nothing when unticked.
+  function otherDocs() {
+    var name = S.otherDoc.on ? Composer.docName(S.otherDoc.text) : "";
+    return name ? [name] : [];
   }
   // Personal details are never typed into the app. Their gaps stay in the
   // letter and the user adds them privately after download.
@@ -296,6 +307,7 @@
       var issue = Safety.scopeError(S) || Safety.dateError(S.details.noticeDate, S.receivedDate, todayIso());
       if (issue) return issue;
     }
+    if (step === 4 && S.otherDoc.on && !Composer.docName(S.otherDoc.text)) return "Type the name of your other document, or untick Other.";
     if (step >= 5 && S.letterStale) return "Your case details changed. Press Write my letter to rebuild the draft, then review it again.";
     if (step === 5 && !S.letter.trim()) return "Press Write my letter first.";
     if (step === 6 && openGaps().length) return "Fill in each gap or leave it for later before download.";
@@ -454,6 +466,7 @@
     S.receivedDate = ""; $("#received-date").value = "";
     S.clinician = {text:"", unsure:false};
     S.checklist.forEach(function(c){ c.have = c.attach = false; });
+    S.otherDoc = {on:false, text:""};
     S.sender = {appealsAddress:"", date:todayIso()}; S.addressFromNotice = "";
     resetLetter();
   }
@@ -501,12 +514,15 @@
     else reasonBox.appendChild(el("p", {}, "You have not entered the denial reason yet. Go back to add it, or fill it in later in the letter."));
     var plain = Composer.explainDenial(S.details.reason, S.details.service, isPlanned());
     if (plain.length) {
-      reasonBox.appendChild(el("h3", {}, "What this means, in plain words"));
-      plain.forEach(function (t) { reasonBox.appendChild(el("p", {}, t)); });
+      var meaning = el("details", { "class": "rule-details" });
+      meaning.appendChild(el("summary", {}, "What this means, in plain words"));
+      plain.forEach(function (t) { meaning.appendChild(el("p", {}, t)); });
+      reasonBox.appendChild(meaning);
     }
 
     var box = $("#guide-rules");
     box.innerHTML = "";
+    var sourceBox = null;
     var card = el("div", { "class": "tile" });
     card.appendChild(el("h2", {}, "Your next steps"));
     var actions = el("ol", {"class":"next-steps"});
@@ -521,9 +537,12 @@
         backup.appendChild(document.createTextNode("PDF not opening? "));
         backup.appendChild(el("a", {href:"https://healthfirst.org/individual-and-family-health-plans/member-resources/documents", target:"_blank", rel:"noopener noreferrer"}, "Find the contract on Healthfirst’s plan documents page"));
         backup.appendChild(document.createTextNode(" (choose 2026, then Silver Leaf). External pages open in a new tab; PDF page jumps depend on your browser."));
-        card.appendChild(backup);
         src.appendChild(el("span", { "class": "visually-hidden" }, " (opens in new tab)"));
-        card.appendChild(src);
+        var contract = el("details", { "class": "rule-details" });
+        contract.appendChild(el("summary", {}, "Where these rules come from"));
+        contract.appendChild(src);
+        contract.appendChild(backup);
+        sourceBox = contract;
       }
       card.appendChild(el("p", { "class": "warn", role: "note" }, "Confirm every deadline on your denial notice."));
     }
@@ -561,6 +580,7 @@
       card.appendChild(el("p", {}, "We have no checked contact details for this plan. Use the phone number and address on your notice."));
     }
 
+    if (sourceBox) card.appendChild(sourceBox);
     var help = Rules.HELP_LINKS[S.planType] || Rules.HELP_LINKS.general;
     var p = el("p", { style: "margin:0" }, "Official help: ");
     p.appendChild(el("a", { href: help.url, target: "_blank", rel: "noopener noreferrer" }, help.label));
@@ -629,28 +649,35 @@
     return box;
   }
 
+  // One rule or deadline. The name, the date worked out for this case and
+  // the call buttons stay visible. The full wording, what it counts from
+  // and the source open on request, so the page is quicker to read.
   function renderRule(r, rules) {
     var st = deadlineStatus(r);
     var wrap = el("dl", { "class": "deadline" + (st && st.past ? " past" : st && st.soon ? " soon" : "") });
-    function row(k, v) {
-      wrap.appendChild(el("dt", {}, k));
-      wrap.appendChild(el("dd", {}, v));
-    }
     var head = el("dt", {}, r.label);
     if (st && st.past) head.appendChild(el("span", { "class": "badge past" }, "Check deadline"));
     else if (st && st.soon) head.appendChild(el("span", { "class": "badge soon" }, (st.estimated ? "Estimated: " : "Calculated: ") + (st.left === 0 ? "today" : st.left + " days")));
     wrap.appendChild(head);
-    var body = el("dd", {});
+    var isContact = Boolean(r.id && /^[\d-]+$/.test(r.rule));
+    var cut = /[.?!]\s+(?=[A-Z])/.exec(r.rule);
+    var lead = cut ? r.rule.slice(0, cut.index + 1) : r.rule;
+    var hasMore = lead !== r.rule;
     // A contact entry: the number itself is a call link.
-    if (r.id && /^[\d-]+$/.test(r.rule)) body.appendChild(el("a", { href: telHref(r.rule), "class": "call" }, "Call " + r.rule));
-    else body.textContent = r.rule;
-    wrap.appendChild(body);
-    if (r.countFrom) row("Counted from", r.countFrom);
+    if (isContact) {
+      var num = el("dd", {});
+      num.appendChild(el("a", { href: telHref(r.rule), "class": "call" }, "Call " + r.rule));
+      wrap.appendChild(num);
+    } else {
+      // The first sentence of the checked wording carries the time limit.
+      wrap.appendChild(el("dd", { "class": "deadline-key" }, lead));
+    }
     if (st) {
       var when = Letter.formatDate(st.iso);
-      row(st.estimated ? "Estimated deadline (notice date)" : "Calculated deadline (received date)", when + ". " +
+      wrap.appendChild(el("dt", {}, st.estimated ? "Estimated deadline (notice date)" : "Calculated deadline (received date)"));
+      wrap.appendChild(el("dd", {}, when + ". " +
         (st.estimated ? "The received date is unknown, so this is only an estimate. " : "Based on the received date you entered. ") +
-        "Confirm with the plan and your notice." + (st.past ? " This date is in the past; contact the plan about next steps." : ""));
+        "Confirm with the plan and your notice." + (st.past ? " This date is in the past; contact the plan about next steps." : "")));
     }
     var calls = rules ? callRow(rules, r.call) : null;
     if (calls) wrap.appendChild(calls);
@@ -661,14 +688,25 @@
     if (r.sourceUrl) src.appendChild(el("a", { href: r.sourceUrl, target: "_blank", rel: "noopener noreferrer" }, name));
     else src.appendChild(document.createTextNode(name));
     src.appendChild(document.createTextNode(". Research date: " + Letter.formatDate(r.verifiedOn) + ". " + (r.verifiedBy || "") + "."));
-    var sourceDetails = el("details", {"class":"source-details"});
-    sourceDetails.appendChild(el("summary", {}, "Source and review information")); sourceDetails.appendChild(src);
-    var sourceRow = el("dd", {}); sourceRow.appendChild(sourceDetails); wrap.appendChild(sourceRow);
+    var more = el("details", { "class": "source-details" });
+    var summary = el("summary", {}, hasMore && !isContact ? "Full explanation and source" : "Source and review information");
+    summary.appendChild(el("span", { "class": "visually-hidden" }, ": " + r.label));
+    more.appendChild(summary);
+    if (!isContact) {
+      if (hasMore) more.appendChild(el("p", { "class": "rule-text" }, r.rule));
+      if (r.countFrom) more.appendChild(el("p", { "class": "rule-text" }, "Counted from: " + r.countFrom + "."));
+    }
+    more.appendChild(src);
+    var moreRow = el("dd", {}); moreRow.appendChild(more); wrap.appendChild(moreRow);
     return wrap;
   }
 
   function renderChecklist() {
     var box = $("#checklist");
+    // Other is fixed markup. Lift it out before the list is rebuilt, then
+    // put it back as the last row.
+    var otherRow = $("#cl-other-row");
+    otherRow.remove();
     box.innerHTML = "";
     S.checklist.forEach(function (c) {
       var item = el("div", { "class": "check-item" });
@@ -686,6 +724,12 @@
       });
       box.appendChild(item);
     });
+    // Other: the user names a document that is not on the list.
+    box.appendChild(otherRow);
+    var other = $("#cl-other"), name = $("#cl-other-text");
+    other.checked = S.otherDoc.on;
+    name.value = S.otherDoc.text;
+    $("#cl-other-field").hidden = !S.otherDoc.on;
     $("#docs-reminder").textContent = "Not every appeal requires the same documents. Check your denial notice and contact " +
       (isSilverLeaf() ? "Healthfirst" : "your plan") + " to confirm what information is needed for your specific appeal.";
     $("#missing-help").textContent = isPlanned()
@@ -720,6 +764,7 @@
     S.letter = Composer.compose({
       details: S.details,
       checklist: S.checklist,
+      otherDocs: otherDocs(),
       clinician: S.clinician,
       sender: S.sender,
       syntheticIdentity: testIdentity,
@@ -747,7 +792,7 @@
     var sources = DETAIL_FIELDS.map(function (f) { return S.details[f]; })
       .concat(SENDER_FIELDS.map(function (f) { return S.sender[f]; }))
       .concat(Object.keys(testIdentity).map(function (k) { return testIdentity[k]; }))
-      .concat(S.fills).concat([S.clinician.text]).concat(haveLabels())
+      .concat(S.fills).concat([S.clinician.text]).concat(haveLabels()).concat(otherDocs())
       .concat([Composer.legalText(Rules.getRules(S.state, S.planType).legal)]);
     var extra = Letter.findUnsupported(S.letter, sources);
     var reasonOk = Letter.containsReason(S.letter, S.details.reason);
@@ -1004,6 +1049,7 @@
       $("#identity-preview").textContent = [testIdentity.name && "Name: " + testIdentity.name, testIdentity.memberId && "Member ID: " + testIdentity.memberId, testIdentity.refNumber && "Reference: " + testIdentity.refNumber].filter(Boolean).join(" · ");
       S.clinician = { text: "", unsure: false };
       S.checklist.forEach(function (c) { c.have = c.attach = false; });
+      S.otherDoc = { on: false, text: "" };
       var rewrote = resetLetter();
       checkNoticeDate();
       $("#notice-address").value = S.sender.appealsAddress;
@@ -1045,6 +1091,18 @@
   // ---------- events ----------
   function bind() {
     $all("[data-next]").forEach(function (b) { b.addEventListener("click", next); });
+    $("#cl-other").addEventListener("change", function () {
+      S.otherDoc.on = this.checked;
+      $("#cl-other-field").hidden = !this.checked;
+      if (this.checked) $("#cl-other-text").focus();
+      changedCase();
+      save();
+    });
+    $("#cl-other-text").addEventListener("input", function () {
+      S.otherDoc.text = this.value;
+      changedCase();
+      save();
+    });
     $all("[data-back]").forEach(function (b) { b.addEventListener("click", function () { go(S.step - 1); }); });
 
     $("#scope-confirm").addEventListener("change", function(e){ S.scopeConfirmed=e.target.checked; changedCase(); });

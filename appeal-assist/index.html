@@ -182,16 +182,27 @@
     <!-- Step 4: Checklist (US-05) -->
     <section class="step wrap" data-step="4" aria-labelledby="h-checklist" hidden>
       <p class="eyebrow">Supporting documents</p>
-      <h1 id="h-checklist">Suggested supporting documents</h1>
-      <p class="lede">These documents are suggested, not required. Tick the ones you have and will attach to your letter. You never upload them here.</p>
+      <h1 id="h-checklist">Which documents will you attach?</h1>
+      <p class="lede">These documents are suggested, not required. Tick the ones you will attach to your letter, or name your own under Other. You never upload them here.</p>
       <div class="banner" role="note" id="docs-reminder"></div>
       <fieldset class="field">
         <legend class="visually-hidden">Documents you will attach</legend>
         <div id="checklist" class="check-list"></div>
+        <div class="check-item other-doc" id="cl-other-row">
+          <div class="check">
+            <input type="checkbox" id="cl-other">
+            <label for="cl-other">Other</label>
+          </div>
+          <div class="field other-doc-field" id="cl-other-field" hidden>
+            <label for="cl-other-text">Name of the document</label>
+            <input id="cl-other-text" type="text" maxlength="120" autocomplete="off" aria-describedby="cl-other-hint">
+            <p class="hint" id="cl-other-hint">Appears in your letter exactly as typed. Use fictional details only.</p>
+          </div>
+        </div>
       </fieldset>
       <div class="tile soft">
         <h2>About attachments</h2>
-        <p>Items you tick are listed as enclosed in your letter. You attach them yourself when you send it. This guide does not attach, read or check any document.</p>
+        <p>Only the documents you tick or name are listed as enclosed in your letter. Choose none and the letter has no enclosure list. You attach them yourself when you send it. This guide does not attach, read or check any document.</p>
       </div>
       <div class="tile soft">
         <h2>Missing something?</h2>
