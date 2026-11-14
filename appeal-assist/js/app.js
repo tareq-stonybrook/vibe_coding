@@ -164,10 +164,14 @@
     var name = S.otherDoc.on ? Composer.docName(S.otherDoc.text) : "";
     return name ? [name] : [];
   }
-  // Personal details are never typed into the app. Their gaps stay in the
-  // letter and the user adds them privately after download.
+  // Name, member ID, reference number and signature are never typed into
+  // the app. Their gaps stay in the letter for after download. A made up
+  // address and phone can be filled on the Review step.
+  function isFictional(g) {
+    return Composer.FICTIONAL_GAPS.indexOf(g) !== -1;
+  }
   function isPrivate(g) {
-    return Composer.PRIVATE_GAPS.indexOf(g) !== -1;
+    return Composer.PRIVATE_GAPS.indexOf(g) !== -1 && !isFictional(g);
   }
   // Gaps still waiting on the user: not filled, not left for later, not private.
   function openGaps() {
@@ -837,9 +841,13 @@
       card.appendChild(el("p", { style: "margin:0" }, "Every gap is filled in."));
     } else {
       var later = gaps.length - open.length;
-      card.appendChild(el("h2", {}, open.length
-        ? open.length + (open.length === 1 ? " gap needs" : " gaps need") + " your choice"
-        : "Nothing else needs your choice here"));
+      card.appendChild(el("h2", {}, gaps.length +
+        (gaps.length === 1 ? " detail still needs" : " details still need") + " to be completed"));
+      if (open.length) {
+        card.appendChild(el("p", {}, open.length + (open.length === 1 ? " needs" : " need") +
+          " your choice here: fill " + (open.length === 1 ? "it" : "them") + " in or leave " +
+          (open.length === 1 ? "it" : "them") + " for later."));
+      }
       if (later) {
         card.appendChild(el("p", {}, later + (later === 1 ? " item is" : " items are") +
           " still missing and stay marked in the downloaded draft. The draft is not ready to send until you complete " +
@@ -874,7 +882,7 @@
         var fillRow = el("div", { "class": "fill-row" });
         var input = el("input", { type: "text", id: fid, autocomplete: "off" });
         input.setAttribute("aria-label", "Text to replace " + g);
-        input.setAttribute("placeholder", "Type it here, no brackets");
+        input.setAttribute("placeholder", isFictional(g) ? "Fictional details only, no brackets" : "Type it here, no brackets");
         var fill = el("button", { type: "button", "class": "primary small" }, "Fill in");
         fill.setAttribute("aria-label", "Fill in " + g);
         function doFill() {

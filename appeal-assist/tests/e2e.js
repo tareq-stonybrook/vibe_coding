@@ -185,6 +185,17 @@ async function run(label, contextOpts) {
   check(`${label}: download locked with gaps`, await page.isDisabled("#to-download"));
   await page.check("#reviewed");
   check(`${label}: still locked after tick`, await page.isDisabled("#to-download"));
+  // A made up address and phone can be typed here. Name and signature cannot.
+  const reviewHead = await page.innerText("#review-list h2");
+  check(`${label}: heading counts details still to complete`, /^\d+ details still need to be completed$/.test(reviewHead), reviewHead);
+  const fillable = await page.$$eval("#review-list .review-item", (rows) => rows.filter((r) => r.querySelector("input")).map((r) => r.querySelector(".ph").textContent));
+  check(`${label}: address and phone have a fill box`, fillable.includes("[ADD: your mailing address]") && fillable.includes("[ADD: your phone number]"));
+  check(`${label}: name and signature have no fill box`, !fillable.includes("[ADD: your full name]") && !fillable.includes("[ADD: your signature and printed name]"));
+  await page.fill('#review-list input[aria-label="Text to replace [ADD: your phone number]"]', "555-0100");
+  await page.click('#review-list button[aria-label="Fill in [ADD: your phone number]"]');
+  const phoned = await page.inputValue("#letter-review");
+  check(`${label}: typed phone replaces its placeholder`, phoned.includes("555-0100") && !phoned.includes("[ADD: your phone number]"));
+  check(`${label}: typed phone is not flagged as unsupported`, !(await page.innerText("#review-warnings")).includes("555-0100"));
   await leaveGaps(page);
   if (!(await page.isChecked("#reviewed"))) await page.check("#reviewed");
   check(`${label}: unlocked after gaps left for later`, await page.isEnabled("#to-download"));

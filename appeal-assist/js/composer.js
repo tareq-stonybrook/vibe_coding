@@ -33,6 +33,9 @@
     signature: "your signature and printed name"
   };
   var PRIVATE_GAPS = Object.keys(PRIVATE).map(function (k) { return gap(PRIVATE[k]); });
+  // Address and phone can be typed on the Review step with made up
+  // details for the demonstration, or left for later.
+  var FICTIONAL_GAPS = [gap(PRIVATE.address), gap(PRIVATE.phone)];
 
   // What kind of reason did the plan give? More than one can apply.
   // "criteria" only feeds the plain explanation on the guide step. Per
@@ -259,7 +262,8 @@
     reasonKinds: reasonKinds,
     tidy: tidy,
     explainDenial: explainDenial,
-    PRIVATE_GAPS: PRIVATE_GAPS
+    PRIVATE_GAPS: PRIVATE_GAPS,
+    FICTIONAL_GAPS: FICTIONAL_GAPS
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.AppealComposer = api;
