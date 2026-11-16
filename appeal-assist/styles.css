@@ -403,10 +403,8 @@ a:focus-visible, :focus-visible { outline: 3px solid var(--focus); outline-offse
 .header-row { min-height: 68px; }
 .brand { display: flex; align-items: center; gap: 12px; font-size: 1.15rem; font-weight: 600; letter-spacing: -0.01em; }
 .brand-mark { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; background: var(--btn); color: var(--btn-text); font-weight: 600; font-size: 1.1rem; flex: none; }
-.header-meta { display: flex; align-items: center; gap: 14px; min-width: 0; }
-.session-note { margin: 0; color: var(--muted); font-size: .85rem; }
 .step-count { background: var(--bg-alt); color: var(--link); font-weight: 600; font-size: .85rem; padding: 6px 14px; border-radius: 980px; white-space: nowrap; }
-.step-count:empty, :root[data-screen="start"] .session-note { display: none; }
+.step-count:empty { display: none; }
 .progress { height: 4px; background: var(--line); }
 :root[data-screen="start"] .progress { height: 1px; }
 .progress-fill { background: var(--btn); border-radius: 0 4px 4px 0; }
@@ -432,16 +430,13 @@ main { padding-block: 0 72px; }
 .journey-overview p { font-size: .88rem; line-height: 1.5; margin: 0; }
 .begin-card { background: var(--surface); border: 1px solid var(--line); border-radius: 28px; padding: 36px; box-shadow: var(--shadow); }
 .begin-icon { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 16px; background: var(--bg-alt); color: var(--link); margin-bottom: 26px; }
-.begin-title { font-size: 1.6rem; letter-spacing: -0.02em; margin-bottom: 12px; }
-.begin-text { color: var(--muted); line-height: 1.75; }
-.begin-card .scope-note { margin-block: 18px 12px; }
+.begin-card .scope-note { margin-block: 0 12px; }
 .begin-card .intro-limits { margin-block: 12px; border-radius: 14px; font-size: .95rem; }
 .ack-box { border: 1px solid var(--line); border-radius: 16px; padding: 18px; margin: 16px 0 0; background: var(--bg); }
 .ack-box label { font-size: .95rem; line-height: 1.55; }
 .begin-card .actions { flex-direction: column; margin: 20px 0 0; padding-top: 0; }
 .begin-card .actions button { width: 100%; min-height: 56px; }
 .begin-card .error { margin: 14px 0 0; }
-.begin-foot { margin: 16px 0 0; text-align: center; color: var(--muted); font-size: .8rem; }
 
 /* Step rail and card */
 .shell { display: grid; grid-template-columns: 15rem minmax(0, 1fr); gap: 36px; align-items: start; padding-top: 44px; }
@@ -456,8 +451,7 @@ main { padding-block: 0 72px; }
 #step-list li.complete { color: var(--text); }
 .step-num { display: grid; place-items: center; width: 26px; height: 26px; flex: none; border-radius: 50%; background: var(--bg-alt); color: var(--muted); font-size: .72rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 #step-list li[aria-current] .step-num { background: var(--btn); color: var(--btn-text); }
-#step-list li.complete .step-num { color: var(--link); font-size: 0; }
-#step-list li.complete .step-num::before { content: "\2713"; font-size: .8rem; }
+#step-list li.complete .step-num { color: var(--link); }
 .stage { min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 28px; padding: 44px 48px 40px; box-shadow: var(--shadow); }
 .stage .step.wrap { max-width: none; padding: 0; }
 .stage .eyebrow { margin: 0 0 14px; font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; }
@@ -507,7 +501,6 @@ section.step > .actions > button { min-height: 56px; padding-inline: 26px; }
   #step-list { flex-direction: row; flex-wrap: wrap; gap: 6px; }
   #step-list li { padding: 6px 12px 6px 6px; gap: 8px; font-size: .8rem; border-radius: 980px; border-color: var(--line); }
   .step-num { width: 22px; height: 22px; }
-  .session-note { display: none; }
 }
 @media (max-width: 600px) {
   .wrap { padding-inline: 16px; }
