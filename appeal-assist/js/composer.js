@@ -22,8 +22,8 @@
   function clean(v) { return typeof v === "string" ? v.trim().replace(/\s+/g, " ") : ""; }
   function gap(what) { return "[ADD: " + what + "]"; }
 
-  // Personal details are never asked for in the app. They stay as
-  // placeholders and the user adds them privately after download.
+  // Personal details start as placeholders. The Review step lets the
+  // user fill each one with made up details or leave it for later.
   var PRIVATE = {
     name: "your full name",
     address: "your mailing address",
@@ -33,9 +33,9 @@
     signature: "your signature and printed name"
   };
   var PRIVATE_GAPS = Object.keys(PRIVATE).map(function (k) { return gap(PRIVATE[k]); });
-  // Address and phone can be typed on the Review step with made up
+  // Every personal gap can be typed on the Review step with made up
   // details for the demonstration, or left for later.
-  var FICTIONAL_GAPS = [gap(PRIVATE.address), gap(PRIVATE.phone)];
+  var FICTIONAL_GAPS = PRIVATE_GAPS.slice();
 
   // What kind of reason did the plan give? More than one can apply.
   // "criteria" only feeds the plain explanation on the guide step. Per

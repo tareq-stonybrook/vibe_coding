@@ -164,9 +164,8 @@
     var name = S.otherDoc.on ? Composer.docName(S.otherDoc.text) : "";
     return name ? [name] : [];
   }
-  // Name, member ID, reference number and signature are never typed into
-  // the app. Their gaps stay in the letter for after download. A made up
-  // address and phone can be filled on the Review step.
+  // Every personal gap can be filled on the Review step with made up
+  // details, or left for later. None is locked any more.
   function isFictional(g) {
     return Composer.FICTIONAL_GAPS.indexOf(g) !== -1;
   }

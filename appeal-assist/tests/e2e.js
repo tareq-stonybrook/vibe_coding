@@ -185,12 +185,13 @@ async function run(label, contextOpts) {
   check(`${label}: download locked with gaps`, await page.isDisabled("#to-download"));
   await page.check("#reviewed");
   check(`${label}: still locked after tick`, await page.isDisabled("#to-download"));
-  // A made up address and phone can be typed here. Name and signature cannot.
+  // Every missing detail can be typed here with made up details.
   const reviewHead = await page.innerText("#review-list h2");
   check(`${label}: heading counts details still to complete`, /^\d+ details still need to be completed$/.test(reviewHead), reviewHead);
   const fillable = await page.$$eval("#review-list .review-item", (rows) => rows.filter((r) => r.querySelector("input")).map((r) => r.querySelector(".ph").textContent));
   check(`${label}: address and phone have a fill box`, fillable.includes("[ADD: your mailing address]") && fillable.includes("[ADD: your phone number]"));
-  check(`${label}: name and signature have no fill box`, !fillable.includes("[ADD: your full name]") && !fillable.includes("[ADD: your signature and printed name]"));
+  check(`${label}: name, member ID, reference number and signature have a fill box`, ["[ADD: your full name]", "[ADD: member ID from your insurance card]", "[ADD: reference number from your notice]", "[ADD: your signature and printed name]"].every((g) => fillable.includes(g)), fillable.join(" | "));
+  check(`${label}: no gap is locked for after download`, !(await page.innerText("#review-list")).includes("Add this privately after you download"));
   await page.fill('#review-list input[aria-label="Text to replace [ADD: your phone number]"]', "555-0100");
   await page.click('#review-list button[aria-label="Fill in [ADD: your phone number]"]');
   const phoned = await page.inputValue("#letter-review");
