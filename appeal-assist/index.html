@@ -14,13 +14,13 @@
   <aside class="test-banner" role="note"><strong>For testing only</strong> · Fictional notices only</aside>
   <header class="site-header">
     <div class="wrap header-row">
-      <p class="brand">Appeal Assist</p>
-      <p class="step-count" id="step-count" aria-hidden="true"></p>
+      <p class="brand"><span class="brand-mark" aria-hidden="true">A</span>Appeal Assist</p>
+      <div class="header-meta">
+        <p class="session-note">Your case stays in this tab only</p>
+        <p class="step-count" id="step-count" aria-hidden="true"></p>
+      </div>
     </div>
     <div class="progress" aria-hidden="true"><div class="progress-fill" id="progress-fill"></div></div>
-    <nav aria-label="Progress" class="step-nav">
-      <ol id="step-list"></ol>
-    </nav>
   </header>
 
   <main id="main" tabindex="-1">
@@ -28,24 +28,37 @@
 
     <!-- Step 0: Purpose and limits (US-01) -->
     <section class="step" data-step="0" aria-labelledby="h-intro">
-      <div class="hero wrap">
-        <p class="eyebrow">UNDERSTAND · PREPARE · REVIEW</p><h1 id="h-intro" class="brand-title">Your next step,<br>made clearer.</h1>
-        <p class="tagline">Turn a denial notice into a clear plan and an editable appeal draft.</p>
-      </div>
-      <div class="wrap">
-        <div class="journey-overview"><div><span>01</span><h2>Add your notice</h2><p>Upload a fictional file or try an example.</p></div><div><span>02</span><h2>Check the details</h2><p>Review what was found and see your next steps.</p></div><div><span>03</span><h2>Prepare a draft</h2><p>Add supporting information, review, and download.</p></div></div>
-        <div class="scope-note"><strong>Built for one scenario</strong><p>New York · Healthfirst Silver Leaf · A planned inpatient admission denied before the stay.</p></div>
-        <details class="intro-limits"><summary>Before you begin: privacy and limits</summary><p>Use made-up notices and details only. Files are read in your browser using text matching, not AI. The reader can miss details; you must check them.</p><p>This tool does not decide coverage, provide medical or legal advice, submit appeals, or promise approval. Policy guidance still needs team sign-off. Your progress clears when you reload or close the page.</p></details>
-        <div class="field check">
-          <input type="checkbox" id="ack">
-          <label for="ack">I understand this guide organizes my appeal, gives no legal or medical advice, and submits nothing.</label>
+      <div class="wrap landing">
+        <div class="hero">
+          <p class="eyebrow">Understand · Prepare · Review</p>
+          <h1 id="h-intro" class="brand-title">Your next step, <em>made clearer.</em></h1>
+          <p class="tagline">Turn a denial notice into a clear plan and an editable appeal draft.</p>
+          <div class="journey-overview"><div><span>01</span><h2>Add your notice</h2><p>Upload a fictional file or try an example.</p></div><div><span>02</span><h2>Check the details</h2><p>Review what was found and see your next steps.</p></div><div><span>03</span><h2>Prepare a draft</h2><p>Add supporting information, review, and download.</p></div></div>
         </div>
-        <div class="actions">
-          <button type="button" class="primary" data-next>Get started</button>
-          <button type="button" id="resume" class="secondary" hidden>Resume where I left off</button>
+        <div class="begin-card">
+          <span class="begin-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.6-2.9 8.3-7 10-4.1-1.7-7-5.4-7-10V6l7-3z"/><path d="M9 12l2.2 2.2L15.2 10"/></svg></span>
+          <h2 class="begin-title">Before you begin</h2>
+          <p class="begin-text">Appeal Assist organizes the information you provide into an editable draft. It does not decide coverage, submit your appeal, or replace legal or medical advice.</p>
+          <div class="scope-note"><strong>Built for one scenario</strong><p>New York · Healthfirst Silver Leaf · A planned inpatient admission denied before the stay.</p></div>
+          <details class="intro-limits"><summary>Privacy and limits</summary><p>Use made-up notices and details only. Files are read in your browser using text matching, not AI. The reader can miss details; you must check them.</p><p>This tool does not decide coverage, provide medical or legal advice, submit appeals, or promise approval. Policy guidance still needs team sign-off. Your progress clears when you reload or close the page.</p></details>
+          <div class="field check ack-box">
+            <input type="checkbox" id="ack">
+            <label for="ack">I understand this guide organizes my appeal, gives no legal or medical advice, and submits nothing.</label>
+          </div>
+          <div class="actions">
+            <button type="button" class="primary" data-next>Start my appeal</button>
+            <button type="button" id="resume" class="secondary" hidden>Resume where I left off</button>
+          </div>
+          <p class="begin-foot">Your test case stays in this tab only. Reloading clears it.</p>
         </div>
       </div>
     </section>
+
+    <div class="wrap shell">
+    <nav aria-label="Progress" class="step-nav">
+      <ol id="step-list"></ol>
+    </nav>
+    <div class="stage">
 
     <!-- Step 1: State and insurance type (US-03) -->
     <section class="step wrap" data-step="1" aria-labelledby="h-context" hidden>
@@ -55,9 +68,9 @@
       <div class="form-grid">
         <div class="field"><label for="state">Plan’s state</label><select id="state"><option value="NY">New York</option><option value="other">Another state — not supported yet</option><option value="unsure">I’m not sure</option></select></div>
         <div class="field"><label for="insurance-type">Insurance type</label><select id="insurance-type"><option value="aca">ACA marketplace</option><option value="employer">Employer-sponsored — not supported yet</option><option value="medicare">Medicare — not supported yet</option><option value="medicaid">Medicaid — not supported yet</option><option value="other">Other / I’m not sure</option></select></div>
-      </div>
       <div class="field" id="plan-field"><label for="plan">Plan name</label><select id="plan"><option value="healthfirst-silver-leaf">Healthfirst Silver Leaf (2026)</option><option value="other">Another plan — not supported yet</option><option value="unsure">I’m not sure</option></select><p class="hint">Only Silver Leaf has plan-specific guidance in this prototype. Other choices help identify cases we cannot support yet.</p></div>
       <div class="field"><label for="care-timing">Has the denied inpatient admission happened?</label><select id="care-timing"><option value="">Choose one</option><option value="planned">No — the admission is still planned</option><option value="received">Yes — the care was already received</option><option value="unsure">I am not sure</option></select></div>
+      </div>
       <p id="scope-feedback" class="scope-note" role="status"></p>
       <div hidden><input type="checkbox" id="scope-confirm"><div id="plan-types"></div></div>
       <div class="actions">
@@ -304,6 +317,8 @@
         <button type="button" class="secondary" id="start-over">Start over</button>
       </div>
     </section>
+    </div>
+    </div>
   </main>
 
   <footer class="site-footer">

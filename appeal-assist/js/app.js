@@ -328,7 +328,7 @@
     h.setAttribute("tabindex", "-1");
     h.focus({ preventScroll: true });
     window.scrollTo(0, 0);
-    announce("Step " + (S.step + 1) + " of " + STEP_NAMES.length + ": " + STEP_NAMES[S.step]);
+    announce(S.step === 0 ? "Start" : "Step " + S.step + " of " + (STEP_NAMES.length - 1) + ": " + STEP_NAMES[S.step]);
   }
 
   function next() {
@@ -343,13 +343,21 @@
   function renderSteps() {
     var list = $("#step-list");
     list.innerHTML = "";
+    // The start screen is not a numbered step. Steps count from "Your plan".
     STEP_NAMES.forEach(function (name, i) {
-      var li = el("li", {}, (i + 1) + ". " + name);
+      if (i === 0) return;
+      var li = el("li", {});
+      li.appendChild(el("span", { "class": "step-num" }, String(i)));
+      li.appendChild(el("span", { "class": "step-name" }, name));
       if (i === S.step) li.setAttribute("aria-current", "step");
-      if (i < S.step) li.className = "complete";
+      if (i < S.step) {
+        li.className = "complete";
+        li.appendChild(el("span", { "class": "visually-hidden" }, " (done)"));
+      }
       list.appendChild(li);
     });
-    $("#step-count").textContent = S.step === 0 ? "" : "Step " + (S.step + 1) + " of " + STEP_NAMES.length;
+    document.documentElement.setAttribute("data-screen", S.step === 0 ? "start" : "flow");
+    $("#step-count").textContent = S.step === 0 ? "" : "Step " + S.step + " of " + (STEP_NAMES.length - 1);
     $("#progress-fill").style.width = (S.step / (STEP_NAMES.length - 1) * 100) + "%";
   }
 
