@@ -20,6 +20,8 @@
   --focus: #276b5f;
   --header-bg: rgba(246, 248, 246, 0.88);
   --shadow: 0 24px 48px -28px rgba(23, 58, 50, 0.28);
+  --glow: rgba(150, 205, 178, 0.28);
+  --glow-edge: rgba(190, 222, 205, 0.45);
   --font: "DM Sans", "Avenir Next", Avenir, "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-display: var(--font);
   --font-serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, "Times New Roman", serif;
@@ -47,6 +49,8 @@
     --focus: #7fd1bd;
     --header-bg: rgba(14, 22, 20, 0.85);
     --shadow: 0 24px 48px -28px rgba(0, 0, 0, 0.7);
+    --glow: rgba(52, 128, 104, 0.30);
+    --glow-edge: rgba(30, 78, 64, 0.38);
     color-scheme: dark;
   }
 }
@@ -71,6 +75,8 @@
   --focus: #7fd1bd;
   --header-bg: rgba(14, 22, 20, 0.85);
   --shadow: 0 24px 48px -28px rgba(0, 0, 0, 0.7);
+  --glow: rgba(52, 128, 104, 0.30);
+  --glow-edge: rgba(30, 78, 64, 0.38);
   color-scheme: dark;
 }
 
@@ -521,3 +527,14 @@ select {
   background-position: calc(100% - 23px) 50%, calc(100% - 17px) 50%;
   background-size: 6px 6px, 6px 6px; background-repeat: no-repeat;
 }
+
+/* Page backdrop: diffused green vignette. Fixed layer behind all content, so it does not scroll or repaint. */
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(60vmax 46vmax at 0% 0%, var(--glow), transparent 70%),
+    radial-gradient(54vmax 44vmax at 100% 100%, var(--glow), transparent 70%),
+    radial-gradient(ellipse at 50% 45%, transparent 35%, var(--glow-edge) 100%);
+}
+.site-footer { background: color-mix(in srgb, var(--bg-alt) 70%, transparent); }
+@media print { body::before { display: none; } }
