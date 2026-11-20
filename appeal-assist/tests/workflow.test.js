@@ -5,6 +5,11 @@ test('scope accepts planned Silver Leaf only and catches service contradictions'
  assert.equal(S.scopeError(base),'');
  for(const patch of [{careTiming:'received'},{careTiming:'unsure'},{scopeConfirmed:false},{details:{...base.details,planName:'Other Plan'}},{details:{...base.details,service:'Hospital stay already completed'}},{details:{...base.details,service:'Outpatient surgery'}},{details:{...base.details,service:'Outpatient hospital stay for observation'}},{details:{...base.details,service:'Outpatient admission'}},{details:{...base.details,service:'MRI of the knee'}},{inpatientConfirmed:false},{noticeBlocked:true}]) assert.ok(S.scopeError({...base,...patch}));
 });
+test('plan name accepts the picker label, the plan year and typing slips',()=>{
+ for(const n of ['Healthfirst Silver Leaf (2026)','Healthfirst Silver Leaf 2026','Healthfirst Silver Leaf Plan (2026)','Healthfirst  Silver Leaf.','healthfirst silver leaf plan']) assert.equal(S.scopeError({...base,details:{...base.details,planName:n}}),'',n);
+ for(const n of ['Healthfirst Silver Leaf (2025)','Healthfirst Gold Leaf','Other Plan']) assert.match(S.scopeError({...base,details:{...base.details,planName:n}}),/supports only/,n);
+ assert.match(S.scopeError({...base,details:{...base.details,planName:'  '}}),/^Enter the plan name/);
+});
 test('calendar dates: leap years, invalid dates, future and receipt order',()=>{
  assert.equal(S.validDate('2024-02-29'),true); assert.equal(S.validDate('2026-02-29'),false); assert.equal(S.validDate('2026-02-31'),false);
  assert.ok(S.dateError('2026-11-11','','2026-11-10')); assert.ok(S.dateError('2026-10-27','2026-10-26','2026-11-10'));

@@ -424,6 +424,9 @@
   }
 
   function renderNotice() {
+    // The plan picker starts on Silver Leaf, so its change event may never
+    // fire. Fill the plan name here too, unless the user typed their own.
+    if (!S.details.planName.trim() && planLabel(S.plan)) S.details.planName = planLabel(S.plan);
     $("#received-date").value = S.receivedDate;
     var sel = $("#sample");
     sel.innerHTML = "";
