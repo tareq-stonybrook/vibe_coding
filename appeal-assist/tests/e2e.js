@@ -94,7 +94,7 @@ async function run(label, contextOpts) {
   await page.goto(url);
   const scheme = contextOpts.colorScheme || "light";
   const bodyBg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-  check(`${label}: ${scheme} mode background follows the device`, bodyBg === (scheme === "dark" ? "rgb(14, 22, 20)" : "rgb(246, 248, 246)"), bodyBg);
+  check(`${label}: light background even when the device is in ${scheme} mode`, bodyBg === "rgb(246, 248, 246)", bodyBg);
   await contrastCheck(page, label, "start page");
   check(`${label}: page title is the app name`, (await page.title()) === "Appeal Assist");
   check(`${label}: no test site or developer package link`, !(await page.$("a[href*='developer-package']")) && !/chatgpt\.site/.test(await page.content()));
