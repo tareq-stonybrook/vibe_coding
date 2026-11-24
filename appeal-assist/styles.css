@@ -24,7 +24,7 @@
   --glow-edge: rgba(190, 222, 205, 0.45);
   --font: "DM Sans", "Avenir Next", Avenir, "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-display: var(--font);
-  --font-serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, "Times New Roman", serif;
+  --font-serif: "DM Serif Display", "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, "Times New Roman", serif;
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 @media (prefers-color-scheme: dark) {
@@ -426,8 +426,8 @@ main { padding-block: 0 72px; }
   color: var(--link); font-size: .72rem; font-weight: 600; letter-spacing: .14em; text-transform: uppercase;
 }
 .hero .eyebrow::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--btn); }
-.brand-title { font-family: var(--font-serif); font-weight: 700; font-size: clamp(2.6rem, 5.4vw, 4.4rem); line-height: 1.06; letter-spacing: -0.03em; max-width: none; }
-.brand-title em { color: var(--link); font-style: italic; font-weight: 600; }
+.brand-title { font-family: var(--font-serif); font-weight: 400; font-size: clamp(2.6rem, 5.4vw, 4.4rem); line-height: 1.06; letter-spacing: -0.03em; max-width: none; }
+.brand-title em { color: var(--link); font-style: italic; font-weight: 400; }
 .tagline { color: var(--muted); font-size: 1.2rem; line-height: 1.6; margin-top: 26px; max-width: 34rem; }
 .journey-overview { gap: 14px; margin: 44px 0 0; }
 .journey-overview > div { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px 18px 16px; }
